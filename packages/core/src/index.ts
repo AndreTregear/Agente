@@ -74,3 +74,9 @@ export type {
 // ── Platform ──
 export { startPlatform } from './platform.js';
 export type { PlatformOptions } from './platform.js';
+
+// ── Voice (WhatsApp calls + fast voice pipeline) ──
+export { createCallHandler } from './voice/call-handler.js';
+export type { WACallEvent, CallHandlerOptions } from './voice/call-handler.js';
+export { createVoicePipeline } from './voice/fast-voice-pipeline.js';
+export type { VoicePipelineConfig, VoicePipelineResult } from './voice/fast-voice-pipeline.js';
