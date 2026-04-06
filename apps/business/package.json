@@ -1,0 +1,11 @@
+{
+  "name": "@yaya/business",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Yaya Business WhatsApp bot backend — stub, source at ~/yaya_business/autobot",
+  "scripts": {
+    "build": "echo 'stub — source at ~/yaya_business/autobot'",
+    "dev": "echo 'stub — run from ~/yaya_business/autobot'"
+  }
+}

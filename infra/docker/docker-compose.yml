@@ -1,0 +1,399 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-yaya_prod}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-yaya_s3cur3_db_2024!}
+      POSTGRES_DB: ${POSTGRES_DB:-yaya_business}
+    ports:
+    - 127.0.0.1:5432:5432
+    volumes:
+    - pgdata:/var/lib/postgresql/data
+    - ${YAYA_BUSINESS_DIR:-/home/yaya/yaya_business}/autobot/scripts/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${POSTGRES_USER:-yaya_prod}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+    - yaya-net
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+    - 127.0.0.1:6379:6379
+    volumes:
+    - redisdata:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+    - yaya-net
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-yaya_s3_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-yaya_s3cur3_m1n10_2024!}
+    ports:
+    - 127.0.0.1:9000:9000
+    - 127.0.0.1:9001:9001
+    volumes:
+    - miniodata:/data
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    healthcheck:
+      test:
+      - CMD
+      - mc
+      - ready
+      - local
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    extra_hosts:
+    - auth.yaya.sh:host-gateway
+    networks:
+    - yaya-net
+  vllm:
+    image: vllm/vllm-openai:qwen3_5
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            count: all
+            capabilities:
+            - gpu
+    volumes:
+    - ${MODEL_PATH:-/home/yaya/models/Qwen3.5-27B-AWQ}:/model:ro
+    ports:
+    - 127.0.0.1:8000:8000
+    command: '--model /model --served-model-name qwen3.5-27b --host 0.0.0.0 --port
+      8000 --tensor-parallel-size 2 --max-model-len 65536 --gpu-memory-utilization
+      0.90 --hf-overrides {"rope_scaling":{"rope_type":"yarn","factor":2.0,"original_max_position_embeddings":32768}}
+      --quantization awq_marlin --dtype float16 --enable-auto-tool-choice --tool-call-parser
+      qwen3_coder --reasoning-parser qwen3 --enable-prefix-caching --enable-chunked-prefill
+      --max-num-seqs 8 --api-key ${AI_API_KEY:-megustalaia}
+
+      '
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - 'curl -sf -H ''Authorization: Bearer ${AI_API_KEY:-megustalaia}'' http://localhost:8000/v1/models
+        || exit 1'
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 180s
+    ipc: host
+    networks:
+    - yaya-net
+  whisper:
+    image: fedirz/faster-whisper-server:latest-cuda
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            device_ids:
+            - '0'
+            capabilities:
+            - gpu
+    ports:
+    - 127.0.0.1:9300:8000
+    environment:
+      WHISPER__MODEL: large-v3-turbo
+      WHISPER__LANGUAGE: es
+      WHISPER__DEVICE: cuda
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+        || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+    - yaya-net
+  kokoro-tts:
+    image: ghcr.io/remsky/kokoro-fastapi-gpu:latest
+    restart: unless-stopped
+    ports:
+    - 127.0.0.1:9400:8880
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+        reservations:
+          devices:
+          - driver: nvidia
+            device_ids:
+            - '1'
+            capabilities:
+            - gpu
+    environment:
+      CUDA_VISIBLE_DEVICES: '0'
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - curl -sf http://localhost:8880/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+    - yaya-net
+  calcom:
+    image: calcom.docker.scarf.sh/calcom/cal.com:latest
+    restart: unless-stopped
+    ports:
+    - 127.0.0.1:3002:3000
+    environment:
+      DATABASE_URL: postgresql://${CALCOM_DB_USER:-calcom}:${CALCOM_DB_PASS:-calcom_s3cur3}@postgres:5432/calcom_db
+      DATABASE_DIRECT_URL: postgresql://${CALCOM_DB_USER:-calcom}:${CALCOM_DB_PASS:-calcom_s3cur3}@postgres:5432/calcom_db
+      NEXTAUTH_SECRET: ${CALCOM_SECRET:-yaya-calcom-secret-2026-change-me}
+      NEXT_PUBLIC_WEBAPP_URL: ${CALCOM_URL:-http://localhost:3002}
+      NEXT_PUBLIC_API_V2_URL: ${CALCOM_URL:-http://localhost:3002}/api/v2
+      CALENDSO_ENCRYPTION_KEY: ${CALCOM_ENCRYPTION_KEY:-yaya-calcom-enc-key-32chars!!!!!}
+      NODE_ENV: production
+      OIDC_ISSUER_URL: https://auth.yaya.sh/application/o/calcom/
+      OIDC_CLIENT_ID: k6AjIiIpvmCO4L9xoNbNJIbI3qydlYGgNwoywb9U
+      OIDC_CLIENT_SECRET: yZ1ITQ2RIDuKF57x5aTY9oRZBJUVMBPVtWxV7hG5Vulpwergrs0QSXE36fvWEPjjdQBdDVgoTOxQxfO2aGcBToPVyRsRFdxnIeCq1LKQREfSWjp4oXmrg1syJROAB1wa
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    depends_on:
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+    - auth.yaya.sh:host-gateway
+    networks:
+    - yaya-net
+  lago-api:
+    image: getlago/api:v1.20.1
+    restart: unless-stopped
+    ports:
+    - 127.0.0.1:3010:3000
+    env_file:
+    - ${YAYA_BUSINESS_DIR:-/home/yaya/yaya_business}/autobot/.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-yaya_prod}:${POSTGRES_PASSWORD:-yaya_s3cur3_db_2024!}@postgres:5432/lago_db
+      REDIS_URL: redis://redis:6379/1
+      LAGO_API_URL: ${LAGO_API_URL:-http://localhost:3010}
+      SECRET_KEY_BASE: ${LAGO_SECRET:-yaya-lago-secret-base-2026-production-key-change-me-please}
+      LAGO_RSA_PRIVATE_KEY: ${LAGO_RSA_PRIVATE_KEY}
+      RAILS_ENV: production
+      RAILS_LOG_TO_STDOUT: 'true'
+      LAGO_DISABLE_SIGNUP: 'false'
+      ENCRYPTION_PRIMARY_KEY: ${LAGO_ENC_PRIMARY:-yaya-lago-primary-key-32chars!!!!}
+      ENCRYPTION_DETERMINISTIC_KEY: ${LAGO_ENC_DETERMINISTIC:-yaya-lago-det-key-32-chars!!!!!!}
+      ENCRYPTION_KEY_DERIVATION_SALT: ${LAGO_ENC_SALT:-yaya-lago-salt-32-characters!!!!!}
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+    - yaya-net
+  lago-worker:
+    image: getlago/api:v1.20.1
+    restart: unless-stopped
+    command:
+    - ./scripts/start.worker.sh
+    env_file:
+    - ${YAYA_BUSINESS_DIR:-/home/yaya/yaya_business}/autobot/.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-yaya_prod}:${POSTGRES_PASSWORD:-yaya_s3cur3_db_2024!}@postgres:5432/lago_db
+      REDIS_URL: redis://redis:6379/1
+      SECRET_KEY_BASE: ${LAGO_SECRET:-yaya-lago-secret-base-2026-production-key-change-me-please}
+      LAGO_RSA_PRIVATE_KEY: ${LAGO_RSA_PRIVATE_KEY}
+      RAILS_ENV: production
+      ENCRYPTION_PRIMARY_KEY: ${LAGO_ENC_PRIMARY:-yaya-lago-primary-key-32chars!!!!}
+      ENCRYPTION_DETERMINISTIC_KEY: ${LAGO_ENC_DETERMINISTIC:-yaya-lago-det-key-32-chars!!!!!!}
+      ENCRYPTION_KEY_DERIVATION_SALT: ${LAGO_ENC_SALT:-yaya-lago-salt-32-characters!!!!!}
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    depends_on:
+      lago-api:
+        condition: service_started
+    networks:
+    - yaya-net
+  lago-front:
+    image: getlago/front:v1.20.1
+    restart: unless-stopped
+    ports:
+    - 127.0.0.1:8080:80
+    environment:
+      API_URL: ${LAGO_API_URL:-http://localhost:3010}
+      APP_ENV: production
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    depends_on:
+      lago-api:
+        condition: service_started
+    networks:
+    - yaya-net
+  metabase:
+    image: metabase/metabase:latest
+    restart: unless-stopped
+    ports:
+    - 127.0.0.1:3003:3000
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase_db
+      MB_DB_PORT: 5432
+      MB_DB_USER: ${POSTGRES_USER:-yaya_prod}
+      MB_DB_PASS: ${POSTGRES_PASSWORD:-yaya_s3cur3_db_2024!}
+      MB_DB_HOST: postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    depends_on:
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+    - auth.yaya.sh:host-gateway
+    networks:
+    - yaya-net
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2025.2
+    restart: unless-stopped
+    command: server
+    ports:
+    - 127.0.0.1:9090:9000
+    - 127.0.0.1:9443:9443
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_REDIS__DB: 3
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__PORT: 5432
+      AUTHENTIK_POSTGRESQL__NAME: authentik_db
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: authentik_yaya_s3cur3_2026
+      AUTHENTIK_SECRET_KEY: 4680e6095d0244ae25360c32e02c95562819b3282534c0e28b6bd67836daae4d
+      AUTHENTIK_ERROR_REPORTING__ENABLED: 'false'
+      AUTHENTIK_DISABLE_UPDATE_CHECK: 'false'
+      AUTHENTIK_DISABLE_STARTUP_ANALYTICS: 'true'
+      AUTHENTIK_DEFAULT_USER_CHANGE_NAME: 'true'
+      AUTHENTIK_DEFAULT_USER_CHANGE_EMAIL: 'true'
+      AUTHENTIK_DEFAULT_USER_CHANGE_USERNAME: 'true'
+    volumes:
+    - authentik_media:/media
+    - authentik_templates:/templates
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+    - yaya-net
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2025.2
+    restart: unless-stopped
+    command: worker
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_REDIS__DB: 3
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__PORT: 5432
+      AUTHENTIK_POSTGRESQL__NAME: authentik_db
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: authentik_yaya_s3cur3_2026
+      AUTHENTIK_SECRET_KEY: 4680e6095d0244ae25360c32e02c95562819b3282534c0e28b6bd67836daae4d
+      AUTHENTIK_ERROR_REPORTING__ENABLED: 'false'
+      AUTHENTIK_DISABLE_STARTUP_ANALYTICS: 'true'
+    volumes:
+    - authentik_media:/media
+    - authentik_templates:/templates
+    - authentik_certs:/certs
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+    - yaya-net
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-yaya_prod}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-yaya_s3cur3_db_2024!}
+      PGDATABASE: ${POSTGRES_DB:-yaya_business}
+    volumes:
+    - ${BACKUP_DIR:-/home/yaya/yaya_business/backups}:/backups
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    entrypoint: "sh -c '\n  apk add --no-cache dcron &&\n  echo \"0 3 * * * pg_dump\
+      \ -Fc > /backups/yaya_$$(date +\\%Y\\%m\\%d_\\%H\\%M\\%S).dump && find /backups\
+      \ -name yaya_*.dump -mtime +7 -delete 2>&1\" | crontab - &&\n  echo \"[backup]\
+      \ Daily at 3am UTC\" &&\n  crond -f -l 2\n'\n"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+    - yaya-net
+networks:
+  yaya-net:
+    driver: bridge
+volumes:
+  pgdata:
+    external: true
+    name: autobot_pgdata
+  redisdata:
+    external: true
+    name: autobot_redisdata
+  miniodata:
+    external: true
+    name: autobot_miniodata
+  authentik_media: null
+  authentik_templates: null
+  authentik_certs: null

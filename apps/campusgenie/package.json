@@ -1,0 +1,11 @@
+{
+  "name": "@yaya/campusgenie",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CampusGenie university agent web UI — to be built",
+  "scripts": {
+    "build": "echo 'planned — university agent web UI'",
+    "dev": "echo 'planned'"
+  }
+}

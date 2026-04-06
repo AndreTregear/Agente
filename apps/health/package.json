@@ -1,0 +1,11 @@
+{
+  "name": "@yaya/health",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Yaya Health WhatsApp bot backend — stub, source at ~/yaya_health",
+  "scripts": {
+    "build": "echo 'stub — source at ~/yaya_health'",
+    "dev": "echo 'stub — run from ~/yaya_health'"
+  }
+}
