@@ -21,7 +21,7 @@ export function getAvailableModels(): ModelDefinition[] {
       apiKey: config.vllm.apiKey,
       model: config.vllm.model,
       tag: 'local',
-      isDefault: true,
+      isDefault: false, // local is fallback only — HPC is primary
     },
   ];
 
@@ -76,7 +76,7 @@ export async function getModelWithFallback(
     }
   }
 
-  // Try HPC models first (faster, more powerful)
+  // Cloud-first: try HPC models first (more powerful, primary)
   const hpcModels = models.filter((m) => m.tag === 'hpc');
   for (const hpc of hpcModels) {
     if (await isModelReachable(hpc)) {
@@ -84,11 +84,12 @@ export async function getModelWithFallback(
     }
   }
 
-  // Fall back to local
+  // Fall back to local only when cloud is offline
   const local = models.find((m) => m.tag === 'local');
-  if (local) return local;
+  if (local && (await isModelReachable(local))) return local;
 
-  return getDefaultModel();
+  // Last resort: return first HPC even if unreachable (caller handles error)
+  return hpcModels[0] ?? getDefaultModel();
 }
 
 /**

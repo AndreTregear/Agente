@@ -185,8 +185,8 @@ export function classifyRoute(opts: {
   // Owner/CEO tasks benefit from HPC accuracy
   if (opts.isOwner) return 'hpc';
 
-  // Default: local for speed on customer-facing chats
-  return 'local';
+  // Default: cloud (HPC) first — fall back to local only when HPC is offline
+  return 'hpc';
 }
 
 // ── AI SDK Provider Factory ──
@@ -270,9 +270,9 @@ export async function getRoutedModel(opts: Parameters<typeof classifyRoute>[0]) 
       logger.warn({ target, fallback }, `${target} unhealthy, falling back to ${fallback}`);
       target = fallback;
     } else {
-      // Both down — try local anyway (it's on the same machine)
-      logger.error('Both backends unhealthy, trying local as last resort');
-      target = 'local';
+      // Both down — try HPC anyway (cloud-first)
+      logger.error('Both backends unhealthy, trying hpc as last resort');
+      target = 'hpc';
     }
   }
 

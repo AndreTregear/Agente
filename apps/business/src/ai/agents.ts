@@ -53,13 +53,14 @@ export const businessMetrics = createTool({
     if (!tenantId) return { error: 'No tenant configured' };
 
     const intervalMap: Record<string, string> = { week: '7 days', month: '30 days', today: '0 days' };
-    const interval = intervalMap[period] || '0 days';
-    const useInterval = period === 'week' || period === 'month';
+    const p = period ?? 'today';
+    const interval = intervalMap[p] || '0 days';
+    const useInterval = p === 'week' || p === 'month';
     const dateFilter = useInterval
       ? 'o.created_at >= NOW() - $2::interval'
       : 'o.created_at::date = CURRENT_DATE';
     const dateParams = useInterval ? [tenantId, interval] : [tenantId];
-    const periodLabel = period === 'week' ? 'ultimos 7 dias' : period === 'month' ? 'ultimos 30 dias' : 'hoy';
+    const periodLabel = p === 'week' ? 'ultimos 7 dias' : p === 'month' ? 'ultimos 30 dias' : 'hoy';
 
     // For payment query, tenant_id is $1 and interval (if used) shifts to $2
     const paymentDateFilter = useInterval
