@@ -1,0 +1,1904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuantBot — AI-Powered Financial Intelligence | Agentic FSU</title>
+    <meta name="description" content="QuantBot is a multi-agent AI system for financial analysis, built by Agentic FSU under Dr. Liu at Florida State University.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* ═══════════════════════════════════════════
+           CSS RESET & VARIABLES
+           ═══════════════════════════════════════════ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #06080f;
+            --bg-secondary: #0b0f1a;
+            --bg-card: #0d1220;
+            --bg-card-hover: #111829;
+            --border: #1a2240;
+            --border-glow: #2563eb33;
+            --text-primary: #e8ecf4;
+            --text-secondary: #8892a8;
+            --text-muted: #5a6380;
+            --accent: #3b82f6;
+            --accent-bright: #60a5fa;
+            --accent-glow: #3b82f620;
+            --gold: #f59e0b;
+            --gold-dim: #f59e0b40;
+            --emerald: #10b981;
+            --purple: #8b5cf6;
+            --rose: #f43f5e;
+            --cyan: #06b6d4;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ═══════════════════════════════════════════
+           SCROLLBAR
+           ═══════════════════════════════════════════ */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+        /* ═══════════════════════════════════════════
+           NAVIGATION
+           ═══════════════════════════════════════════ */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(20px);
+            background: #06080fcc;
+            border-bottom: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        nav.scrolled {
+            padding: 0.7rem 2rem;
+            background: #06080fee;
+        }
+
+        .nav-logo {
+            font-size: 1.3rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--accent-bright), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-logo span {
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--cyan), var(--emerald));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links { display: flex; gap: 2rem; list-style: none; }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            transition: color 0.2s;
+            position: relative;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 1.5px;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+
+        .nav-links a:hover { color: var(--text-primary); }
+        .nav-links a:hover::after { width: 100%; }
+
+        .nav-cta {
+            padding: 0.5rem 1.2rem;
+            background: var(--accent);
+            color: #fff !important;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+            -webkit-text-fill-color: #fff !important;
+        }
+
+        .nav-cta::after { display: none !important; }
+        .nav-cta:hover { background: #2563eb; transform: translateY(-1px); box-shadow: 0 4px 20px #3b82f640; }
+
+        .mobile-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* ═══════════════════════════════════════════
+           HERO SECTION
+           ═══════════════════════════════════════════ */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .hero-grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 30%, transparent 100%);
+        }
+
+        .hero-glow {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        .hero-glow-1 { top: -200px; left: 20%; background: var(--accent); }
+        .hero-glow-2 { bottom: -200px; right: 15%; background: var(--purple); }
+        .hero-glow-3 { top: 30%; left: 50%; transform: translateX(-50%); background: var(--emerald); opacity: 0.06; width: 800px; height: 400px; }
+
+        #particles-canvas {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            max-width: 900px;
+            padding: 0 2rem;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.8s ease 0.2s both;
+        }
+
+        .hero-badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--emerald);
+            animation: pulse-dot 2s ease infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { box-shadow: 0 0 0 0 #10b98160; }
+            50% { box-shadow: 0 0 0 6px #10b98100; }
+        }
+
+        .hero h1 {
+            font-size: clamp(3rem, 7vw, 5.5rem);
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            line-height: 1.05;
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.8s ease 0.4s both;
+        }
+
+        .hero h1 .gradient-text {
+            background: linear-gradient(135deg, var(--accent-bright) 0%, #a78bfa 50%, var(--cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero h1 .gradient-text-bot {
+            background: linear-gradient(135deg, var(--cyan) 0%, var(--emerald) 50%, #34d399 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: none;
+            position: relative;
+        }
+
+        .hero h1 .gradient-text-bot::after {
+            content: 'Bot';
+            position: absolute;
+            left: 0;
+            top: 0;
+            background: linear-gradient(135deg, var(--cyan), var(--emerald));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: blur(12px);
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .hero-subtitle {
+            font-size: clamp(1rem, 2vw, 1.25rem);
+            color: var(--text-secondary);
+            max-width: 650px;
+            margin: 0 auto 2.5rem;
+            line-height: 1.7;
+            animation: fadeInUp 0.8s ease 0.6s both;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: fadeInUp 0.8s ease 0.8s both;
+        }
+
+        .btn {
+            padding: 0.8rem 2rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.25s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #6366f1);
+            color: #fff;
+            box-shadow: 0 4px 20px #3b82f630;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px #3b82f650;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-ghost:hover {
+            color: var(--text-primary);
+            border-color: var(--text-muted);
+            background: #ffffff08;
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 3rem;
+            justify-content: center;
+            margin-top: 4rem;
+            animation: fadeInUp 0.8s ease 1s both;
+        }
+
+        .hero-stat {
+            text-align: center;
+        }
+
+        .hero-stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            background: linear-gradient(135deg, var(--text-primary), var(--accent-bright));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 0.25rem;
+        }
+
+        .scroll-indicator {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            animation: fadeInUp 0.8s ease 1.2s both;
+        }
+
+        .scroll-indicator span {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .scroll-line {
+            width: 1px;
+            height: 40px;
+            background: linear-gradient(to bottom, var(--accent), transparent);
+            animation: scroll-pulse 2s ease infinite;
+        }
+
+        @keyframes scroll-pulse {
+            0% { opacity: 1; transform: scaleY(1); }
+            50% { opacity: 0.3; transform: scaleY(0.6); }
+            100% { opacity: 1; transform: scaleY(1); }
+        }
+
+        /* ═══════════════════════════════════════════
+           SECTION COMMONS
+           ═══════════════════════════════════════════ */
+        section {
+            padding: 7rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+
+        .section-label::before {
+            content: '';
+            width: 20px;
+            height: 1px;
+            background: var(--accent);
+        }
+
+        .section-title {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 1rem;
+            line-height: 1.15;
+        }
+
+        .section-desc {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            line-height: 1.7;
+            margin-bottom: 3.5rem;
+        }
+
+        /* ═══════════════════════════════════════════
+           ABOUT / VISION
+           ═══════════════════════════════════════════ */
+        .about {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .about-visual {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 24px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            box-shadow: 0 0 60px #3b82f615;
+            background: var(--bg-card);
+        }
+
+        .about-visual img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .about-text .section-desc { margin-bottom: 2rem; }
+
+        .about-features {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .about-feature {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+            padding: 1rem;
+            border-radius: 10px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .about-feature:hover {
+            border-color: var(--border-glow);
+            background: var(--bg-card-hover);
+        }
+
+        .about-feature-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 1rem;
+        }
+
+        .about-feature h4 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .about-feature p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* ═══════════════════════════════════════════
+           ARCHITECTURE
+           ═══════════════════════════════════════════ */
+        .arch-pipeline {
+            display: flex;
+            gap: 0;
+            align-items: stretch;
+            overflow-x: auto;
+            padding: 2rem 0;
+            position: relative;
+        }
+
+        .arch-stage {
+            flex: 1;
+            min-width: 200px;
+            padding: 2rem 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            position: relative;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .arch-stage:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 40px #3b82f615;
+        }
+
+        .arch-connector {
+            display: flex;
+            align-items: center;
+            padding: 0 0.5rem;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .arch-stage-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--accent);
+            letter-spacing: 0.1em;
+            margin-bottom: 0.75rem;
+        }
+
+        .arch-stage-icon {
+            font-size: 1.8rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .arch-stage h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .arch-stage p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            flex-grow: 1;
+        }
+
+        .arch-stage-tag {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.2rem 0.6rem;
+            background: var(--accent-glow);
+            border: 1px solid #3b82f630;
+            border-radius: 4px;
+            font-size: 0.68rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent-bright);
+        }
+
+        /* ═══════════════════════════════════════════
+           AGENTS
+           ═══════════════════════════════════════════ */
+        .agents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .agent-card {
+            padding: 2rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .agent-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .agent-card:hover {
+            border-color: var(--border-glow);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 40px #00000030;
+        }
+
+        .agent-card:hover::before { opacity: 1; }
+
+        .agent-card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .agent-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        .agent-card h3 {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .agent-card .agent-role {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .agent-card p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.65;
+        }
+
+        .agent-tools {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-top: 1rem;
+        }
+
+        .agent-tool-tag {
+            padding: 0.2rem 0.55rem;
+            background: #ffffff06;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 0.68rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-muted);
+        }
+
+        /* ═══════════════════════════════════════════
+           RESEARCH SECTION
+           ═══════════════════════════════════════════ */
+        .research-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .research-card {
+            padding: 2rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .research-card:hover {
+            border-color: var(--border-glow);
+            transform: translateY(-3px);
+        }
+
+        .research-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .research-card h3 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 0.6rem;
+        }
+
+        .research-card p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.65;
+        }
+
+        /* ═══════════════════════════════════════════
+           TECH STACK
+           ═══════════════════════════════════════════ */
+        .tech-categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .tech-category {
+            padding: 1.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .tech-category h3 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tech-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .tech-tag {
+            padding: 0.35rem 0.75rem;
+            background: #ffffff05;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .tech-tag:hover {
+            border-color: var(--accent);
+            color: var(--accent-bright);
+            background: var(--accent-glow);
+        }
+
+        /* ═══════════════════════════════════════════
+           CONTRIBUTORS / THE MAGICIANS
+           ═══════════════════════════════════════════ */
+        .contributors-section {
+            position: relative;
+        }
+
+        .contributors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .contributor-card {
+            padding: 1.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            display: flex;
+            gap: 1.25rem;
+            align-items: flex-start;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .contributor-card:hover {
+            border-color: var(--border-glow);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 40px #00000020;
+        }
+
+        .contributor-rank {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            padding: 0.15rem 0.5rem;
+            background: #ffffff05;
+            border-radius: 4px;
+        }
+
+        .contributor-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            overflow: hidden;
+            flex-shrink: 0;
+            border: 2px solid var(--border);
+        }
+
+        .contributor-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .contributor-info { flex: 1; min-width: 0; }
+
+        .contributor-info h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.1rem;
+        }
+
+        .contributor-handle {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 0.6rem;
+        }
+
+        .contributor-handle a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .contributor-handle a:hover { color: var(--accent-bright); }
+
+        .contributor-focus {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 0.75rem;
+        }
+
+        .contributor-bar-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .contributor-bar {
+            flex: 1;
+            height: 6px;
+            background: #ffffff08;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .contributor-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 1.5s ease;
+            width: 0;
+        }
+
+        .contributor-bar-fill.animated { /* width set inline */ }
+
+        .contributor-pct {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            min-width: 3.5rem;
+            text-align: right;
+        }
+
+        /* Leader card (Dr. Liu) */
+        .leader-card {
+            grid-column: 1 / -1;
+            padding: 2.5rem;
+            background: linear-gradient(135deg, var(--bg-card) 0%, #111830 100%);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .leader-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--gold), var(--accent), var(--purple));
+        }
+
+        .leader-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            overflow: hidden;
+            flex-shrink: 0;
+            border: 2px solid var(--gold);
+            box-shadow: 0 0 40px var(--gold-dim);
+        }
+
+        .leader-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .leader-info h3 {
+            font-size: 1.3rem;
+            font-weight: 800;
+            margin-bottom: 0.2rem;
+        }
+
+        .leader-role {
+            font-size: 0.85rem;
+            color: var(--gold);
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+        }
+
+        .leader-info p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            max-width: 600px;
+        }
+
+        /* ═══════════════════════════════════════════
+           TERMINAL-STYLE DEMO
+           ═══════════════════════════════════════════ */
+        .terminal-section { text-align: center; }
+
+        .terminal {
+            max-width: 700px;
+            margin: 0 auto;
+            background: #0a0e18;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            text-align: left;
+        }
+
+        .terminal-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: #0d1220;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .terminal-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .terminal-dot:nth-child(1) { background: #f43f5e; }
+        .terminal-dot:nth-child(2) { background: #f59e0b; }
+        .terminal-dot:nth-child(3) { background: #10b981; }
+
+        .terminal-title {
+            flex: 1;
+            text-align: center;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .terminal-body {
+            padding: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            line-height: 1.8;
+            color: var(--text-secondary);
+            min-height: 200px;
+        }
+
+        .terminal-line { margin-bottom: 0.25rem; }
+
+        .t-prompt { color: var(--emerald); }
+        .t-cmd { color: var(--text-primary); }
+        .t-comment { color: var(--text-muted); }
+        .t-output { color: var(--accent-bright); }
+        .t-gold { color: var(--gold); }
+        .t-success { color: var(--emerald); }
+        .t-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 15px;
+            background: var(--accent);
+            vertical-align: text-bottom;
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* ═══════════════════════════════════════════
+           CTA SECTION
+           ═══════════════════════════════════════════ */
+        .cta-section {
+            text-align: center;
+            position: relative;
+        }
+
+        .cta-glow {
+            position: absolute;
+            width: 500px;
+            height: 300px;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.08;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            pointer-events: none;
+        }
+
+        .cta-section h2 {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .cta-section p {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            margin-bottom: 2.5rem;
+            position: relative;
+        }
+
+        .cta-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        /* ═══════════════════════════════════════════
+           FOOTER
+           ═══════════════════════════════════════════ */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        .footer-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .footer-brand {
+            font-weight: 700;
+            font-size: 1rem;
+            background: linear-gradient(135deg, var(--accent-bright), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 1.5rem;
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.8rem;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover { color: var(--text-primary); }
+
+        .footer-copy {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* ═══════════════════════════════════════════
+           ANIMATIONS
+           ═══════════════════════════════════════════ */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ═══════════════════════════════════════════
+           RESPONSIVE
+           ═══════════════════════════════════════════ */
+        @media (max-width: 900px) {
+            .about { grid-template-columns: 1fr; }
+            .about-visual { max-width: 350px; margin: 0 auto; }
+            .contributors-grid { grid-template-columns: 1fr; }
+            .leader-card { flex-direction: column; text-align: center; }
+        }
+
+        @media (max-width: 700px) {
+            nav { padding: 0.8rem 1rem; }
+            .nav-links { display: none; }
+            .nav-links.open {
+                display: flex;
+                flex-direction: column;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: #06080fee;
+                padding: 1.5rem;
+                border-bottom: 1px solid var(--border);
+                gap: 1rem;
+            }
+            .mobile-toggle { display: block; }
+            section { padding: 4rem 1.25rem; }
+            .hero-stats { flex-direction: column; gap: 1.5rem; }
+            .arch-pipeline { flex-direction: column; }
+            .arch-connector { transform: rotate(90deg); padding: 0.5rem 0; justify-content: center; }
+            .agents-grid { grid-template-columns: 1fr; }
+            .contributor-card { flex-direction: column; text-align: center; align-items: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══════════ NAVIGATION ═══════════ -->
+    <nav id="navbar">
+        <div class="nav-logo">Quant<span>Bot</span></div>
+        <ul class="nav-links" id="navLinks">
+            <li><a href="#about">About</a></li>
+            <li><a href="#architecture">Architecture</a></li>
+            <li><a href="#agents">Agents</a></li>
+            <li><a href="#research">Research</a></li>
+            <li><a href="#team">Team</a></li>
+            <li><a href="https://github.com/AgenticFSU/QuantBot" target="_blank" class="nav-cta">GitHub</a></li>
+        </ul>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">&#9776;</button>
+    </nav>
+
+    <!-- ═══════════ HERO ═══════════ -->
+    <section class="hero">
+        <div class="hero-grid"></div>
+        <div class="hero-glow hero-glow-1"></div>
+        <div class="hero-glow hero-glow-2"></div>
+        <div class="hero-glow hero-glow-3"></div>
+        <canvas id="particles-canvas"></canvas>
+
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span class="hero-badge-dot"></span>
+                Agentic FSU &mdash; Florida State University
+            </div>
+            <h1>
+                <span class="gradient-text">Quant</span><span class="gradient-text-bot">Bot</span><br>
+                AI-Powered Financial<br>Intelligence
+            </h1>
+            <p class="hero-subtitle">
+                A multi-agent AI system that synthesizes real-time market data, SEC filings,
+                and news sentiment into institutional-grade investment analysis &mdash;
+                built by student researchers under Dr. Liu.
+            </p>
+            <div class="hero-actions">
+                <a href="https://github.com/AgenticFSU/QuantBot" target="_blank" class="btn btn-primary">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                    View on GitHub
+                </a>
+                <a href="#architecture" class="btn btn-ghost">Explore the System &darr;</a>
+            </div>
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <div class="hero-stat-value" data-count="5">0</div>
+                    <div class="hero-stat-label">AI Agents</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-value" data-count="63">0</div>
+                    <div class="hero-stat-label">Commits</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-value" data-count="6">0</div>
+                    <div class="hero-stat-label">Contributors</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-value" data-suffix="K+" data-count="117">0</div>
+                    <div class="hero-stat-label">Lines of Python</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="scroll-indicator">
+            <span>Scroll</span>
+            <div class="scroll-line"></div>
+        </div>
+    </section>
+
+    <!-- ═══════════ ABOUT ═══════════ -->
+    <section id="about">
+        <div class="about reveal">
+            <div class="about-visual">
+                <img src="image.jpg" alt="QuantBot">
+            </div>
+            <div class="about-text">
+                <div class="section-label">About QuantBot</div>
+                <h2 class="section-title">Democratizing Institutional-Grade Analysis</h2>
+                <p class="section-desc">
+                    QuantBot leverages the crewAI framework to orchestrate a hierarchy of specialized AI agents
+                    that collaborate to synthesize complex market data into actionable investment insights &mdash;
+                    the same caliber of analysis previously available only to Wall Street firms.
+                </p>
+                <div class="about-features">
+                    <div class="about-feature">
+                        <div class="about-feature-icon" style="background: #3b82f618; color: var(--accent-bright);">&#128373;</div>
+                        <div>
+                            <h4>Hierarchical Multi-Agent System</h4>
+                            <p>Five specialized agents collaborate under a GPT-4.1 manager using crewAI's hierarchical process mode with memory persistence.</p>
+                        </div>
+                    </div>
+                    <div class="about-feature">
+                        <div class="about-feature-icon" style="background: #10b98118; color: var(--emerald);">&#128200;</div>
+                        <div>
+                            <h4>Real-Time Financial Data</h4>
+                            <p>OHLC data, RSI calculations, intraday returns, earnings transcripts, and SEC 10-K filings &mdash; all automated.</p>
+                        </div>
+                    </div>
+                    <div class="about-feature">
+                        <div class="about-feature-icon" style="background: #8b5cf618; color: var(--purple);">&#129504;</div>
+                        <div>
+                            <h4>NLP Sentiment Pipeline</h4>
+                            <p>Dual-source news analysis combining Alpha Vantage sentiment with SERP-based scraping, summarization, and zero-shot classification.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ ARCHITECTURE ═══════════ -->
+    <section id="architecture">
+        <div class="reveal">
+            <div class="section-label">System Architecture</div>
+            <h2 class="section-title">The Pipeline</h2>
+            <p class="section-desc">From raw ticker input to institutional-grade investment reports, QuantBot flows through a structured multi-stage pipeline.</p>
+        </div>
+        <div class="arch-pipeline reveal">
+            <div class="arch-stage">
+                <div class="arch-stage-num">STAGE 01</div>
+                <div class="arch-stage-icon">&#128221;</div>
+                <h3>Ticker Input</h3>
+                <p>User provides stock tickers. Validated against a comprehensive database of all tradeable symbols.</p>
+                <span class="arch-stage-tag">tickers.json</span>
+            </div>
+            <div class="arch-connector">&rarr;</div>
+            <div class="arch-stage">
+                <div class="arch-stage-num">STAGE 02</div>
+                <div class="arch-stage-icon">&#128230;</div>
+                <h3>Data Retrieval</h3>
+                <p>SEC 10-K filings downloaded, parsed, and chunked. OHLC, RSI, and earnings data fetched via Alpha Vantage.</p>
+                <span class="arch-stage-tag">SEC + API</span>
+            </div>
+            <div class="arch-connector">&rarr;</div>
+            <div class="arch-stage">
+                <div class="arch-stage-num">STAGE 03</div>
+                <div class="arch-stage-icon">&#129302;</div>
+                <h3>Agent Crew Analysis</h3>
+                <p>Five AI agents collaborate: data collection, news sentiment, web research, final decision, and output parsing.</p>
+                <span class="arch-stage-tag">crewAI</span>
+            </div>
+            <div class="arch-connector">&rarr;</div>
+            <div class="arch-stage">
+                <div class="arch-stage-num">STAGE 04</div>
+                <div class="arch-stage-icon">&#128640;</div>
+                <h3>Investment Report</h3>
+                <p>Structured markdown reports with buy/sell/hold recommendations, confidence scores, and supporting analysis.</p>
+                <span class="arch-stage-tag">output.md</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ AGENTS ═══════════ -->
+    <section id="agents">
+        <div class="reveal">
+            <div class="section-label">The AI Agents</div>
+            <h2 class="section-title">Five Minds, One Mission</h2>
+            <p class="section-desc">Each agent is a specialist. Together, they form an autonomous research team that never sleeps.</p>
+        </div>
+        <div class="agents-grid reveal">
+            <div class="agent-card">
+                <div class="agent-card-header">
+                    <div class="agent-avatar" style="background: linear-gradient(135deg, #3b82f620, #3b82f608); border: 1px solid #3b82f630;">&#128202;</div>
+                    <div>
+                        <h3>Stock Data Collector</h3>
+                        <span class="agent-role">Data Specialist</span>
+                    </div>
+                </div>
+                <p>Gathers comprehensive financial data including OHLC prices, 10-K documents, and earnings call transcripts. The foundation of every analysis.</p>
+                <div class="agent-tools">
+                    <span class="agent-tool-tag">Alpha Vantage</span>
+                    <span class="agent-tool-tag">SEC EDGAR</span>
+                    <span class="agent-tool-tag">OHLC + RSI</span>
+                </div>
+            </div>
+            <div class="agent-card">
+                <div class="agent-card-header">
+                    <div class="agent-avatar" style="background: linear-gradient(135deg, #f59e0b20, #f59e0b08); border: 1px solid #f59e0b30;">&#128240;</div>
+                    <div>
+                        <h3>News Analysis Agent</h3>
+                        <span class="agent-role">Sentiment Analyst</span>
+                    </div>
+                </div>
+                <p>Evaluates news sentiment from a trading perspective with built-in bias detection. Classifies stories as bullish, bearish, or neutral with confidence scores.</p>
+                <div class="agent-tools">
+                    <span class="agent-tool-tag">NLP Pipeline</span>
+                    <span class="agent-tool-tag">Falconsai</span>
+                    <span class="agent-tool-tag">Zero-Shot</span>
+                </div>
+            </div>
+            <div class="agent-card">
+                <div class="agent-card-header">
+                    <div class="agent-avatar" style="background: linear-gradient(135deg, #8b5cf620, #8b5cf608); border: 1px solid #8b5cf630;">&#128270;</div>
+                    <div>
+                        <h3>Research Analyst</h3>
+                        <span class="agent-role">Web Intelligence</span>
+                    </div>
+                </div>
+                <p>Conducts live web searches for recent impactful events, regulatory changes, and market-moving developments that structured data might miss.</p>
+                <div class="agent-tools">
+                    <span class="agent-tool-tag">SerpAPI</span>
+                    <span class="agent-tool-tag">Google News</span>
+                    <span class="agent-tool-tag">newspaper3k</span>
+                </div>
+            </div>
+            <div class="agent-card">
+                <div class="agent-card-header">
+                    <div class="agent-avatar" style="background: linear-gradient(135deg, #10b98120, #10b98108); border: 1px solid #10b98130;">&#9878;&#65039;</div>
+                    <div>
+                        <h3>Final Decision Agent</h3>
+                        <span class="agent-role">Chief Strategist</span>
+                    </div>
+                </div>
+                <p>Synthesizes all collected data into investment recommendations. Can delegate tasks back to other agents when more information is needed.</p>
+                <div class="agent-tools">
+                    <span class="agent-tool-tag">GPT-4.1</span>
+                    <span class="agent-tool-tag">Delegation</span>
+                    <span class="agent-tool-tag">Memory</span>
+                </div>
+            </div>
+            <div class="agent-card">
+                <div class="agent-card-header">
+                    <div class="agent-avatar" style="background: linear-gradient(135deg, #06b6d420, #06b6d408); border: 1px solid #06b6d430;">&#128203;</div>
+                    <div>
+                        <h3>Decision Parser</h3>
+                        <span class="agent-role">Output Formatter</span>
+                    </div>
+                </div>
+                <p>Transforms the final analysis into clean, structured ticker/decision tables with formatted markdown reports ready for consumption.</p>
+                <div class="agent-tools">
+                    <span class="agent-tool-tag">Markdown</span>
+                    <span class="agent-tool-tag">Pydantic</span>
+                    <span class="agent-tool-tag">Tables</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ RESEARCH ═══════════ -->
+    <section id="research">
+        <div class="reveal">
+            <div class="section-label">Research Contributions</div>
+            <h2 class="section-title">Pushing Boundaries in AI Finance</h2>
+            <p class="section-desc">QuantBot isn't just a tool &mdash; it's a research platform exploring the frontiers of multi-agent AI in financial analysis.</p>
+        </div>
+        <div class="research-grid reveal">
+            <div class="research-card">
+                <div class="research-icon" style="background: #3b82f615; color: var(--accent-bright);">&#127891;</div>
+                <h3>Hierarchical Agent Orchestration</h3>
+                <p>Demonstrates how agent delegation and specialization can replicate institutional research workflows &mdash; a manager LLM coordinating specialist agents in real-time.</p>
+            </div>
+            <div class="research-card">
+                <div class="research-icon" style="background: #10b98115; color: var(--emerald);">&#129504;</div>
+                <h3>Financial NLP Pipeline</h3>
+                <p>A novel combination of Falconsai summarization and zero-shot classification for financial news, producing bullish/bearish/neutral labels with confidence scoring.</p>
+            </div>
+            <div class="research-card">
+                <div class="research-icon" style="background: #8b5cf615; color: var(--purple);">&#128209;</div>
+                <h3>Automated SEC Filing Analysis</h3>
+                <p>Bridging the gap between regulatory documents and AI analysis through automated 10-K parsing, chunking, and RAG ingestion for retrieval-augmented generation.</p>
+            </div>
+            <div class="research-card">
+                <div class="research-icon" style="background: #f59e0b15; color: var(--gold);">&#128257;</div>
+                <h3>Hybrid Data Fusion</h3>
+                <p>Combining structured financial data (OHLC, RSI) with unstructured data (news, 10-K filings, earnings transcripts) for holistic investment decisions.</p>
+            </div>
+            <div class="research-card">
+                <div class="research-icon" style="background: #f43f5e15; color: var(--rose);">&#127760;</div>
+                <h3>Multi-Model Architecture</h3>
+                <p>Supports both cloud (GPT-4.1) and local (Ollama Llama 3, Mistral) LLMs with graceful fallback, enabling research in resource-constrained environments.</p>
+            </div>
+            <div class="research-card">
+                <div class="research-icon" style="background: #06b6d415; color: var(--cyan);">&#128640;</div>
+                <h3>Flow-Based Execution</h3>
+                <p>Leverages crewAI's Flow framework with decorated methods for staged, deterministic pipeline execution &mdash; ensuring reproducibility in financial analysis.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ TERMINAL DEMO ═══════════ -->
+    <section class="terminal-section">
+        <div class="reveal">
+            <div class="section-label">See It Run</div>
+            <h2 class="section-title">From Terminal to Insight</h2>
+            <p class="section-desc" style="margin-left: auto; margin-right: auto;">One command. Five agents. Institutional-grade analysis.</p>
+        </div>
+        <div class="terminal reveal">
+            <div class="terminal-bar">
+                <div class="terminal-dot"></div>
+                <div class="terminal-dot"></div>
+                <div class="terminal-dot"></div>
+                <span class="terminal-title">quantbot &mdash; bash</span>
+            </div>
+            <div class="terminal-body" id="terminalBody">
+                <div class="terminal-line"><span class="t-prompt">$ </span><span class="t-cmd" id="typewriter"></span><span class="t-cursor" id="cursor"></span></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ TECH STACK ═══════════ -->
+    <section id="stack">
+        <div class="reveal">
+            <div class="section-label">Tech Stack</div>
+            <h2 class="section-title">Built With</h2>
+            <p class="section-desc">Modern tools for a modern problem. Every component chosen with purpose.</p>
+        </div>
+        <div class="tech-categories reveal">
+            <div class="tech-category">
+                <h3>&#129302; Agent Framework</h3>
+                <div class="tech-list">
+                    <span class="tech-tag">crewAI</span>
+                    <span class="tech-tag">crewAI Tools</span>
+                    <span class="tech-tag">Hierarchical Process</span>
+                    <span class="tech-tag">Flow Framework</span>
+                </div>
+            </div>
+            <div class="tech-category">
+                <h3>&#129504; LLMs</h3>
+                <div class="tech-list">
+                    <span class="tech-tag">GPT-4.1</span>
+                    <span class="tech-tag">Ollama</span>
+                    <span class="tech-tag">Llama 3</span>
+                    <span class="tech-tag">Mistral</span>
+                </div>
+            </div>
+            <div class="tech-category">
+                <h3>&#128200; Financial Data</h3>
+                <div class="tech-list">
+                    <span class="tech-tag">Alpha Vantage</span>
+                    <span class="tech-tag">SEC EDGAR</span>
+                    <span class="tech-tag">sec-parser</span>
+                    <span class="tech-tag">SerpAPI</span>
+                </div>
+            </div>
+            <div class="tech-category">
+                <h3>&#128640; NLP & ML</h3>
+                <div class="tech-list">
+                    <span class="tech-tag">PyTorch</span>
+                    <span class="tech-tag">Transformers</span>
+                    <span class="tech-tag">Falconsai</span>
+                    <span class="tech-tag">newspaper3k</span>
+                </div>
+            </div>
+            <div class="tech-category">
+                <h3>&#128736;&#65039; Infrastructure</h3>
+                <div class="tech-list">
+                    <span class="tech-tag">Python 3.12+</span>
+                    <span class="tech-tag">UV</span>
+                    <span class="tech-tag">Pydantic</span>
+                    <span class="tech-tag">pytest</span>
+                </div>
+            </div>
+            <div class="tech-category">
+                <h3>&#128218; RAG & Knowledge</h3>
+                <div class="tech-list">
+                    <span class="tech-tag">SimpleRAG</span>
+                    <span class="tech-tag">Vector DB</span>
+                    <span class="tech-tag">Document Chunking</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ THE MAGICIANS ═══════════ -->
+    <section id="team" class="contributors-section">
+        <div class="reveal">
+            <div class="section-label">The Magicians</div>
+            <h2 class="section-title">Agentic FSU</h2>
+            <p class="section-desc">Student researchers and engineers who brought QuantBot to life. Contributions measured by code percentage across the repository.</p>
+        </div>
+        <div class="reveal">
+            <!-- Dr. Liu Leader Card -->
+            <div class="leader-card">
+                <div class="leader-avatar"><img src="https://www.cs.fsu.edu/files/facphotos/liux.jpg" alt="Dr. Xiuwen Liu" loading="lazy"></div>
+                <div class="leader-info">
+                    <h3>Dr. Xiuwen Liu</h3>
+                    <div class="leader-role">Research Advisor &bull; Faculty Lead</div>
+                    <p>Guiding the vision and research direction of Agentic FSU. Under Dr. Liu's mentorship at Florida State University, the team explored the frontiers of multi-agent AI systems applied to financial intelligence during the Summer semester.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="contributors-grid reveal" id="contributorsGrid">
+            <!-- Contributor 1: AxelReich -->
+            <div class="contributor-card">
+                <div class="contributor-rank">#1</div>
+                <div class="contributor-avatar">
+                    <img src="https://github.com/AxelReich.png" alt="Axel Reich" loading="lazy">
+                </div>
+                <div class="contributor-info">
+                    <h3>Axel Reich</h3>
+                    <div class="contributor-handle"><a href="https://github.com/AxelReich" target="_blank">@AxelReich</a></div>
+                    <div class="contributor-focus">Agent & task development, stock return calculations (RSI, intraday returns), web search integration, research analyst agent</div>
+                    <div class="contributor-bar-container">
+                        <div class="contributor-bar">
+                            <div class="contributor-bar-fill" style="background: linear-gradient(90deg, var(--accent), var(--cyan)); width: 0;" data-width="36.5%"></div>
+                        </div>
+                        <div class="contributor-pct" style="color: var(--accent-bright);">36.5%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contributor 2: prmsregmi -->
+            <div class="contributor-card">
+                <div class="contributor-rank">#2</div>
+                <div class="contributor-avatar">
+                    <img src="https://github.com/prmsregmi.png" alt="Pramesh Regmi" loading="lazy">
+                </div>
+                <div class="contributor-info">
+                    <h3>Pramesh Regmi</h3>
+                    <div class="contributor-handle"><a href="https://github.com/prmsregmi" target="_blank">@prmsregmi</a></div>
+                    <div class="contributor-focus">Infrastructure & architecture, crew orchestration, SEC 10K parsing, RAG/vector DB integration, Flow logic</div>
+                    <div class="contributor-bar-container">
+                        <div class="contributor-bar">
+                            <div class="contributor-bar-fill" style="background: linear-gradient(90deg, var(--purple), #c084fc); width: 0;" data-width="33.3%"></div>
+                        </div>
+                        <div class="contributor-pct" style="color: var(--purple);">33.3%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contributor 3: Jacobprosmith -->
+            <div class="contributor-card">
+                <div class="contributor-rank">#3</div>
+                <div class="contributor-avatar">
+                    <img src="https://github.com/Jacobprosmith.png" alt="Jacob Proenza-Smith" loading="lazy">
+                </div>
+                <div class="contributor-info">
+                    <h3>Jacob Proenza-Smith</h3>
+                    <div class="contributor-handle"><a href="https://github.com/Jacobprosmith" target="_blank">@Jacobprosmith</a></div>
+                    <div class="contributor-focus">SERP news scraper tool development and refinements, Google News integration pipeline</div>
+                    <div class="contributor-bar-container">
+                        <div class="contributor-bar">
+                            <div class="contributor-bar-fill" style="background: linear-gradient(90deg, var(--emerald), #34d399); width: 0;" data-width="15.9%"></div>
+                        </div>
+                        <div class="contributor-pct" style="color: var(--emerald);">15.9%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contributor 4: amp1590 -->
+            <div class="contributor-card">
+                <div class="contributor-rank">#4</div>
+                <div class="contributor-avatar">
+                    <img src="https://github.com/amp1590.png" alt="amp1590" loading="lazy">
+                </div>
+                <div class="contributor-info">
+                    <h3>amp1590</h3>
+                    <div class="contributor-handle"><a href="https://github.com/amp1590" target="_blank">@amp1590</a></div>
+                    <div class="contributor-focus">Early-stage development contributions and foundational work</div>
+                    <div class="contributor-bar-container">
+                        <div class="contributor-bar">
+                            <div class="contributor-bar-fill" style="background: linear-gradient(90deg, var(--gold), #fbbf24); width: 0;" data-width="6.3%"></div>
+                        </div>
+                        <div class="contributor-pct" style="color: var(--gold);">6.3%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contributor 5: JayY1314 -->
+            <div class="contributor-card">
+                <div class="contributor-rank">#5</div>
+                <div class="contributor-avatar">
+                    <img src="https://github.com/JayY1314.png" alt="JayY1314" loading="lazy">
+                </div>
+                <div class="contributor-info">
+                    <h3>JayY1314</h3>
+                    <div class="contributor-handle"><a href="https://github.com/JayY1314" target="_blank">@JayY1314</a></div>
+                    <div class="contributor-focus">Test suite development, test cases 1.0, quality assurance</div>
+                    <div class="contributor-bar-container">
+                        <div class="contributor-bar">
+                            <div class="contributor-bar-fill" style="background: linear-gradient(90deg, var(--rose), #fb7185); width: 0;" data-width="4.8%"></div>
+                        </div>
+                        <div class="contributor-pct" style="color: var(--rose);">4.8%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contributor 6: AndreTregear -->
+            <div class="contributor-card">
+                <div class="contributor-rank">#6</div>
+                <div class="contributor-avatar">
+                    <img src="https://github.com/AndreTregear.png" alt="AndreTregear" loading="lazy">
+                </div>
+                <div class="contributor-info">
+                    <h3>Andre Tregear</h3>
+                    <div class="contributor-handle"><a href="https://github.com/AndreTregear" target="_blank">@AndreTregear</a></div>
+                    <div class="contributor-focus">Supporting contributions and collaborative development</div>
+                    <div class="contributor-bar-container">
+                        <div class="contributor-bar">
+                            <div class="contributor-bar-fill" style="background: linear-gradient(90deg, var(--cyan), #22d3ee); width: 0;" data-width="3.2%"></div>
+                        </div>
+                        <div class="contributor-pct" style="color: var(--cyan);">3.2%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ CTA ═══════════ -->
+    <section class="cta-section">
+        <div class="cta-glow"></div>
+        <div class="reveal">
+            <h2>Ready to Explore?</h2>
+            <p>QuantBot is open source under the MIT License. Dive into the code, run the agents, or contribute your own magic.</p>
+            <div class="cta-actions">
+                <a href="https://github.com/AgenticFSU/QuantBot" target="_blank" class="btn btn-primary">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                    Clone the Repo
+                </a>
+                <a href="https://github.com/AgenticFSU" target="_blank" class="btn btn-ghost">Agentic FSU &rarr;</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ FOOTER ═══════════ -->
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-brand">QuantBot</div>
+            <ul class="footer-links">
+                <li><a href="https://github.com/AgenticFSU/QuantBot" target="_blank">GitHub</a></li>
+                <li><a href="https://github.com/AgenticFSU" target="_blank">Agentic FSU</a></li>
+                <li><a href="https://www.fsu.edu" target="_blank">Florida State University</a></li>
+            </ul>
+            <div class="footer-copy">Built with magic by Agentic FSU &bull; MIT License</div>
+        </div>
+    </footer>
+
+    <!-- ═══════════ SCRIPTS ═══════════ -->
+    <script>
+        /* ── Navigation ── */
+        const navbar = document.getElementById('navbar');
+        const mobileToggle = document.getElementById('mobileToggle');
+        const navLinks = document.getElementById('navLinks');
+
+        window.addEventListener('scroll', () => {
+            navbar.classList.toggle('scrolled', window.scrollY > 50);
+        });
+
+        mobileToggle.addEventListener('click', () => {
+            navLinks.classList.toggle('open');
+        });
+
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => navLinks.classList.remove('open'));
+        });
+
+        /* ── Particles ── */
+        const canvas = document.getElementById('particles-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let animFrame;
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.offsetWidth;
+            canvas.height = canvas.parentElement.offsetHeight;
+        }
+
+        function createParticles() {
+            particles = [];
+            const count = Math.floor((canvas.width * canvas.height) / 15000);
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.3,
+                    vy: (Math.random() - 0.5) * 0.3,
+                    r: Math.random() * 1.5 + 0.5,
+                    alpha: Math.random() * 0.4 + 0.1
+                });
+            }
+        }
+
+        function drawParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.x < 0) p.x = canvas.width;
+                if (p.x > canvas.width) p.x = 0;
+                if (p.y < 0) p.y = canvas.height;
+                if (p.y > canvas.height) p.y = 0;
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(59, 130, 246, ${p.alpha})`;
+                ctx.fill();
+            });
+
+            /* connect nearby */
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 120) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.strokeStyle = `rgba(59, 130, 246, ${0.06 * (1 - dist / 120)})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
+                }
+            }
+            animFrame = requestAnimationFrame(drawParticles);
+        }
+
+        resizeCanvas();
+        createParticles();
+        drawParticles();
+        window.addEventListener('resize', () => { resizeCanvas(); createParticles(); });
+
+        /* ── Scroll reveal ── */
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+
+                    /* Animate contribution bars */
+                    entry.target.querySelectorAll('.contributor-bar-fill').forEach(bar => {
+                        setTimeout(() => {
+                            bar.style.width = bar.dataset.width;
+                        }, 300);
+                    });
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        /* ── Counter animation ── */
+        const counterObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const counters = entry.target.querySelectorAll('.hero-stat-value');
+                    counters.forEach(counter => {
+                        const target = parseInt(counter.dataset.count);
+                        const suffix = counter.dataset.suffix || '';
+                        const duration = 2000;
+                        const start = performance.now();
+
+                        function update(now) {
+                            const elapsed = now - start;
+                            const progress = Math.min(elapsed / duration, 1);
+                            const eased = 1 - Math.pow(1 - progress, 3);
+                            counter.textContent = Math.floor(eased * target) + suffix;
+                            if (progress < 1) requestAnimationFrame(update);
+                        }
+                        requestAnimationFrame(update);
+                    });
+                    counterObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        const heroStats = document.querySelector('.hero-stats');
+        if (heroStats) counterObserver.observe(heroStats);
+
+        /* ── Terminal typewriter ── */
+        const terminalLines = [
+            { type: 'cmd', text: 'uv run run_crew', delay: 60 },
+            { type: 'blank' },
+            { type: 'output', text: '  Validating tickers: AAPL, NVDA, TSLA...', cls: 't-output' },
+            { type: 'output', text: '  All tickers validated against database', cls: 't-success' },
+            { type: 'blank' },
+            { type: 'output', text: '  Fetching SEC 10-K filings...', cls: 't-output' },
+            { type: 'output', text: '  Downloading OHLC data (5 periods)...', cls: 't-output' },
+            { type: 'output', text: '  Computing RSI (14-period)...', cls: 't-output' },
+            { type: 'blank' },
+            { type: 'output', text: '  Launching Agent Crew [hierarchical mode]', cls: 't-gold' },
+            { type: 'output', text: '  Stock Data Collector    collecting...', cls: 't-output' },
+            { type: 'output', text: '  News Analysis Agent     analyzing sentiment...', cls: 't-output' },
+            { type: 'output', text: '  Research Analyst        scanning web...', cls: 't-output' },
+            { type: 'output', text: '  Final Decision Agent    synthesizing...', cls: 't-output' },
+            { type: 'output', text: '  Decision Parser         formatting report...', cls: 't-output' },
+            { type: 'blank' },
+            { type: 'output', text: '  AAPL  BUY   confidence: 0.87', cls: 't-success' },
+            { type: 'output', text: '  NVDA  BUY   confidence: 0.92', cls: 't-success' },
+            { type: 'output', text: '  TSLA  HOLD  confidence: 0.71', cls: 't-gold' },
+            { type: 'blank' },
+            { type: 'output', text: '  Report saved to output.md', cls: 't-success' },
+        ];
+
+        let terminalStarted = false;
+        const terminalObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !terminalStarted) {
+                    terminalStarted = true;
+                    runTerminal();
+                }
+            });
+        }, { threshold: 0.3 });
+
+        const terminalEl = document.getElementById('terminalBody');
+        terminalObserver.observe(terminalEl);
+
+        async function runTerminal() {
+            const typewriter = document.getElementById('typewriter');
+            const cursor = document.getElementById('cursor');
+
+            /* Type the command */
+            const cmd = terminalLines[0].text;
+            for (let i = 0; i < cmd.length; i++) {
+                typewriter.textContent += cmd[i];
+                await sleep(terminalLines[0].delay);
+            }
+            cursor.style.display = 'none';
+            await sleep(500);
+
+            /* Print output lines */
+            for (let i = 1; i < terminalLines.length; i++) {
+                const line = terminalLines[i];
+                const div = document.createElement('div');
+                div.className = 'terminal-line';
+                if (line.type === 'blank') {
+                    div.innerHTML = '&nbsp;';
+                } else {
+                    div.innerHTML = `<span class="${line.cls}">${line.text}</span>`;
+                }
+                div.style.opacity = '0';
+                terminalEl.appendChild(div);
+                await sleep(20);
+                div.style.transition = 'opacity 0.3s';
+                div.style.opacity = '1';
+                await sleep(120);
+            }
+
+            /* Show cursor again on a new prompt */
+            await sleep(400);
+            const promptLine = document.createElement('div');
+            promptLine.className = 'terminal-line';
+            promptLine.innerHTML = '<span class="t-prompt">$ </span><span class="t-cursor"></span>';
+            terminalEl.appendChild(promptLine);
+        }
+
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    </script>
+</body>
+</html>

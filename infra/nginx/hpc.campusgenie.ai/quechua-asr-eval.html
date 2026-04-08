@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quechua ASR LoRA — Evaluation Results | Yaya-Omni</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --card: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-dim: #8b949e;
+  --accent: #58a6ff;
+  --green: #3fb950;
+  --red: #f85149;
+  --yellow: #d29922;
+  --orange: #db6d28;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  padding: 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+h2 { font-size: 1.4rem; margin: 2rem 0 1rem; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+h3 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; }
+.subtitle { color: var(--text-dim); margin-bottom: 2rem; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+.badge-red { background: rgba(248,81,73,0.2); color: var(--red); }
+.badge-green { background: rgba(63,185,80,0.2); color: var(--green); }
+.badge-yellow { background: rgba(210,153,34,0.2); color: var(--yellow); }
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.metric-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem;
+  text-align: center;
+}
+.metric-value { font-size: 2rem; font-weight: 700; }
+.metric-label { color: var(--text-dim); font-size: 0.85rem; margin-top: 0.25rem; }
+.metric-bad { color: var(--red); }
+.metric-ok { color: var(--yellow); }
+.metric-good { color: var(--green); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+th, td {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+th { background: var(--card); color: var(--text-dim); font-weight: 600; }
+tr:nth-child(even) { background: rgba(22,27,34,0.5); }
+
+.pred-table { font-size: 0.8rem; }
+.pred-table td { vertical-align: top; }
+.ref { color: var(--green); }
+.pred { color: var(--red); }
+.pred-match { color: var(--green); }
+.lang-tag { font-size: 0.7rem; padding: 1px 5px; border-radius: 4px; background: var(--card); border: 1px solid var(--border); }
+
+.analysis { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin: 1rem 0; }
+.analysis ul { margin-left: 1.5rem; }
+.analysis li { margin: 0.5rem 0; }
+
+.callout {
+  background: rgba(248,81,73,0.1);
+  border: 1px solid var(--red);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin: 1rem 0;
+}
+.callout-warn {
+  background: rgba(210,153,34,0.1);
+  border-color: var(--yellow);
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { background: var(--card); padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
+.footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--text-dim); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<h1>🎙️ Quechua ASR LoRA — Evaluation Results</h1>
+<p class="subtitle">
+  Qwen3-ASR-1.7B + LoRA fine-tuned on Quechua data &nbsp;|&nbsp;
+  Evaluated April 3, 2026 &nbsp;|&nbsp;
+  <span class="badge badge-red">Needs Work</span>
+</p>
+
+<h2>Summary Metrics</h2>
+
+<div class="metrics-grid">
+  <div class="metric-card">
+    <div class="metric-value metric-bad">129.7%</div>
+    <div class="metric-label">Quechua WER</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value metric-good">20.2%</div>
+    <div class="metric-label">Spanish WER</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value metric-ok">55.2%</div>
+    <div class="metric-label">Overall WER</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value metric-ok">25.6%</div>
+    <div class="metric-label">Overall CER</div>
+  </div>
+</div>
+
+<div class="callout">
+  <strong>⚠️ Quechua WER > 100%</strong> means the model is hallucinating — inserting more words than exist in the reference.
+  The LoRA adapter essentially had <strong>no positive effect</strong> on Quechua recognition. Spanish performance is solid (20.2% WER).
+</div>
+
+<h2>Detailed Breakdown</h2>
+
+<table>
+  <thead>
+    <tr><th>Split</th><th>Samples</th><th>WER ↓</th><th>CER ↓</th><th>Verdict</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Quechua (qu)</strong></td>
+      <td>2,836</td>
+      <td class="metric-bad">129.7%</td>
+      <td class="metric-bad">51.6%</td>
+      <td><span class="badge badge-red">Failed</span></td>
+    </tr>
+    <tr>
+      <td><strong>Spanish (es)</strong></td>
+      <td>907</td>
+      <td class="metric-good">20.2%</td>
+      <td class="metric-good">5.4%</td>
+      <td><span class="badge badge-green">Good</span></td>
+    </tr>
+    <tr>
+      <td><strong>Overall</strong></td>
+      <td>3,743</td>
+      <td class="metric-ok">55.2%</td>
+      <td class="metric-ok">25.6%</td>
+      <td><span class="badge badge-yellow">Mixed</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Zero-Shot Baseline Comparison</h3>
+<table>
+  <thead>
+    <tr><th>Model</th><th>Quechua Samples</th><th>Quechua WER</th><th>Quechua CER</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Qwen3-ASR-1.7B (zero-shot, no adapter)</td>
+      <td>20</td>
+      <td>118.7%</td>
+      <td>27.8%</td>
+    </tr>
+    <tr>
+      <td>Qwen3-ASR-1.7B + Quechua LoRA</td>
+      <td>2,836</td>
+      <td>129.7%</td>
+      <td>51.6%</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout callout-warn">
+  <strong>⚠️ Note:</strong> Zero-shot baseline only evaluated on 20 samples vs 2,836 for LoRA — not a fair direct comparison.
+  But the predictions on the same first 20 clips are <em>identical</em>, suggesting the adapter had minimal impact.
+</div>
+
+<h2>Sample Predictions</h2>
+
+<h3>Quechua — Model Struggles</h3>
+<table class="pred-table">
+  <thead>
+    <tr><th style="width:5%">#</th><th style="width:40%">Reference</th><th style="width:40%">Prediction</th><th style="width:15%">Detected Lang</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td class="ref">Ñalla wañunka</td>
+      <td class="pred">Ñaya oñónca</td>
+      <td><span class="lang-tag">Spanish</span> ❌</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td class="ref">Kunan puncha yachachik shamunanta mana kirinichu, payka karuma rishka.</td>
+      <td class="pred">Kung puncha yachacixha munat amanakirinicho, paikakarumayiska.</td>
+      <td><span class="lang-tag">Filipino</span> ❌</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td class="ref">Kay warmi chichu kashpan kutishkaña.</td>
+      <td class="pred">Kayu warmi cucu kasih pangkutiskannya.</td>
+      <td><span class="lang-tag">Malay</span> ❌</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td class="ref">Rimilluta upyay, Wañunkima.</td>
+      <td class="pred">Rimiliu't aupiay wanyong gimi.</td>
+      <td><span class="lang-tag">Filipino</span> ❌</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td class="ref">¿Maypita chay riksishkayni runaka kawsan?</td>
+      <td class="pred">Mai pita chay riksikay niro na ka kausap.</td>
+      <td><span class="lang-tag">Filipino</span> ❌</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Spanish — Model Performs Well</h3>
+<table class="pred-table">
+  <thead>
+    <tr><th style="width:5%">#</th><th style="width:40%">Reference</th><th style="width:40%">Prediction</th><th style="width:15%">Detected Lang</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td class="ref">se recomienda enfáticamente a los viajeros que se informen sobre cualquier riesgo de clima extremo en el área que visitan dado que ello puede afectar sus planes de viaje</td>
+      <td class="pred-match">Se recomienda enfáticamente a los viajeros que se informen sobre cualquier riesgo del clima extremo en el área que visitan, dado que ello puede afectar sus planes de viaje.</td>
+      <td><span class="lang-tag">Spanish</span> ✅</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td class="ref">fue tanta la cantidad de gente que se concentró que no todos pudieron acceder al funeral en la plaza de san pedro</td>
+      <td class="pred-match">Fue tanta la cantidad de gente que se concentró que no todos pudieron acceder al funeral en la Plaza de San Pedro.</td>
+      <td><span class="lang-tag">Spanish</span> ✅</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td class="ref">esto parece tener sentido ya que en la tierra no se percibe su movimiento ¿cierto?</td>
+      <td class="pred-match">Esto parece tener sentido, ya que en la Tierra no se percibe su movimiento, ¿cierto?</td>
+      <td><span class="lang-tag">Spanish</span> ✅</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Failure Analysis</h2>
+
+<div class="analysis">
+  <h3>Why Quechua Failed</h3>
+  <ul>
+    <li><strong>Language misidentification:</strong> Model consistently identifies Quechua audio as Filipino, Malay, or Spanish — it has no Quechua phoneme category in its pretrained knowledge (52 languages, Quechua not among them)</li>
+    <li><strong>Phonological hallucination:</strong> Without Quechua-specific phoneme recognition, the model maps Quechua sounds to the nearest phonemes from known languages, producing garbled output</li>
+    <li><strong>Ejective consonants:</strong> Quechua p', t', k', q' (ejectives) have no counterpart in any of the model's 52 languages</li>
+    <li><strong>LoRA insufficient:</strong> Rank 32 LoRA on the LM decoder may not be enough to teach entirely new phonemes — the <em>encoder</em> (AuT) is frozen and doesn't recognize Quechua sounds</li>
+    <li><strong>Data quality unknown:</strong> Common Voice Quechua recordings vary in quality; some may have background noise or non-standard pronunciations</li>
+  </ul>
+
+  <h3>Why Spanish Works</h3>
+  <ul>
+    <li>Spanish is one of Qwen3-ASR's 52 pretrained languages</li>
+    <li>20.2% WER on FLEURS Spanish test set is competitive with published baselines</li>
+    <li>The LoRA training didn't catastrophically forget Spanish — good sign for the training setup</li>
+  </ul>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="analysis">
+  <ol>
+    <li><strong>Unfreeze the AuT encoder</strong> — The core problem is that the frozen audio encoder doesn't recognize Quechua phonemes. LoRA on the encoder (not just decoder) is needed.</li>
+    <li><strong>Higher LoRA rank</strong> — Increase from 32 to 64 or 128. Research shows rank 64 outperforms 32 for new language acquisition.</li>
+    <li><strong>Bilingual training from the start</strong> — Mix Quechua + Spanish data in training (60/40 or 70/30) to leverage Spanish phoneme overlap.</li>
+    <li><strong>Codec simulation / data augmentation</strong> — Add noise, speed perturbation, pitch shifting to training data.</li>
+    <li><strong>Whisper-based evaluation</strong> — Compare against Whisper large-v3 zero-shot as a more meaningful baseline.</li>
+    <li><strong>System prompt engineering</strong> — Qwen3-ASR supports context biasing via system prompt. Test with "Transcribe this Quechua audio" prompt.</li>
+    <li><strong>Target SOTA</strong> — Current SOTA is 22.75% WER (wav2letter++ with data augmentation). We need to beat that.</li>
+  </ol>
+</div>
+
+<h2>Training Details</h2>
+<table>
+  <tr><th>Parameter</th><th>Value</th></tr>
+  <tr><td>Base Model</td><td>Qwen3-ASR-1.7B</td></tr>
+  <tr><td>Method</td><td>LoRA (rank 32, alpha 64)</td></tr>
+  <tr><td>Target Modules</td><td>q_proj, v_proj (LM decoder only)</td></tr>
+  <tr><td>Training Steps</td><td>5,000</td></tr>
+  <tr><td>Training Loss</td><td>12.26 → 3.88</td></tr>
+  <tr><td>Eval Loss</td><td>4.53 → 4.42</td></tr>
+  <tr><td>Training Samples</td><td>~19K Quechua utterances</td></tr>
+  <tr><td>Hardware</td><td>1× NVIDIA B200 (183GB VRAM)</td></tr>
+  <tr><td>Training Time</td><td>~2 hours</td></tr>
+  <tr><td>Checkpoints</td><td>9 saved + final</td></tr>
+</table>
+
+<div class="footer">
+  <p>
+    <strong>Yaya-Omni Project</strong> &nbsp;|&nbsp;
+    <a href="yaya-omni.html">Project Overview</a> &nbsp;|&nbsp;
+    <a href="/">HPC Dashboard</a> &nbsp;|&nbsp;
+    Generated by Yaya on April 3, 2026
+  </p>
+</div>
+
+</body>
+</html>

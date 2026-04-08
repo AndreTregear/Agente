@@ -1,0 +1,150 @@
+/**
+ * Self-service registration: creates a tenant + user account in one step.
+ * POST /api/register
+ *   body: { email, password, name, businessName }
+ *   -> creates tenant (slug from businessName), creates Better Auth user linked to it
+ */
+import { Router } from 'express';
+import { auth } from '../../auth/auth.js';
+import * as tenantsRepo from '../../db/tenants-repo.js';
+import * as tenantSubsRepo from '../../db/tenant-subscriptions-repo.js';
+import * as plansRepo from '../../db/platform-plans-repo.js';
+import { query } from '../../db/pool.js';
+import { logger } from '../../shared/logger.js';
+import { validateBody } from '../../shared/validate.js';
+import { registerSchema } from '../../shared/validation.js';
+import { onTenantRegistered } from '../../integrations/sso-manager.js';
+import { provisionTenantKeys } from '../../crypto/tenant-keys.js';
+
+const router = Router();
+
+router.post('/', validateBody(registerSchema), async (req, res) => {
+  const { email, password, name, businessName } = req.body;
+  logger.debug({ email, businessName }, 'Registration attempt started');
+
+  // Derive slug from business name (with Spanish transliteration)
+  const slug = businessName
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')  // strip diacritics: á→a, é→e, í→i, ó→o, ú→u
+    .replace(/ñ/gi, 'n')             // ñ→n
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  if (!slug) {
+    logger.debug({ email, businessName }, 'Registration rejected: empty slug');
+    res.status(400).json({ error: 'Business name must contain at least one alphanumeric character' });
+    return;
+  }
+
+  // Check slug uniqueness
+  const existing = await tenantsRepo.getTenantBySlug(slug);
+  if (existing) {
+    logger.debug({ email, slug }, 'Registration rejected: slug already exists');
+    res.status(409).json({ error: 'A business with a similar name already exists. Try a different name.' });
+    return;
+  }
+
+  try {
+    // 1. Create the tenant
+    logger.debug({ email, slug }, 'Step 1: Creating tenant');
+    const tenant = await tenantsRepo.createTenant({ name: businessName, slug });
+    logger.debug({ email, tenantId: tenant.id, slug }, 'Step 1 complete: Tenant created');
+
+    // 2. Create the Better Auth user linked to this tenant
+    try {
+      logger.debug({ email, tenantId: tenant.id }, 'Step 2: Creating user account');
+      const ctx = await auth.api.signUpEmail({
+        body: {
+          email,
+          password,
+          name: name || businessName,
+          tenantId: tenant.id,
+        },
+      });
+      // Better Auth's additionalFields has input:false for tenantId (security),
+      // so set it directly in DB — same pattern as seedAdminIfNeeded().
+      const userId = (ctx as { user: { id: string } }).user.id;
+      await query('UPDATE "user" SET "tenantId" = $1 WHERE id = $2', [tenant.id, userId]);
+
+      // First user ever → make admin
+      const userCount = await query<{ count: string }>('SELECT COUNT(*) as count FROM "user"');
+      if (parseInt(userCount.rows[0]?.count ?? '0') <= 1) {
+        await query('UPDATE "user" SET role = $1 WHERE id = $2', ['admin', userId]);
+        logger.info({ email, userId }, 'First user — promoted to admin');
+      }
+
+      logger.debug({ email, tenantId: tenant.id, userId }, 'Step 2 complete: User created and linked');
+    } catch (authErr: unknown) {
+      // Rollback: delete the tenant if user creation fails
+      logger.debug({ email, tenantId: tenant.id, error: authErr instanceof Error ? authErr.message : String(authErr) }, 'Step 2 failed: Rolling back tenant');
+      await tenantsRepo.deleteTenant(tenant.id);
+      const msg = authErr instanceof Error ? authErr.message : 'Failed to create account';
+      res.status(400).json({ error: msg });
+      return;
+    }
+
+    // 3. Provision envelope encryption keys for the tenant
+    logger.debug({ email, tenantId: tenant.id }, 'Step 3: Provisioning encryption keys');
+    await provisionTenantKeys(tenant.id, password);
+    logger.debug({ email, tenantId: tenant.id }, 'Step 3 complete: Encryption keys provisioned');
+
+    // 4. Auto-assign free plan
+    logger.debug({ email, tenantId: tenant.id }, 'Step 4: Assigning free plan');
+    const freePlan = await plansRepo.getPlanBySlug('free');
+    if (freePlan) {
+      await tenantSubsRepo.subscribe(tenant.id, freePlan.id, 'free');
+      logger.debug({ email, tenantId: tenant.id, planId: freePlan.id }, 'Step 4 complete: Free plan assigned');
+    } else {
+      logger.debug({ email, tenantId: tenant.id }, 'Step 4: No free plan found, skipping');
+    }
+
+    // 5. Link referral code if provided
+    const referralCode = req.body.referralCode?.trim();
+    if (referralCode) {
+      try {
+        const { rows: contadorRows } = await query<{ id: number }>(
+          'SELECT id FROM contadores WHERE referral_code = $1 AND status = $2',
+          [referralCode, 'active'],
+        );
+        if (contadorRows.length > 0) {
+          const contadorId = contadorRows[0].id;
+          await query('UPDATE tenants SET referred_by = $1 WHERE id = $2', [referralCode, tenant.id]);
+          await query(
+            `INSERT INTO contador_referrals (contador_id, tenant_id) VALUES ($1, $2)
+             ON CONFLICT (contador_id, tenant_id) DO NOTHING`,
+            [contadorId, tenant.id],
+          );
+          await query(
+            'UPDATE contadores SET total_clients = total_clients + 1, updated_at = now() WHERE id = $1',
+            [contadorId],
+          );
+          logger.info({ tenantId: tenant.id, referralCode, contadorId }, 'Tenant linked to contador via referral');
+        } else {
+          logger.debug({ referralCode }, 'Referral code provided but not found or inactive');
+        }
+      } catch (refErr) {
+        logger.warn({ err: refErr, referralCode, tenantId: tenant.id }, 'Referral linking failed (non-blocking)');
+      }
+    }
+
+    logger.info({ email, tenantId: tenant.id, slug }, 'New tenant registered via self-service');
+
+    // Fire-and-forget: create SSO accounts in Lago, Cal.com, Metabase
+    onTenantRegistered(tenant.id, businessName, email).catch(err =>
+      logger.warn({ err, tenantId: tenant.id }, 'SSO account provisioning failed (non-blocking)'),
+    );
+
+    res.status(201).json({
+      ok: true,
+      message: 'Account created. You can now sign in.',
+      tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug },
+    });
+  } catch (err: unknown) {
+    logger.error({ err, email }, 'Registration failed');
+    res.status(500).json({ error: 'Registration failed. Please try again.' });
+  }
+});
+
+export { router as registerRouter };

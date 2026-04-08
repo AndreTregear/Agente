@@ -12,7 +12,8 @@ import {
   X,
   Brain,
   Users,
-  BarChart3
+  BarChart3,
+  Radio
 } from 'lucide-react'
 import { Button } from './ui/button'
 import { cn } from '@/lib/utils'
@@ -21,6 +22,7 @@ import { usePathname } from 'next/navigation'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Voice Mode', href: '/voice', icon: Radio },
   { name: 'AI Assistant', href: '/ai-assistant', icon: Brain },
   { name: 'Task Management', href: '/tasks', icon: CheckSquare },
   { name: 'Meeting Center', href: '/meetings', icon: Calendar },

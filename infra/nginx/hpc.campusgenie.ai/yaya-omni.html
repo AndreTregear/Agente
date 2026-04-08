@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yaya-Omni: Voice AI for Latin America</title>
+<meta name="description" content="Open-source multilingual speech models for 7 million Quechua speakers and beyond. Regional ASR adapters, voice models, and agentic AI for Latin America.">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #21262d;
+    --border: #30363d;
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+    --accent-blue: #58a6ff;
+    --accent-green: #3fb950;
+    --accent-purple: #bc8cff;
+    --accent-orange: #f0883e;
+    --accent-red: #f85149;
+    --accent-yellow: #d29922;
+    --accent-cyan: #39d2c0;
+    --gradient-blue: linear-gradient(135deg, #58a6ff 0%, #1f6feb 100%);
+    --gradient-green: linear-gradient(135deg, #3fb950 0%, #238636 100%);
+    --gradient-purple: linear-gradient(135deg, #bc8cff 0%, #8957e5 100%);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* Navigation */
+  nav {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    background: rgba(13, 17, 23, 0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    z-index: 1000;
+    padding: 0 24px;
+  }
+  nav .nav-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+  nav .logo {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  nav .logo .logo-icon {
+    width: 28px;
+    height: 28px;
+    background: var(--gradient-blue);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  nav .nav-links {
+    display: flex;
+    gap: 4px;
+    list-style: none;
+  }
+  nav .nav-links a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.875rem;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  nav .nav-links a:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+  }
+  .menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    cursor: pointer;
+  }
+
+  /* Sections */
+  section {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 80px 24px;
+  }
+  .section-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent-blue);
+    margin-bottom: 12px;
+  }
+  .section-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+    line-height: 1.3;
+  }
+  .section-desc {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    max-width: 700px;
+    margin-bottom: 40px;
+  }
+
+  /* Hero */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding-top: 56px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(circle, rgba(88,166,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 32px;
+  }
+  .hero-badge .dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent-green);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .hero h1 {
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #e6edf3 0%, #8b949e 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero h1 span {
+    background: var(--gradient-blue);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero .tagline {
+    font-size: clamp(1.1rem, 2.5vw, 1.35rem);
+    color: var(--text-secondary);
+    max-width: 640px;
+    margin-bottom: 40px;
+    line-height: 1.5;
+  }
+  .hero-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-primary {
+    background: var(--gradient-blue);
+    color: #fff;
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(88,166,255,0.3); }
+  .btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--text-muted); }
+
+  /* Stats bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 64px;
+    width: 100%;
+    max-width: 800px;
+  }
+  .stat-item {
+    background: var(--bg-secondary);
+    padding: 24px 16px;
+    text-align: center;
+  }
+  .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent-blue);
+  }
+  .stat-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* Vision */
+  .vision-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .vision-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    transition: border-color 0.2s;
+  }
+  .vision-card:hover { border-color: var(--text-muted); }
+  .vision-card .icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+  .vision-card h3 {
+    font-size: 1.05rem;
+    margin-bottom: 8px;
+  }
+  .vision-card p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  /* Architecture */
+  .arch-container {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    overflow-x: auto;
+  }
+  .pipeline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    min-width: 700px;
+    flex-wrap: nowrap;
+    padding: 20px 0;
+  }
+  .pipe-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+  }
+  .pipe-box {
+    padding: 16px 20px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    border: 2px solid;
+    min-width: 120px;
+  }
+  .pipe-box.input { background: rgba(88,166,255,0.1); border-color: var(--accent-blue); color: var(--accent-blue); }
+  .pipe-box.asr { background: rgba(63,185,80,0.1); border-color: var(--accent-green); color: var(--accent-green); }
+  .pipe-box.llm { background: rgba(188,140,255,0.1); border-color: var(--accent-purple); color: var(--accent-purple); }
+  .pipe-box.tts { background: rgba(240,136,62,0.1); border-color: var(--accent-orange); color: var(--accent-orange); }
+  .pipe-box.output { background: rgba(57,210,192,0.1); border-color: var(--accent-cyan); color: var(--accent-cyan); }
+  .pipe-sub {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    max-width: 140px;
+    text-align: center;
+    line-height: 1.3;
+  }
+  .pipe-arrow {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    margin: 0 8px;
+    flex-shrink: 0;
+    margin-bottom: 20px;
+  }
+  .training-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(63,185,80,0.15);
+    color: var(--accent-green);
+    margin-top: 4px;
+  }
+
+  /* Quechua ASR */
+  .asr-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .asr-detail {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+  }
+  .asr-detail h3 {
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .detail-list {
+    list-style: none;
+  }
+  .detail-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .detail-list li:last-child { border-bottom: none; }
+  .detail-list .label { color: var(--text-secondary); }
+  .detail-list .value { font-weight: 600; text-align: right; }
+  .wer-target {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    text-align: center;
+  }
+  .wer-chart-container {
+    max-width: 300px;
+    margin: 0 auto;
+  }
+
+  /* Training Status */
+  .training-status {
+    background: var(--bg-secondary);
+    border: 1px solid var(--accent-green);
+    border-radius: 12px;
+    padding: 28px;
+    margin-top: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .training-status::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--gradient-green);
+  }
+  .training-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .training-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .live-dot {
+    width: 10px;
+    height: 10px;
+    background: var(--accent-green);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+    box-shadow: 0 0 8px rgba(63,185,80,0.5);
+  }
+  .training-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+  }
+  .t-metric {
+    text-align: center;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+  }
+  .t-metric .t-val {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--accent-green);
+  }
+  .t-metric .t-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 20px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--gradient-green);
+    border-radius: 3px;
+    width: 12%;
+    transition: width 1s ease;
+  }
+
+  /* Data table */
+  .data-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  thead {
+    background: var(--bg-tertiary);
+  }
+  th {
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr {
+    background: var(--bg-secondary);
+    transition: background 0.15s;
+  }
+  tbody tr:hover { background: var(--bg-tertiary); }
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 100px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .badge-green { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+  .badge-blue { background: rgba(88,166,255,0.15); color: var(--accent-blue); }
+  .badge-yellow { background: rgba(210,153,34,0.15); color: var(--accent-yellow); }
+  .badge-purple { background: rgba(188,140,255,0.15); color: var(--accent-purple); }
+
+  /* Infrastructure */
+  .infra-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 20px;
+  }
+  .infra-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+  }
+  .infra-card h3 {
+    font-size: 1.05rem;
+    margin-bottom: 4px;
+  }
+  .infra-card .infra-sub {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+  }
+  .infra-spec {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  .infra-spec:last-child { border-bottom: none; }
+  .infra-spec .spec-label { color: var(--text-secondary); }
+  .infra-spec .spec-value { font-weight: 600; }
+
+  /* Metric cards */
+  .metric-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .metric-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+  }
+  .metric-card.blue::before { background: var(--gradient-blue); }
+  .metric-card.green::before { background: var(--gradient-green); }
+  .metric-card.purple::before { background: var(--gradient-purple); }
+  .metric-card.orange::before { background: linear-gradient(135deg, var(--accent-orange), #da6d25); }
+  .metric-value {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+  .metric-card.blue .metric-value { color: var(--accent-blue); }
+  .metric-card.green .metric-value { color: var(--accent-green); }
+  .metric-card.purple .metric-value { color: var(--accent-purple); }
+  .metric-card.orange .metric-value { color: var(--accent-orange); }
+  .metric-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .metric-detail {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* Roadmap */
+  .roadmap {
+    position: relative;
+    padding-left: 32px;
+  }
+  .roadmap::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .roadmap-item {
+    position: relative;
+    margin-bottom: 32px;
+    padding-left: 32px;
+  }
+  .roadmap-item::before {
+    content: '';
+    position: absolute;
+    left: -26px;
+    top: 6px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--bg-primary);
+  }
+  .roadmap-item.active::before {
+    border-color: var(--accent-green);
+    background: var(--accent-green);
+    box-shadow: 0 0 10px rgba(63,185,80,0.4);
+  }
+  .roadmap-item.upcoming::before {
+    border-color: var(--text-muted);
+  }
+  .roadmap-phase {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .roadmap-item.active .roadmap-phase { color: var(--accent-green); }
+  .roadmap-item.upcoming .roadmap-phase { color: var(--text-muted); }
+  .roadmap-item h3 {
+    font-size: 1.1rem;
+    margin-bottom: 6px;
+  }
+  .roadmap-item p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .roadmap-status {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 10px;
+    border-radius: 100px;
+    margin-top: 8px;
+  }
+  .status-active { background: rgba(63,185,80,0.15); color: var(--accent-green); }
+  .status-planned { background: rgba(139,148,158,0.15); color: var(--text-muted); }
+
+  /* Open Source */
+  .oss-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .oss-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+  }
+  .oss-card h3 { margin-bottom: 12px; }
+  .oss-card p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .oss-card code {
+    display: block;
+    background: var(--bg-tertiary);
+    padding: 16px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    margin-top: 12px;
+    overflow-x: auto;
+    color: var(--text-secondary);
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 40px 24px;
+    text-align: center;
+  }
+  .footer-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .footer-links {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .footer-links a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: color 0.2s;
+  }
+  .footer-links a:hover { color: var(--accent-blue); }
+  .footer-copy {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .nav-links { display: none; }
+    .nav-links.open {
+      display: flex;
+      flex-direction: column;
+      position: absolute;
+      top: 56px;
+      left: 0;
+      right: 0;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border);
+      padding: 12px;
+    }
+    .menu-toggle { display: block; }
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .asr-grid { grid-template-columns: 1fr; }
+    .oss-grid { grid-template-columns: 1fr; }
+    .pipeline { flex-direction: column; min-width: auto; }
+    .pipe-arrow { transform: rotate(90deg); margin: 4px 0; }
+    section { padding: 60px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav>
+  <div class="nav-inner">
+    <a href="#hero" class="logo">
+      <span class="logo-icon">🦙</span>
+      Yaya-Omni
+    </a>
+    <button class="menu-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+    <ul class="nav-links">
+      <li><a href="#vision">Vision</a></li>
+      <li><a href="#architecture">Architecture</a></li>
+      <li><a href="#quechua-asr">Quechua ASR</a></li>
+      <li><a href="#data">Data</a></li>
+      <li><a href="#infrastructure">Infra</a></li>
+      <li><a href="#results">Results</a></li>
+      <li><a href="#roadmap">Roadmap</a></li>
+      <li><a href="#open-source">Open Source</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero" id="hero">
+  <div class="hero-badge">
+    <span class="dot"></span>
+    Training in progress — Phase 1 active
+  </div>
+  <h1>Yaya-Omni:<br><span>Voice AI for Latin America</span></h1>
+  <p class="tagline">Open-source multilingual speech models for 7&nbsp;million Quechua speakers and beyond. Regional ASR&nbsp;adapters, agentic voice pipelines, and models that understand real Latin&nbsp;American speech.</p>
+  <div class="hero-buttons">
+    <a href="#quechua-asr" class="btn btn-primary">🎯 Current Focus: Quechua ASR</a>
+    <a href="#roadmap" class="btn btn-secondary">📋 View Roadmap</a>
+  </div>
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-value">~336h</div>
+      <div class="stat-label">Quechua Speech Data</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">4× B200</div>
+      <div class="stat-label">733 GB VRAM</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">&lt;20%</div>
+      <div class="stat-label">Target WER</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">588ms</div>
+      <div class="stat-label">Voice Latency (best)</div>
+    </div>
+  </div>
+</section>
+
+<!-- Vision -->
+<section id="vision">
+  <div class="section-label">Vision</div>
+  <h2 class="section-title">Voice AI That Understands Latin America</h2>
+  <p class="section-desc">Commercial ASR fails on regional accents, indigenous languages, and the messy reality of multilingual speech. We're building adapters and models that work for real people — starting with Quechua and Peruvian Spanish.</p>
+  <div class="vision-grid">
+    <div class="vision-card">
+      <div class="icon" style="background:rgba(88,166,255,0.15)">🗣️</div>
+      <h3>Regional ASR Adapters</h3>
+      <p>LoRA adapters on top of Qwen3-ASR that handle Peruvian Spanish accents, Quechua, and code-switching — the way people actually speak.</p>
+    </div>
+    <div class="vision-card">
+      <div class="icon" style="background:rgba(63,185,80,0.15)">🏔️</div>
+      <h3>Quechua First</h3>
+      <p>7 million speakers across Peru, Bolivia, and Ecuador. Zero commercial ASR support. We're building the first open-source, production-quality Quechua speech recognition.</p>
+    </div>
+    <div class="vision-card">
+      <div class="icon" style="background:rgba(188,140,255,0.15)">📱</div>
+      <h3>Real-World Deployment</h3>
+      <p>Built for noisy phone audio over WhatsApp. Deployed into agente.ceo (commerce) and agente.fit (health) — real products, real users in Peru.</p>
+    </div>
+    <div class="vision-card">
+      <div class="icon" style="background:rgba(240,136,62,0.15)">🔓</div>
+      <h3>Fully Open Source</h3>
+      <p>Apache 2.0 licensed. Models on HuggingFace. Training code, data pipelines, eval scripts — everything public. Reproducibility is non-negotiable.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Architecture -->
+<section id="architecture" style="background:var(--bg-secondary);max-width:100%;margin:0;">
+  <div style="max-width:1200px;margin:0 auto;">
+    <div class="section-label">Architecture</div>
+    <h2 class="section-title">Modular Voice Pipeline</h2>
+    <p class="section-desc">Each component can be independently trained, swapped, and optimized. Regional adapters plug into the ASR and TTS stages without touching the base models.</p>
+    <div class="arch-container" style="border:none;background:var(--bg-primary);">
+      <div class="pipeline">
+        <div class="pipe-node">
+          <div class="pipe-box input">🎤 Audio Input</div>
+          <div class="pipe-sub">Phone mic, WhatsApp voice notes, noisy environments</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">
+          <div class="pipe-box asr">Qwen3-ASR<br><small>+ Regional LoRA</small></div>
+          <div class="pipe-sub">1.7B params, 52 langs + Quechua adapter</div>
+          <span class="training-badge">🔧 Training Now</span>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">
+          <div class="pipe-box llm">Qwen3.5-27B<br><small>Agentic LLM</small></div>
+          <div class="pipe-sub">Tool-calling, RAG, business logic, context</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">
+          <div class="pipe-box tts">Qwen3-TTS<br><small>+ Regional Voice</small></div>
+          <div class="pipe-sub">Natural Peruvian Spanish voice synthesis</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">
+          <div class="pipe-box output">🔊 Voice Output</div>
+          <div class="pipe-sub">WhatsApp, phone calls, web apps</div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:20px;font-size:0.85rem;color:var(--text-muted);">
+      End-to-end voice latency: <strong style="color:var(--accent-green)">588ms</strong> best · <strong style="color:var(--accent-blue)">~870ms</strong> average · Goal: <strong style="color:var(--accent-purple)">&lt;500ms</strong> P95
+    </div>
+  </div>
+</section>
+
+<!-- Quechua ASR -->
+<section id="quechua-asr">
+  <div class="section-label">Phase 1 — Active</div>
+  <h2 class="section-title">Quechua ASR Adapter</h2>
+  <p class="section-desc">Building the first production-quality open-source automatic speech recognition for Quechua — a language spoken by 7 million people with zero commercial ASR support.</p>
+
+  <div class="asr-grid">
+    <div class="asr-detail">
+      <h3>🧠 Model Configuration</h3>
+      <ul class="detail-list">
+        <li><span class="label">Base Model</span><span class="value">Qwen3-ASR-1.7B</span></li>
+        <li><span class="label">Languages</span><span class="value">52 (SOTA open-source)</span></li>
+        <li><span class="label">Method</span><span class="value">LoRA (rank 32)</span></li>
+        <li><span class="label">Target Modules</span><span class="value">Qwen3-1.7B backbone</span></li>
+        <li><span class="label">Frozen</span><span class="value">Audio-to-Text encoder</span></li>
+        <li><span class="label">New Params</span><span class="value">~13.6M (0.8%)</span></li>
+        <li><span class="label">Precision</span><span class="value">bf16 / FP8 compute</span></li>
+      </ul>
+    </div>
+    <div class="asr-detail">
+      <h3>📊 Training Data</h3>
+      <ul class="detail-list">
+        <li><span class="label">Common Voice 19</span><span class="value">191h</span></li>
+        <li><span class="label">Siminchik (Llamacha)</span><span class="value">97h</span></li>
+        <li><span class="label">IWSLT 2023</span><span class="value">48h</span></li>
+        <li><span class="label" style="font-weight:700;color:var(--text-primary)">Total</span><span class="value" style="color:var(--accent-green)">~336 hours</span></li>
+      </ul>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+        <h3>🎯 Target Performance</h3>
+        <ul class="detail-list">
+          <li><span class="label">Current SOTA (2022)</span><span class="value" style="color:var(--accent-yellow)">22.75% WER</span></li>
+          <li><span class="label">Our Target</span><span class="value" style="color:var(--accent-green)">&lt;20% WER</span></li>
+          <li><span class="label">Stretch Goal</span><span class="value" style="color:var(--accent-blue)">&lt;15% WER</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Training Status Card -->
+  <div class="training-status">
+    <div class="training-header">
+      <h3><span class="live-dot"></span> Live Training Status</h3>
+      <span class="badge badge-green">Phase 1 Active</span>
+    </div>
+    <div class="training-metrics">
+      <div class="t-metric">
+        <div class="t-val">1,250</div>
+        <div class="t-label">Current Step</div>
+      </div>
+      <div class="t-metric">
+        <div class="t-val">10,000</div>
+        <div class="t-label">Total Steps</div>
+      </div>
+      <div class="t-metric">
+        <div class="t-val">2.34</div>
+        <div class="t-label">Train Loss</div>
+      </div>
+      <div class="t-metric">
+        <div class="t-val">3.1e-4</div>
+        <div class="t-label">Learning Rate</div>
+      </div>
+      <div class="t-metric">
+        <div class="t-val">4× B200</div>
+        <div class="t-label">GPU Config</div>
+      </div>
+      <div class="t-metric">
+        <div class="t-val">~6h</div>
+        <div class="t-label">ETA Remaining</div>
+      </div>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill"></div>
+    </div>
+    <div style="text-align:center;margin-top:8px;font-size:0.75rem;color:var(--text-muted);">
+      12.5% complete · Placeholder data — will update with live metrics
+    </div>
+  </div>
+</section>
+
+<!-- Data Sources -->
+<section id="data" style="background:var(--bg-secondary);max-width:100%;margin:0;">
+  <div style="max-width:1200px;margin:0 auto;">
+    <div class="section-label">Data</div>
+    <h2 class="section-title">Training Data Sources</h2>
+    <p class="section-desc">Curated from the best available open-source Quechua speech corpora. All datasets are publicly available and properly licensed.</p>
+    <div class="data-table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Dataset</th>
+            <th>Hours</th>
+            <th>Language</th>
+            <th>Type</th>
+            <th>License</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Mozilla Common Voice 19</strong></td>
+            <td>191h</td>
+            <td>Quechua (qu)</td>
+            <td>Read speech</td>
+            <td>CC-0</td>
+            <td><span class="badge badge-green">Ready</span></td>
+          </tr>
+          <tr>
+            <td><strong>Siminchik (Llamacha)</strong></td>
+            <td>97h</td>
+            <td>Quechua (qu)</td>
+            <td>Conversational</td>
+            <td>CC-BY-4.0</td>
+            <td><span class="badge badge-green">Ready</span></td>
+          </tr>
+          <tr>
+            <td><strong>IWSLT 2023</strong></td>
+            <td>48h</td>
+            <td>Quechua (qu)</td>
+            <td>Lecture / formal</td>
+            <td>CC-BY-4.0</td>
+            <td><span class="badge badge-green">Ready</span></td>
+          </tr>
+          <tr>
+            <td><strong>Peruvian Spanish (Common Voice)</strong></td>
+            <td>TBD</td>
+            <td>es-PE</td>
+            <td>Read speech</td>
+            <td>CC-0</td>
+            <td><span class="badge badge-yellow">Phase 2</span></td>
+          </tr>
+          <tr>
+            <td><strong>Code-switched corpus</strong></td>
+            <td>TBD</td>
+            <td>qu + es</td>
+            <td>Mixed</td>
+            <td>TBD</td>
+            <td><span class="badge badge-purple">Planned</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Infrastructure -->
+<section id="infrastructure">
+  <div class="section-label">Infrastructure</div>
+  <h2 class="section-title">Compute Resources</h2>
+  <p class="section-desc">Training on university HPC with bleeding-edge B200 GPUs. Production inference on workstation-class hardware running 24/7.</p>
+  <div class="infra-grid">
+    <div class="infra-card">
+      <h3>🖥️ HPC — UF HiPerGator</h3>
+      <div class="infra-sub">Training & Fine-tuning</div>
+      <div class="infra-spec"><span class="spec-label">GPUs</span><span class="spec-value" style="color:var(--accent-green)">4× NVIDIA B200</span></div>
+      <div class="infra-spec"><span class="spec-label">VRAM</span><span class="spec-value">733 GB total (183 GB each)</span></div>
+      <div class="infra-spec"><span class="spec-label">FP8 Compute</span><span class="spec-value">3,125 TFLOPS</span></div>
+      <div class="infra-spec"><span class="spec-label">CPU</span><span class="spec-value">2× Xeon Platinum 8570 (112 cores)</span></div>
+      <div class="infra-spec"><span class="spec-label">RAM</span><span class="spec-value">2 TB</span></div>
+      <div class="infra-spec"><span class="spec-label">Network</span><span class="spec-value">InfiniBand HDR</span></div>
+    </div>
+    <div class="infra-card">
+      <h3>⚡ Workstation — Production</h3>
+      <div class="infra-sub">Inference & Deployment</div>
+      <div class="infra-spec"><span class="spec-label">GPUs</span><span class="spec-value" style="color:var(--accent-blue)">2× RTX A5000</span></div>
+      <div class="infra-spec"><span class="spec-label">VRAM</span><span class="spec-value">48 GB total (24 GB each)</span></div>
+      <div class="infra-spec"><span class="spec-label">CPU</span><span class="spec-value">i9-10900X (20 cores)</span></div>
+      <div class="infra-spec"><span class="spec-label">RAM</span><span class="spec-value">125 GB</span></div>
+      <div class="infra-spec"><span class="spec-label">Stack</span><span class="spec-value">vLLM + Whisper + Kokoro TTS</span></div>
+      <div class="infra-spec"><span class="spec-label">Targets</span><span class="spec-value">agente.ceo · agente.fit</span></div>
+    </div>
+    <div class="infra-card">
+      <h3>🚀 Deployment Targets</h3>
+      <div class="infra-sub">Real products, real users</div>
+      <div style="padding:16px 0;border-bottom:1px solid var(--border);">
+        <div style="font-weight:600;margin-bottom:4px;">agente.ceo</div>
+        <div style="font-size:0.85rem;color:var(--text-secondary);">WhatsApp commerce platform for Peruvian businesses. Voice ordering, product search, natural conversation.</div>
+      </div>
+      <div style="padding:16px 0;">
+        <div style="font-weight:600;margin-bottom:4px;">agente.fit</div>
+        <div style="font-size:0.85rem;color:var(--text-secondary);">Health & fitness voice assistant. Workout tracking, nutrition guidance, coach-like interactions.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Results -->
+<section id="results" style="background:var(--bg-secondary);max-width:100%;margin:0;">
+  <div style="max-width:1200px;margin:0 auto;">
+    <div class="section-label">Phase 1 Results</div>
+    <h2 class="section-title">What We've Built So Far</h2>
+    <p class="section-desc">Production voice pipeline running live. Infrastructure validated. Training underway.</p>
+    <div class="metric-cards">
+      <div class="metric-card blue">
+        <div class="metric-value">3,125</div>
+        <div class="metric-label">TFLOPS FP8</div>
+        <div class="metric-detail">4× B200 compute cluster</div>
+      </div>
+      <div class="metric-card green">
+        <div class="metric-value">2,120</div>
+        <div class="metric-label">tok/s peak</div>
+        <div class="metric-detail">Qwen3.5-27B via vLLM</div>
+      </div>
+      <div class="metric-card purple">
+        <div class="metric-value">588ms</div>
+        <div class="metric-label">Best Voice Latency</div>
+        <div class="metric-detail">End-to-end pipeline</div>
+      </div>
+      <div class="metric-card orange">
+        <div class="metric-value">~870ms</div>
+        <div class="metric-label">Avg Voice Latency</div>
+        <div class="metric-detail">ASR → LLM → TTS</div>
+      </div>
+    </div>
+    <div style="max-width:600px;margin:0 auto;">
+      <canvas id="latencyChart"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- Roadmap -->
+<section id="roadmap">
+  <div class="section-label">Roadmap</div>
+  <h2 class="section-title">Development Phases</h2>
+  <p class="section-desc">From regional ASR adapters to a full omni-modal voice AI — a step-by-step path to production.</p>
+  <div class="roadmap">
+    <div class="roadmap-item active">
+      <div class="roadmap-phase">Phase 1</div>
+      <h3>Regional ASR Adapter</h3>
+      <p>LoRA adapter for Quechua speech recognition on Qwen3-ASR. Peruvian Spanish accent handling. Training on ~336h of Quechua audio. Target: &lt;20% WER, beating the 2022 SOTA of 22.75%.</p>
+      <span class="roadmap-status status-active">🟢 In Progress</span>
+    </div>
+    <div class="roadmap-item upcoming">
+      <div class="roadmap-phase">Phase 2</div>
+      <h3>Audio Projector with Agentic Context</h3>
+      <p>Regional audio embeddings fed directly into the LLM via a learned projector. The LLM sees both acoustic and semantic features — enabling context-aware ASR that understands domain (commerce vs. health) and user intent.</p>
+      <span class="roadmap-status status-planned">Planned</span>
+    </div>
+    <div class="roadmap-item upcoming">
+      <div class="roadmap-phase">Phase 3</div>
+      <h3>TTS Fine-tuning</h3>
+      <p>Natural Peruvian Spanish voice synthesis. Regional prosody, natural rhythm, voice cloning for brand consistency across agente.ceo and agente.fit. Qwen3-TTS adapter training.</p>
+      <span class="roadmap-status status-planned">Planned</span>
+    </div>
+    <div class="roadmap-item upcoming">
+      <div class="roadmap-phase">Phase 4</div>
+      <h3>End-to-End Eval & Deployment</h3>
+      <p>Full pipeline evaluation: ASR → LLM → TTS latency, WER on real phone audio, A/B testing against current Whisper + Kokoro stack. Production rollout to WhatsApp voice agents.</p>
+      <span class="roadmap-status status-planned">Planned</span>
+    </div>
+    <div class="roadmap-item upcoming">
+      <div class="roadmap-phase">Phase 5</div>
+      <h3>Full Omni Model Fine-tuning</h3>
+      <p>When Qwen3.5-Omni releases — fine-tune the complete multimodal model with all our regional data. Audio-in, audio-out, single model. The endgame: a natively multilingual omni model that just works for Latin America.</p>
+      <span class="roadmap-status status-planned">Planned — Awaiting Qwen3.5-Omni</span>
+    </div>
+  </div>
+</section>
+
+<!-- Open Source -->
+<section id="open-source" style="background:var(--bg-secondary);max-width:100%;margin:0;">
+  <div style="max-width:1200px;margin:0 auto;">
+    <div class="section-label">Open Source</div>
+    <h2 class="section-title">Built in the Open</h2>
+    <p class="section-desc">Everything we build is released under Apache 2.0. Models, training code, evaluation scripts, data pipelines — all public.</p>
+    <div class="oss-grid">
+      <div class="oss-card">
+        <h3>📦 Release Plan</h3>
+        <p>All artifacts released on HuggingFace with full model cards, training logs, and reproducibility instructions.</p>
+        <ul style="margin-top:12px;padding-left:20px;color:var(--text-secondary);font-size:0.9rem;line-height:1.8;">
+          <li>Quechua LoRA adapter weights</li>
+          <li>Training configuration & hyperparameters</li>
+          <li>Data preprocessing pipeline</li>
+          <li>Evaluation scripts & benchmarks</li>
+          <li>Inference server configs (vLLM)</li>
+          <li>End-to-end voice pipeline code</li>
+        </ul>
+      </div>
+      <div class="oss-card">
+        <h3>🏷️ Model Card</h3>
+        <p>Full transparency on model capabilities, limitations, and intended use.</p>
+        <code>
+Model: yaya-omni/quechua-asr-lora-v1<br>
+Base: Qwen/Qwen3-ASR-1.7B<br>
+License: Apache-2.0<br>
+Languages: qu (Quechua), es-PE (Peruvian Spanish)<br>
+Task: Automatic Speech Recognition<br>
+Training Data: Common Voice + Siminchik + IWSLT<br>
+Parameters: ~13.6M (LoRA rank 32)<br>
+WER Target: &lt;20%<br>
+Hardware: 4× NVIDIA B200
+        </code>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-links">
+      <a href="#hero">Home</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#quechua-asr">Quechua ASR</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="https://github.com/yaya-omni" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://huggingface.co/yaya-omni" target="_blank" rel="noopener">HuggingFace</a>
+    </div>
+    <p class="footer-copy">
+      Built by <strong>Andre The Inventor</strong> · Powered by Qwen, vLLM, and open-source AI · Apache 2.0 License<br>
+      <span style="font-size:0.75rem;">🦙 Yaya-Omni — Voice AI for Latin America</span>
+    </p>
+  </div>
+</footer>
+
+<script>
+  // Latency breakdown chart
+  const ctx = document.getElementById('latencyChart');
+  if (ctx) {
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['ASR (Whisper)', 'LLM (Qwen3.5-27B)', 'TTS (Kokoro)', 'Total (Best)', 'Total (Avg)'],
+        datasets: [{
+          label: 'Latency (ms)',
+          data: [180, 240, 168, 588, 870],
+          backgroundColor: [
+            'rgba(63, 185, 80, 0.6)',
+            'rgba(188, 140, 255, 0.6)',
+            'rgba(240, 136, 62, 0.6)',
+            'rgba(88, 166, 255, 0.6)',
+            'rgba(88, 166, 255, 0.3)',
+          ],
+          borderColor: [
+            '#3fb950',
+            '#bc8cff',
+            '#f0883e',
+            '#58a6ff',
+            '#58a6ff',
+          ],
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          title: {
+            display: true,
+            text: 'Voice Pipeline Latency Breakdown',
+            color: '#8b949e',
+            font: { size: 14, weight: '600' }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(48,54,61,0.5)' },
+            ticks: { color: '#8b949e', callback: v => v + 'ms' }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: '#8b949e', font: { size: 11 } }
+          }
+        }
+      }
+    });
+  }
+
+  // Smooth scroll for nav links (close mobile menu on click)
+  document.querySelectorAll('.nav-links a').forEach(link => {
+    link.addEventListener('click', () => {
+      document.querySelector('.nav-links').classList.remove('open');
+    });
+  });
+
+  // Animate elements on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = '1';
+        entry.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.vision-card, .metric-card, .infra-card, .roadmap-item, .asr-detail, .oss-card').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(20px)';
+    el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+    observer.observe(el);
+  });
+</script>
+</body>
+</html>

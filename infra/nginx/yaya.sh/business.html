@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yaya Business — Tu Agente de Ventas por WhatsApp</title>
+<meta name="description" content="Yaya Business es un agente de IA por WhatsApp que maneja ventas, inventario y clientes para tu negocio. Sin apps. Sin complicaciones. Solo WhatsApp.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💼</text></svg>">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--gold:#F59E0B;--gold-light:#FBBF24;--orange:#F97316;--bg:#07070c;--surface:#0f0f18;--surface2:#161622;--surface3:#1e1e2e;--text:#f0ede8;--text-muted:#8b8fa3;--border:rgba(255,255,255,.06);--radius:16px;--glow:rgba(245,158,11,.12)}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:var(--gold);text-decoration:none;transition:color .2s}
+a:hover{color:var(--gold-light)}
+
+/* ── Nav ─────────────────────────────────── */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px);background:rgba(7,7,12,.75);border-bottom:1px solid var(--border);transition:all .3s}
+nav .logo{font-size:1.4rem;font-weight:800;letter-spacing:-.03em;background:linear-gradient(135deg,var(--gold),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+nav .logo span{font-weight:400;opacity:.7}
+nav .nav-links{display:flex;gap:2rem;align-items:center}
+nav .nav-links a{color:var(--text-muted);font-size:.9rem;font-weight:500}
+nav .nav-links a:hover{color:var(--text)}
+.nav-cta{padding:.55rem 1.4rem;background:var(--gold);color:var(--bg);border-radius:50px;font-weight:700;font-size:.85rem;transition:all .3s}
+.nav-cta:hover{background:var(--gold-light);color:var(--bg);transform:translateY(-1px);box-shadow:0 6px 20px var(--glow)}
+
+/* ── Hero ────────────────────────────────── */
+.hero{min-height:100vh;display:flex;align-items:center;padding:8rem 2rem 6rem;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-20%;right:-10%;width:700px;height:700px;background:radial-gradient(circle,var(--glow) 0%,transparent 60%);filter:blur(80px);z-index:0;animation:float 8s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translate(0,0)}50%{transform:translate(-30px,20px)}}
+.hero-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center;position:relative;z-index:1}
+.hero-text{max-width:560px}
+.hero-badge{display:inline-flex;align-items:center;gap:.5rem;padding:.4rem 1rem;background:var(--surface2);border:1px solid var(--border);border-radius:50px;font-size:.8rem;color:var(--gold);font-weight:600;margin-bottom:1.5rem}
+.hero-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:pulse 2s ease infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.hero h1{font-size:clamp(2.4rem,5vw,3.6rem);font-weight:800;letter-spacing:-.03em;line-height:1.12;margin-bottom:1.2rem}
+.hero h1 .highlight{background:linear-gradient(135deg,var(--gold),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{color:var(--text-muted);font-size:1.1rem;margin-bottom:2rem;max-width:480px;line-height:1.7}
+.hero-actions{display:flex;gap:1rem;flex-wrap:wrap}
+.btn-primary{display:inline-flex;align-items:center;gap:.6rem;padding:.9rem 2rem;background:var(--gold);color:var(--bg);border-radius:50px;font-weight:700;font-size:1rem;transition:all .3s;border:none;cursor:pointer}
+.btn-primary:hover{background:var(--gold-light);color:var(--bg);transform:translateY(-2px);box-shadow:0 10px 35px var(--glow)}
+.btn-secondary{display:inline-flex;align-items:center;gap:.6rem;padding:.9rem 2rem;border:1.5px solid var(--border);color:var(--text);border-radius:50px;font-weight:600;font-size:1rem;transition:all .3s;background:transparent;cursor:pointer}
+.btn-secondary:hover{border-color:var(--gold);color:var(--gold);transform:translateY(-2px)}
+
+/* Phone mockup */
+.hero-visual{display:flex;justify-content:center}
+.phone{width:300px;background:var(--surface);border-radius:36px;border:2px solid var(--border);padding:12px;box-shadow:0 40px 80px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.03)}
+.phone-screen{background:var(--surface2);border-radius:26px;overflow:hidden;padding:1.2rem}
+.phone-header{display:flex;align-items:center;gap:.8rem;padding-bottom:1rem;border-bottom:1px solid var(--border);margin-bottom:1rem}
+.phone-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--orange));display:flex;align-items:center;justify-content:center;font-size:.9rem}
+.phone-name{font-size:.85rem;font-weight:700}
+.phone-status{font-size:.7rem;color:#22c55e}
+.chat-msg{margin-bottom:.75rem;max-width:85%}
+.chat-msg.incoming{margin-right:auto}
+.chat-msg.outgoing{margin-left:auto}
+.chat-bubble{padding:.65rem .9rem;border-radius:14px;font-size:.8rem;line-height:1.5}
+.incoming .chat-bubble{background:var(--surface3);border-bottom-left-radius:4px}
+.outgoing .chat-bubble{background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(249,115,22,.1));border:1px solid rgba(245,158,11,.15);border-bottom-right-radius:4px}
+.chat-time{font-size:.6rem;color:var(--text-muted);margin-top:.2rem;text-align:right}
+
+/* ── Features ────────────────────────────── */
+section{padding:6rem 2rem}
+.container{max-width:1100px;margin:0 auto}
+.section-tag{font-size:.75rem;text-transform:uppercase;letter-spacing:.18em;color:var(--gold);font-weight:700;margin-bottom:.6rem}
+.section-title{font-size:clamp(1.8rem,4vw,2.6rem);font-weight:800;letter-spacing:-.025em;margin-bottom:.8rem;line-height:1.2}
+.section-desc{color:var(--text-muted);font-size:1.05rem;max-width:540px;margin-bottom:3.5rem}
+
+.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
+.feature{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:2rem 1.6rem;transition:all .35s;position:relative;overflow:hidden}
+.feature::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),var(--orange));opacity:0;transition:opacity .35s}
+.feature:hover{transform:translateY(-4px);border-color:rgba(245,158,11,.15);box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.feature:hover::after{opacity:1}
+.feature-icon{font-size:2rem;margin-bottom:1rem;display:block}
+.feature h3{font-size:1.15rem;font-weight:700;margin-bottom:.5rem}
+.feature p{color:var(--text-muted);font-size:.9rem;line-height:1.6}
+
+/* ── How It Works ────────────────────────── */
+.how-it-works{background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:2.5rem;counter-reset:step}
+.step{text-align:center;position:relative;counter-increment:step}
+.step::before{content:counter(step);font-size:3rem;font-weight:900;background:linear-gradient(135deg,var(--gold),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;display:block;margin-bottom:1rem;line-height:1}
+.step h3{font-size:1.15rem;font-weight:700;margin-bottom:.5rem}
+.step p{color:var(--text-muted);font-size:.9rem;line-height:1.6}
+.step-connector{display:none}
+
+/* ── Pricing ─────────────────────────────── */
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;max-width:960px;margin:0 auto}
+.price-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:2.2rem 1.8rem;text-align:center;transition:all .35s;position:relative}
+.price-card.featured{border-color:var(--gold);box-shadow:0 0 40px var(--glow)}
+.price-card.featured::before{content:'Popular';position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--gold);color:var(--bg);padding:.25rem 1rem;border-radius:50px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.price-card:hover{transform:translateY(-4px)}
+.price-name{font-size:1.1rem;font-weight:700;margin-bottom:.5rem}
+.price-amount{font-size:2.8rem;font-weight:900;margin-bottom:.3rem}
+.price-amount span{font-size:1rem;font-weight:400;color:var(--text-muted)}
+.price-period{font-size:.8rem;color:var(--text-muted);margin-bottom:1.5rem}
+.price-features{list-style:none;text-align:left;margin-bottom:1.8rem}
+.price-features li{padding:.4rem 0;font-size:.88rem;color:var(--text-muted);display:flex;align-items:center;gap:.6rem}
+.price-features li::before{content:'✓';color:var(--gold);font-weight:700;font-size:.85rem}
+.price-btn{display:block;width:100%;padding:.75rem;border-radius:50px;font-weight:700;font-size:.9rem;text-align:center;transition:all .3s;border:1.5px solid var(--border);color:var(--text);background:transparent;cursor:pointer}
+.price-btn:hover{border-color:var(--gold);color:var(--gold)}
+.price-card.featured .price-btn{background:var(--gold);color:var(--bg);border-color:var(--gold)}
+.price-card.featured .price-btn:hover{background:var(--gold-light);box-shadow:0 6px 20px var(--glow)}
+
+/* ── Testimonials ────────────────────────── */
+.testimonials-bg{background:var(--surface2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.testimonials-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem}
+.testimonial{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:2rem 1.8rem}
+.testimonial-text{font-size:1rem;line-height:1.7;margin-bottom:1.2rem;font-style:italic;color:var(--text)}
+.testimonial-text::before{content:'"';font-size:2.5rem;color:var(--gold);font-family:Georgia,serif;line-height:0;vertical-align:-.6rem;margin-right:.1rem}
+.testimonial-author{display:flex;align-items:center;gap:.8rem}
+.testimonial-avatar{width:40px;height:40px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:1.1rem}
+.testimonial-name{font-size:.9rem;font-weight:700}
+.testimonial-role{font-size:.75rem;color:var(--text-muted)}
+
+/* ── CTA Section ─────────────────────────── */
+.cta-section{text-align:center;position:relative;overflow:hidden}
+.cta-section::before{content:'';position:absolute;top:50%;left:50%;width:600px;height:600px;transform:translate(-50%,-50%);background:radial-gradient(circle,var(--glow) 0%,transparent 60%);filter:blur(60px)}
+.cta-section .container{position:relative;z-index:1}
+.cta-section h2{font-size:clamp(2rem,4.5vw,3rem);font-weight:800;letter-spacing:-.03em;margin-bottom:1rem}
+.cta-section p{color:var(--text-muted);font-size:1.1rem;margin-bottom:2rem;max-width:480px;margin-left:auto;margin-right:auto}
+.wa-btn{display:inline-flex;align-items:center;gap:.7rem;padding:1rem 2.5rem;background:#25D366;color:#fff;border-radius:50px;font-weight:700;font-size:1.05rem;transition:all .3s;border:none;cursor:pointer}
+.wa-btn:hover{background:#20bd5a;color:#fff;transform:translateY(-2px);box-shadow:0 10px 35px rgba(37,211,102,.25)}
+.wa-btn svg{width:22px;height:22px}
+
+/* ── Footer ──────────────────────────────── */
+footer{padding:3rem 2rem;border-top:1px solid var(--border);text-align:center}
+footer .footer-brand{font-size:1.2rem;font-weight:800;margin-bottom:.5rem;background:linear-gradient(135deg,var(--gold),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+footer .footer-links{margin:.8rem 0}
+footer .footer-links a{color:var(--text-muted);font-size:.85rem;margin:0 1rem}
+footer .footer-links a:hover{color:var(--gold)}
+footer .footer-copy{font-size:.75rem;color:rgba(255,255,255,.2)}
+
+/* ── Reveal ──────────────────────────────── */
+.reveal{opacity:0;transform:translateY(25px);transition:opacity .6s ease,transform .6s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* ── Responsive ──────────────────────────── */
+@media(max-width:900px){
+  .hero-inner{grid-template-columns:1fr;text-align:center}
+  .hero-text{max-width:100%}
+  .hero p{margin-left:auto;margin-right:auto}
+  .hero-actions{justify-content:center}
+  .hero-visual{margin-top:2rem}
+  .features-grid{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr;gap:2rem}
+  .pricing-grid{grid-template-columns:1fr;max-width:380px}
+  .testimonials-grid{grid-template-columns:1fr}
+  .nav-links{display:none}
+}
+@media(max-width:480px){
+  nav{padding:.8rem 1.2rem}
+  .hero{padding:6rem 1.2rem 4rem}
+  section{padding:4rem 1.2rem}
+  .phone{width:260px}
+}
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="logo">Yaya <span>Business</span></div>
+  <div class="nav-links">
+    <a href="#features">Funciones</a>
+    <a href="#how">Cómo Funciona</a>
+    <a href="#pricing">Precios</a>
+    <a href="#start" class="nav-cta">Empezar Gratis</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero" id="top">
+  <div class="hero-inner">
+    <div class="hero-text">
+      <div class="hero-badge"><span class="dot"></span> Potenciado por IA</div>
+      <h1>Tu negocio en <span class="highlight">WhatsApp</span>, inteligente y automático</h1>
+      <p>Un agente de IA que vende, responde clientes, controla inventario y cobra — todo por WhatsApp. Sin apps. Sin complicaciones.</p>
+      <div class="hero-actions">
+        <a href="#start" class="btn-primary">💬 Empezar Gratis</a>
+        <a href="#how" class="btn-secondary">Ver cómo funciona</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="phone-header">
+            <div class="phone-avatar">💼</div>
+            <div>
+              <div class="phone-name">Mi Tienda IA</div>
+              <div class="phone-status">● en línea</div>
+            </div>
+          </div>
+          <div class="chat-msg incoming">
+            <div class="chat-bubble">Hola! Quiero ver las zapatillas Nike que publicaste 👟</div>
+          </div>
+          <div class="chat-msg outgoing">
+            <div class="chat-bubble">¡Hola! 😊 Tenemos 3 modelos disponibles. ¿Qué talla usas?</div>
+            <div class="chat-time">10:42 ✓✓</div>
+          </div>
+          <div class="chat-msg incoming">
+            <div class="chat-bubble">42. Y cuánto cuestan?</div>
+          </div>
+          <div class="chat-msg outgoing">
+            <div class="chat-bubble">Talla 42 ✅ Desde S/189. Te mando fotos y precios 📸<br><br>Nike Air Max — S/249<br>Nike Revolution — S/189<br>Nike Court — S/219<br><br>¿Cuál te interesa?</div>
+            <div class="chat-time">10:42 ✓✓</div>
+          </div>
+          <div class="chat-msg incoming">
+            <div class="chat-bubble">El Revolution! Puedo pagar con Yape?</div>
+          </div>
+          <div class="chat-msg outgoing">
+            <div class="chat-bubble">¡Claro! 🎉 Te genero el pedido.<br><br>📦 Pedido #1847<br>Nike Revolution 42 — S/189<br><br>Yapea a 999-888-777 y mándame el pantallazo 📱</div>
+            <div class="chat-time">10:43 ✓✓</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features">
+  <div class="container">
+    <div class="reveal">
+      <p class="section-tag">Funciones</p>
+      <h2 class="section-title">Todo lo que necesita tu negocio</h2>
+      <p class="section-desc">Yaya entiende a tus clientes, conoce tus productos y cierra ventas mientras duermes.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature reveal">
+        <span class="feature-icon">🤖</span>
+        <h3>Vendedor IA 24/7</h3>
+        <p>Responde preguntas, recomienda productos y cierra ventas automáticamente. En español peruano natural.</p>
+      </div>
+      <div class="feature reveal">
+        <span class="feature-icon">📦</span>
+        <h3>Inventario Inteligente</h3>
+        <p>Control de stock en tiempo real. Alertas cuando un producto se agota. Actualiza cantidades por WhatsApp.</p>
+      </div>
+      <div class="feature reveal">
+        <span class="feature-icon">💳</span>
+        <h3>Cobros con Yape</h3>
+        <p>Genera pedidos, detecta pagos por Yape automáticamente y confirma al cliente. Sin pasarelas complicadas.</p>
+      </div>
+      <div class="feature reveal">
+        <span class="feature-icon">📊</span>
+        <h3>Dashboard Admin</h3>
+        <p>Panel web para ver ventas, clientes, productos y métricas. Accede desde el celular o la computadora.</p>
+      </div>
+      <div class="feature reveal">
+        <span class="feature-icon">🔒</span>
+        <h3>Datos Encriptados</h3>
+        <p>Toda la información de tus clientes está cifrada. Privacidad y seguridad de nivel bancario.</p>
+      </div>
+      <div class="feature reveal">
+        <span class="feature-icon">🎤</span>
+        <h3>Audios y Fotos</h3>
+        <p>Los clientes mandan audio? Yaya lo entiende. Mandan foto del producto? También. IA multimedia completa.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How It Works -->
+<section class="how-it-works" id="how">
+  <div class="container">
+    <div class="reveal" style="text-align:center;margin-bottom:3.5rem">
+      <p class="section-tag">Cómo Funciona</p>
+      <h2 class="section-title" style="max-width:100%;margin-left:auto;margin-right:auto">En 3 pasos tu negocio vende solo</h2>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <h3>Conecta tu WhatsApp</h3>
+        <p>Escanea un código QR y conecta tu número de WhatsApp Business. Toma 30 segundos.</p>
+      </div>
+      <div class="step reveal">
+        <h3>Sube tus productos</h3>
+        <p>Agrega productos con fotos, precios y stock. Por el panel web o directamente por WhatsApp.</p>
+      </div>
+      <div class="step reveal">
+        <h3>Yaya vende por ti</h3>
+        <p>Tu agente IA responde clientes, toma pedidos y cobra. Tú solo despachas. Así de simple.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Testimonials -->
+<section class="testimonials-bg">
+  <div class="container">
+    <div class="reveal" style="text-align:center;margin-bottom:3rem">
+      <p class="section-tag">Historias</p>
+      <h2 class="section-title" style="margin-left:auto;margin-right:auto">Negocios reales, resultados reales</h2>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testimonial reveal">
+        <p class="testimonial-text">Antes perdía ventas porque no podía responder a todos los mensajes. Ahora Yaya responde al instante y mis ventas subieron 40%.</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">👩</div>
+          <div>
+            <div class="testimonial-name">María González</div>
+            <div class="testimonial-role">Tienda de ropa — Lima</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial reveal">
+        <p class="testimonial-text">Lo mejor es que cobra con Yape solo. El cliente paga, Yaya confirma, y yo solo empaco. Increíble para un negocio de una persona.</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">👨</div>
+          <div>
+            <div class="testimonial-name">Carlos Quispe</div>
+            <div class="testimonial-role">Accesorios tech — Arequipa</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section id="pricing">
+  <div class="container">
+    <div class="reveal" style="text-align:center;margin-bottom:3.5rem">
+      <p class="section-tag">Precios</p>
+      <h2 class="section-title" style="margin-left:auto;margin-right:auto">Simple. Sin sorpresas.</h2>
+      <p class="section-desc" style="margin-left:auto;margin-right:auto">Empieza gratis. Crece cuando estés listo.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="price-card reveal">
+        <div class="price-name">Inicio</div>
+        <div class="price-amount">S/0 <span>/mes</span></div>
+        <div class="price-period">Gratis para siempre</div>
+        <ul class="price-features">
+          <li>50 conversaciones/mes</li>
+          <li>20 productos</li>
+          <li>1 número WhatsApp</li>
+          <li>Cobros con Yape</li>
+          <li>Dashboard básico</li>
+        </ul>
+        <a href="#start" class="price-btn">Empezar Gratis</a>
+      </div>
+      <div class="price-card featured reveal">
+        <div class="price-name">Negocio</div>
+        <div class="price-amount">S/49 <span>/mes</span></div>
+        <div class="price-period">El más popular</div>
+        <ul class="price-features">
+          <li>Conversaciones ilimitadas</li>
+          <li>Productos ilimitados</li>
+          <li>2 números WhatsApp</li>
+          <li>Audio y foto IA</li>
+          <li>Dashboard completo</li>
+          <li>Alertas de inventario</li>
+          <li>Soporte prioritario</li>
+        </ul>
+        <a href="#start" class="price-btn">Elegir Plan</a>
+      </div>
+      <div class="price-card reveal">
+        <div class="price-name">Empresa</div>
+        <div class="price-amount">S/149 <span>/mes</span></div>
+        <div class="price-period">Para equipos</div>
+        <ul class="price-features">
+          <li>Todo de Negocio</li>
+          <li>5 números WhatsApp</li>
+          <li>Multi-vendedor</li>
+          <li>API de integración</li>
+          <li>Reportes avanzados</li>
+          <li>IA personalizada</li>
+          <li>Soporte dedicado</li>
+        </ul>
+        <a href="#start" class="price-btn">Contactar Ventas</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Final CTA -->
+<section class="cta-section" id="start">
+  <div class="container reveal">
+    <h2>¿Listo para vender en automático?</h2>
+    <p>Conecta tu WhatsApp y deja que Yaya trabaje por ti. Setup en 5 minutos.</p>
+    <a href="https://wa.me/51999888777?text=Hola!%20Quiero%20activar%20Yaya%20Business" class="wa-btn" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      Activar por WhatsApp
+    </a>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-brand">Yaya Business</div>
+  <div class="footer-links">
+    <a href="https://yaya.sh">Yaya.sh</a>
+    <a href="https://github.com/AndreTregear" target="_blank" rel="noopener">GitHub</a>
+    <a href="mailto:andre@yaya.sh">Contacto</a>
+  </div>
+  <p class="footer-copy">© 2026 Yaya. Hecho en Perú 🇵🇪 con IA y café.</p>
+</footer>
+
+<script>
+// Reveal on scroll
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); }});
+}, { threshold: 0.12, rootMargin: '0px 0px -30px 0px' });
+document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+
+// Nav scroll effect
+let lastScroll = 0;
+window.addEventListener('scroll', () => {
+  const nav = document.querySelector('nav');
+  const scrolled = window.scrollY > 50;
+  nav.style.borderBottomColor = scrolled ? 'rgba(245,158,11,.1)' : 'rgba(255,255,255,.06)';
+});
+</script>
+</body>
+</html>

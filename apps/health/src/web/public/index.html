@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>agente.fit — Tu compañera de salud inteligente</title>
+  <meta name="description" content="Asistente de salud inteligente para familias peruanas por WhatsApp. Control de crecimiento, nutrición contra anemia, salud materna y triaje de emergencia — en español y quechua.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      /* agente.fit Brand Colors */
+      --bg-primary: #0a0a0b;
+      --bg-secondary: #0f1419;
+      --text: #ffffff;
+      --text-muted: #9ca3af;
+      --text-soft: #71717a;
+      
+      /* Health-themed gradients */
+      --gradient-primary: linear-gradient(135deg, #8B5CF6 0%, #06B6D4 50%, #10B981 100%);
+      --gradient-health: linear-gradient(135deg, #10B981 0%, #14B8A6 50%, #06B6D4 100%);
+      --gradient-emerald: linear-gradient(135deg, #10B981 0%, #059669 100%);
+      --gradient-purple: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+      
+      /* Glass morphism */
+      --glass-bg: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --glass-blur: blur(20px);
+      
+      --border: rgba(255, 255, 255, 0.1);
+      --radius: 12px;
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    html { scroll-behavior: smooth; }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Background particles effect */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        radial-gradient(circle at 20% 20%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 40% 70%, rgba(6, 182, 212, 0.06) 0%, transparent 50%);
+      z-index: -1;
+      animation: float 25s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      33% { transform: translate(30px, -30px) rotate(1deg); }
+      66% { transform: translate(-20px, 20px) rotate(-1deg); }
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+    /* Glass morphism components */
+    .glass-card {
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    /* Navigation */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(10, 10, 11, 0.8);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      z-index: 50;
+      padding: 16px 0;
+      transition: background 0.3s ease;
+    }
+
+    .nav-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .nav-logo {
+      font-size: 1.5rem;
+      font-weight: 800;
+      background: var(--gradient-health);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-decoration: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .nav-logo:hover { opacity: 0.8; }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.3s ease;
+      position: relative;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+    }
+
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: var(--gradient-health);
+      transition: width 0.3s ease;
+    }
+
+    .nav-links a:hover::after {
+      width: 100%;
+    }
+
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      padding: 140px 24px 100px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .impact-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: 50px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 32px;
+      animation: slideDown 0.8s ease-out;
+      box-shadow: var(--shadow);
+    }
+
+    .impact-badge .badge-icon {
+      background: var(--gradient-emerald);
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 900;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .hero-title {
+      font-size: clamp(3.5rem, 8vw, 6rem);
+      font-weight: 900;
+      line-height: 1.1;
+      margin-bottom: 16px;
+      position: relative;
+      animation: slideUp 0.8s ease-out 0.2s both;
+    }
+
+    .hero-title .title-main {
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradient 3s ease-in-out infinite;
+    }
+
+    @keyframes gradient {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    .hero-tagline {
+      font-size: clamp(1.5rem, 4vw, 2.25rem);
+      font-weight: 700;
+      margin-bottom: 24px;
+      animation: slideUp 0.8s ease-out 0.3s both;
+    }
+
+    .hero-subtitle {
+      font-size: clamp(1.125rem, 3vw, 1.25rem);
+      color: var(--text-muted);
+      max-width: 700px;
+      margin: 0 auto 48px;
+      animation: slideUp 0.8s ease-out 0.4s both;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .hero-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 20px 40px;
+      background: var(--gradient-health);
+      color: var(--bg-primary);
+      font-size: 1.25rem;
+      font-weight: 700;
+      border-radius: 50px;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
+      animation: slideUp 0.8s ease-out 0.6s both;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-cta::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .hero-cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 48px rgba(16, 185, 129, 0.4);
+    }
+
+    .hero-cta:hover::before {
+      left: 100%;
+    }
+
+    /* Problem Section */
+    .problem {
+      padding: 140px 0;
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.03) 0%, rgba(245, 158, 11, 0.03) 100%);
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 80px;
+    }
+
+    .section-title {
+      font-size: clamp(2.5rem, 5vw, 3.5rem);
+      font-weight: 800;
+      margin-bottom: 24px;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .section-subtitle {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .problem-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 32px;
+      margin-bottom: 64px;
+    }
+
+    .stat-card {
+      text-align: center;
+      padding: 40px;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--gradient-health);
+      transform: scaleX(0);
+      transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-8px);
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+
+    .stat-card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .stat-value {
+      font-size: 3rem;
+      font-weight: 900;
+      color: #ef4444;
+      margin-bottom: 12px;
+    }
+
+    .stat-label {
+      font-size: 1.125rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .stat-description {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .paradox-card {
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 48px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .paradox-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      margin-bottom: 24px;
+      color: #f59e0b;
+    }
+
+    .paradox-text {
+      font-size: 1.125rem;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      line-height: 1.7;
+    }
+
+    .blockers {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 24px;
+    }
+
+    .blocker-item {
+      padding: 24px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: var(--radius);
+      text-align: center;
+    }
+
+    .blocker-item .emoji {
+      font-size: 2rem;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .blocker-item .title {
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .blocker-item .description {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    /* WhatsApp Demo Section */
+    .whatsapp-demo {
+      padding: 140px 0;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.03) 0%, rgba(6, 182, 212, 0.03) 100%);
+    }
+
+    .demo-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+    }
+
+    .demo-content h2 {
+      font-size: clamp(2rem, 4vw, 2.75rem);
+      font-weight: 800;
+      margin-bottom: 24px;
+      background: var(--gradient-health);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .demo-content p {
+      font-size: 1.125rem;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+      line-height: 1.7;
+    }
+
+    .demo-phone {
+      max-width: 350px;
+      margin: 0 auto;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: 32px;
+      padding: 32px;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      background: rgba(16, 185, 129, 0.1);
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+    }
+
+    .chat-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--gradient-health);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white;
+    }
+
+    .chat-info h4 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .chat-info p {
+      font-size: 0.8rem;
+      color: var(--text-soft);
+    }
+
+    .chat-messages {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 16px 20px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      position: relative;
+    }
+
+    .message-user {
+      background: linear-gradient(135deg, #06B6D4, #0891b2);
+      color: white;
+      margin-left: auto;
+      border-bottom-right-radius: 6px;
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2);
+    }
+
+    .message-bot {
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-bottom-left-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .message-bot .highlight {
+      color: #10B981;
+      font-weight: 700;
+    }
+
+    /* Features Section */
+    .features {
+      padding: 140px 0;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 32px;
+    }
+
+    .feature-card {
+      padding: 48px;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      text-align: center;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--gradient-health);
+      transform: scaleX(0);
+      transition: transform 0.3s ease;
+    }
+
+    .feature-card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .feature-card:hover {
+      transform: translateY(-8px);
+      border-color: rgba(16, 185, 129, 0.2);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .feature-icon {
+      font-size: 3.5rem;
+      margin-bottom: 24px;
+      display: block;
+    }
+
+    .feature-card h3 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+
+    .feature-card p {
+      color: var(--text-muted);
+      line-height: 1.7;
+      font-size: 1rem;
+    }
+
+    /* Superfoods Section */
+    .superfoods {
+      padding: 140px 0;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.02) 0%, rgba(6, 182, 212, 0.02) 100%);
+    }
+
+    .superfood-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 24px;
+      margin-top: 64px;
+    }
+
+    .superfood-card {
+      padding: 32px;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .superfood-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(16, 185, 129, 0.2);
+    }
+
+    .superfood-emoji {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .superfood-name {
+      font-size: 1.125rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .superfood-iron {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #10B981;
+      margin-bottom: 8px;
+    }
+
+    .superfood-type {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 600;
+    }
+
+    .absorption-rules {
+      margin-top: 64px;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 48px;
+    }
+
+    .absorption-rules h3 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      margin-bottom: 32px;
+      text-align: center;
+      background: var(--gradient-health);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .rules-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+
+    .rule-card {
+      padding: 24px;
+      border-radius: var(--radius);
+    }
+
+    .rule-card.enhancer {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .rule-card.blocker {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .rule-card h4 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .rule-card.enhancer h4 { color: #10B981; }
+    .rule-card.blocker h4 { color: #ef4444; }
+
+    .rule-card ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .rule-card li {
+      padding: 8px 0;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Personas Section */
+    .personas {
+      padding: 140px 0;
+    }
+
+    .personas-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 32px;
+      margin-top: 64px;
+    }
+
+    .persona-card {
+      padding: 40px;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      transition: all 0.3s ease;
+    }
+
+    .persona-card:hover {
+      transform: translateY(-8px);
+      border-color: rgba(16, 185, 129, 0.2);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .persona-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .persona-avatar {
+      font-size: 2.5rem;
+    }
+
+    .persona-info h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .persona-info p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .persona-case {
+      color: var(--text-muted);
+      font-style: italic;
+      line-height: 1.6;
+    }
+
+    /* Trust Section */
+    .trust {
+      padding: 80px 0;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, rgba(16, 185, 129, 0.03) 100%);
+    }
+
+    .trust-content {
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .disclaimer {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: var(--radius);
+      padding: 32px;
+      margin-bottom: 48px;
+    }
+
+    .disclaimer h3 {
+      color: #f59e0b;
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .trust-features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 24px;
+    }
+
+    .trust-feature {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 20px;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+    }
+
+    .trust-feature .icon {
+      font-size: 1.5rem;
+    }
+
+    .trust-feature .text {
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    /* Footer */
+    .footer {
+      padding: 80px 0 40px;
+      border-top: 1px solid var(--border);
+    }
+
+    .footer-content {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 48px;
+      margin-bottom: 48px;
+    }
+
+    .footer-brand h3 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+      background: var(--gradient-health);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .footer-brand p {
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    .footer-links h4 {
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+
+    .footer-links a {
+      display: block;
+      color: var(--text-muted);
+      text-decoration: none;
+      margin-bottom: 8px;
+      transition: color 0.3s ease;
+    }
+
+    .footer-links a:hover {
+      color: var(--text);
+    }
+
+    .footer-bottom {
+      text-align: center;
+      padding-top: 32px;
+      border-top: 1px solid var(--border);
+      color: var(--text-soft);
+      font-size: 0.875rem;
+    }
+
+    .footer-bottom a {
+      color: inherit;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    .footer-bottom a:hover {
+      color: var(--text-muted);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .hero { padding: 120px 16px 80px; }
+      .features, .superfoods, .personas, .problem, .whatsapp-demo { padding: 80px 0; }
+      .demo-container { 
+        grid-template-columns: 1fr; 
+        gap: 48px;
+        text-align: center;
+      }
+      .features-grid { grid-template-columns: 1fr; }
+      .problem-stats { grid-template-columns: 1fr; }
+      .rules-grid { grid-template-columns: 1fr; }
+      .personas-grid { grid-template-columns: 1fr; }
+      .nav-content {
+        justify-content: center;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .container { padding: 0 16px; }
+      .stat-card { padding: 32px 24px; }
+      .feature-card { padding: 32px 24px; }
+      .persona-card { padding: 32px 24px; }
+      .superfood-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* Scroll animations - safe fallback with visibility by default */
+    .fade-in-up {
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    
+    /* Only hide if animations are enabled */
+    .animations-enabled .fade-in-up {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    .fade-in-up.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    /* Subtle hover effects */
+    .glass-card {
+      transition: all 0.3s ease;
+    }
+    
+    .glass-card:hover {
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="nav" id="nav">
+    <div class="container">
+      <div class="nav-content">
+        <a href="#" class="nav-logo">agente.fit</a>
+        <ul class="nav-links">
+          <li><a href="#problema">Problema</a></li>
+          <li><a href="#demo">Demo</a></li>
+          <li><a href="#funciones">Funciones</a></li>
+          <li><a href="#superalimentos">Superalimentos</a></li>
+          <li><a href="/admin">Conectar</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero" id="hero">
+    <div class="container">
+      <div class="impact-badge">
+        <div class="badge-icon">✓</div>
+        <span><strong>65% → 12% anemia</strong> (Modelo Iguaín, Premio Sasakawa OMS 2019)</span>
+      </div>
+      
+      <h1 class="hero-title">
+        <span class="title-main">agente.fit</span>
+      </h1>
+      
+      <p class="hero-tagline">Tu compañera de salud inteligente</p>
+      
+      <p class="hero-subtitle">
+        Asistente de salud por WhatsApp para familias peruanas. Control de crecimiento, nutrición contra anemia, salud materna y triaje de emergencia — en español y quechua.
+      </p>
+      
+      <a href="/admin" class="hero-cta">
+        <span>📱</span>
+        <span>Empieza gratis por WhatsApp</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- Problem Section -->
+  <section class="problem" id="problema">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">El problema de la anemia infantil</h2>
+        <p class="section-subtitle">
+          La paradoja peruana: tenemos hierro, pero no se absorbe
+        </p>
+      </div>
+      
+      <div class="problem-stats">
+        <div class="stat-card">
+          <div class="stat-value">43.7%</div>
+          <div class="stat-label">Anemia infantil</div>
+          <div class="stat-description">Niños menores de 3 años en Perú (ENDES 2022)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">70.7%</div>
+          <div class="stat-label">En Puno</div>
+          <div class="stat-description">La región más afectada del país</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">52%</div>
+          <div class="stat-label">Come suficiente hierro</div>
+          <div class="stat-description">Pero no se absorbe correctamente</div>
+        </div>
+      </div>
+      
+      <div class="paradox-card">
+        <h3 class="paradox-title">⚠️ La Paradoja del Hierro</h3>
+        <p class="paradox-text">
+          <strong>52% de niños anémicos ya consumen suficiente hierro.</strong> 
+          El problema no es la cantidad — es la ABSORCIÓN. Tres factores la bloquean:
+        </p>
+        <div class="blockers">
+          <div class="blocker-item">
+            <span class="emoji">🦠</span>
+            <div class="title">Parásitos</div>
+            <div class="description">40-100% prevalencia rural, roban hierro</div>
+          </div>
+          <div class="blocker-item">
+            <span class="emoji">💧</span>
+            <div class="title">Agua contaminada</div>
+            <div class="description">Solo 3% rural tiene agua clorada</div>
+          </div>
+          <div class="blocker-item">
+            <span class="emoji">🫖</span>
+            <div class="title">Infusiones</div>
+            <div class="description">Anís/manzanilla reducen absorción 60-82%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WhatsApp Demo Section -->
+  <section class="whatsapp-demo" id="demo">
+    <div class="container">
+      <div class="demo-container">
+        <div class="demo-content fade-in-up">
+          <h2>Conversación inteligente por WhatsApp</h2>
+          <p>
+            Simplemente escribe tu consulta en español o quechua. agente.fit entiende tu contexto, 
+            analiza los datos y proporciona orientación médica personalizada basada en guías clínicas validadas.
+          </p>
+          <p>
+            <strong>Calcula z-scores WHO, detecta riesgos nutricionales y recomienda alimentos locales 
+            con las mejores fuentes de hierro biodisponible.</strong>
+          </p>
+        </div>
+        
+        <div class="demo-phone fade-in-up">
+          <div class="chat-header">
+            <div class="chat-avatar">🏥</div>
+            <div class="chat-info">
+              <h4>agente.fit</h4>
+              <p>En línea • Respuesta inmediata</p>
+            </div>
+          </div>
+          <div class="chat-messages">
+            <div class="message message-user">
+              Mi hijo pesa 8 kilos y mide 68cm, tiene 10 meses
+            </div>
+            <div class="message message-bot">
+              Según las tablas WHO, tu bebé está en <span class="highlight">percentil 3</span> para peso (Z-score: -1.7). 
+              Esto indica <span class="highlight">peso bajo para la edad</span>.
+              <br><br>
+              📊 <strong>Recomendaciones:</strong><br>
+              • Aumentar frecuencia de lactancia<br>
+              • Control en centro de salud<br>
+              • Iniciar alimentos ricos en hierro
+            </div>
+            <div class="message message-user">
+              ¿Qué le doy de comer?
+            </div>
+            <div class="message message-bot">
+              <span class="highlight">🥘 Alimentos ideales para 10 meses:</span>
+              <br><br>
+              • <strong>Sangrecita</strong> (27.3mg hierro) + camu camu<br>
+              • <strong>Hígado de pollo</strong> molido + camote<br>
+              • <strong>Quinua</strong> + espinaca + naranja
+              <br><br>
+              ⚠️ <strong>Evita:</strong> infusiones de anís con las comidas
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features" id="funciones">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Funciones especializadas</h2>
+        <p class="section-subtitle">
+          Herramientas de salud adaptadas a la realidad peruana
+        </p>
+      </div>
+      
+      <div class="features-grid">
+        <div class="feature-card fade-in-up">
+          <span class="feature-icon">📊</span>
+          <h3>Control de Crecimiento</h3>
+          <p>Cálculo automático de z-scores WHO para peso, talla y perímetro cefálico. 
+          Seguimiento del desarrollo infantil con alertas tempranas sobre desnutrición y problemas de crecimiento.</p>
+        </div>
+        
+        <div class="feature-card fade-in-up">
+          <span class="feature-icon">🥘</span>
+          <h3>Guía Nutricional</h3>
+          <p>Base de datos completa de superalimentos peruanos ricos en hierro biodisponible. 
+          Recetas específicas con ingredientes locales diseñadas para combatir la anemia infantil.</p>
+        </div>
+        
+        <div class="feature-card fade-in-up">
+          <span class="feature-icon">🩸</span>
+          <h3>Evaluación de Anemia</h3>
+          <p>Screening de riesgo mediante preguntas clave sobre síntomas, alimentación y factores ambientales. 
+          Orientación sobre cuándo acudir al centro de salud más cercano.</p>
+        </div>
+        
+        <div class="feature-card fade-in-up">
+          <span class="feature-icon">🤰</span>
+          <h3>Salud Materna</h3>
+          <p>Seguimiento prenatal semana a semana, identificación de señales de peligro obstétrico, 
+          nutrición durante el embarazo y cuidados postnatales según normas MINSA.</p>
+        </div>
+        
+        <div class="feature-card fade-in-up">
+          <span class="feature-icon">💊</span>
+          <h3>Enfermedades Crónicas</h3>
+          <p>Manejo de diabetes, hipertensión y otras enfermedades no transmisibles. 
+          Control glucémico, medicamentos, dieta y ejercicio adaptados a la cultura peruana.</p>
+        </div>
+        
+        <div class="feature-card fade-in-up">
+          <span class="feature-icon">🧠</span>
+          <h3>Salud Mental</h3>
+          <p>Primeros auxilios psicológicos, manejo de ansiedad y depresión, técnicas de relajación 
+          y directorio de líneas de crisis y centros de atención mental.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Superfoods Section -->
+  <section class="superfoods" id="superalimentos">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Superalimentos peruanos</h2>
+        <p class="section-subtitle">
+          Los alimentos más ricos en hierro de nuestra tierra
+        </p>
+      </div>
+      
+      <div class="superfood-grid">
+        <div class="superfood-card fade-in-up">
+          <span class="superfood-emoji">🩸</span>
+          <div class="superfood-name">Sangrecita</div>
+          <div class="superfood-iron">27.3mg</div>
+          <div class="superfood-type">Hierro hemo</div>
+        </div>
+        
+        <div class="superfood-card fade-in-up">
+          <span class="superfood-emoji">🫘</span>
+          <div class="superfood-name">Bazo</div>
+          <div class="superfood-iron">28.7mg</div>
+          <div class="superfood-type">Hierro hemo</div>
+        </div>
+        
+        <div class="superfood-card fade-in-up">
+          <span class="superfood-emoji">🍖</span>
+          <div class="superfood-name">Hígado</div>
+          <div class="superfood-iron">8.5mg</div>
+          <div class="superfood-type">Hierro hemo</div>
+        </div>
+        
+        <div class="superfood-card fade-in-up">
+          <span class="superfood-emoji">🌾</span>
+          <div class="superfood-name">Cañihua</div>
+          <div class="superfood-iron">12-15mg</div>
+          <div class="superfood-type">No hemo</div>
+        </div>
+        
+        <div class="superfood-card fade-in-up">
+          <span class="superfood-emoji">🍃</span>
+          <div class="superfood-name">Cushuro</div>
+          <div class="superfood-iron">4.7-26mg</div>
+          <div class="superfood-type">No hemo</div>
+        </div>
+        
+        <div class="superfood-card fade-in-up">
+          <span class="superfood-emoji">🌱</span>
+          <div class="superfood-name">Quinua</div>
+          <div class="superfood-iron">7.5-13mg</div>
+          <div class="superfood-type">No hemo</div>
+        </div>
+        
+        <div class="superfood-card fade-in-up">
+          <span class="superfood-emoji">🫛</span>
+          <div class="superfood-name">Lentejas</div>
+          <div class="superfood-iron">7.5mg</div>
+          <div class="superfood-type">No hemo</div>
+        </div>
+        
+        <div class="superfood-card fade-in-up">
+          <span class="superfood-emoji">🍊</span>
+          <div class="superfood-name">Camu Camu</div>
+          <div class="superfood-iron">2,780mg vit C</div>
+          <div class="superfood-type">Potenciador</div>
+        </div>
+      </div>
+      
+      <div class="absorption-rules fade-in-up">
+        <h3>Reglas de absorción de hierro</h3>
+        <div class="rules-grid">
+          <div class="rule-card enhancer">
+            <h4>
+              <span>✅</span>
+              <span>Potenciadores</span>
+            </h4>
+            <ul>
+              <li><span>🍊</span> Vitamina C (camu camu, naranja, limón)</li>
+              <li><span>🥩</span> Proteína animal (pollo, pescado)</li>
+              <li><span>🧄</span> Ajo y cebolla</li>
+              <li><span>🫒</span> Ácidos orgánicos</li>
+            </ul>
+          </div>
+          
+          <div class="rule-card blocker">
+            <h4>
+              <span>⛔</span>
+              <span>Bloqueadores</span>
+            </h4>
+            <ul>
+              <li><span>🫖</span> Té, café, infusiones (reduce 60-82%)</li>
+              <li><span>🥛</span> Lácteos durante la comida</li>
+              <li><span>🌾</span> Fitatos (cereales integrales)</li>
+              <li><span>💊</span> Calcio en exceso</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Personas Section -->
+  <section class="personas">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Para todas las familias</h2>
+        <p class="section-subtitle">
+          Casos reales de uso en diferentes etapas de la vida
+        </p>
+      </div>
+      
+      <div class="personas-grid">
+        <div class="persona-card fade-in-up">
+          <div class="persona-header">
+            <div class="persona-avatar">👩‍👧</div>
+            <div class="persona-info">
+              <h3>Lucía, 28 años</h3>
+              <p>Madre en Lima</p>
+            </div>
+          </div>
+          <p class="persona-case">
+            "Mi hija de 2 años no gana peso. ¿Estará anémica? ¿Qué alimentos le puedo dar?"
+            <br><strong>→</strong> Seguimiento de crecimiento, recetas con hierro, control de curvas WHO.
+          </p>
+        </div>
+        
+        <div class="persona-card fade-in-up">
+          <div class="persona-header">
+            <div class="persona-avatar">🤰</div>
+            <div class="persona-info">
+              <h3>Rosa, 19 años</h3>
+              <p>Embarazada en Ayacucho</p>
+            </div>
+          </div>
+          <p class="persona-case">
+            "Tengo 6 meses de embarazo y me siento muy cansada. ¿Es normal?"
+            <br><strong>→</strong> Nutrición prenatal, señales de alarma, suplementación con hierro.
+          </p>
+        </div>
+        
+        <div class="persona-card fade-in-up">
+          <div class="persona-header">
+            <div class="persona-avatar">🧓</div>
+            <div class="persona-info">
+              <h3>Doña Carmen, 68 años</h3>
+              <p>Abuela en Cusco</p>
+            </div>
+          </div>
+          <p class="persona-case">
+            "Me duele el pecho y tomo 3 pastillas, pero no recuerdo sus nombres."
+            <br><strong>→</strong> Triaje de emergencia, manejo de medicamentos, cuándo ir al hospital.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust Section -->
+  <section class="trust">
+    <div class="container">
+      <div class="trust-content">
+        <div class="disclaimer fade-in-up">
+          <h3>
+            <span>⚕️</span>
+            <span>Importante: No reemplaza consulta médica</span>
+          </h3>
+          <p>
+            agente.fit es un asistente informativo de salud. No proporciona diagnósticos médicos. 
+            Si tu hijo muestra signos de anemia severa (palidez extrema, fatiga, falta de apetito), 
+            acude al centro de salud más cercano.
+          </p>
+        </div>
+        
+        <div class="trust-features">
+          <div class="trust-feature fade-in-up">
+            <span class="icon">🔒</span>
+            <span class="text">Datos encriptados</span>
+          </div>
+          <div class="trust-feature fade-in-up">
+            <span class="icon">🌐</span>
+            <span class="text">Código abierto</span>
+          </div>
+          <div class="trust-feature fade-in-up">
+            <span class="icon">🏥</span>
+            <span class="text">Basado en normas MINSA</span>
+          </div>
+          <div class="trust-feature fade-in-up">
+            <span class="icon">🇵🇪</span>
+            <span class="text">Hecho en Perú</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <h3>agente.fit</h3>
+          <p>
+            Democratizando el acceso a información de salud de calidad para todas las familias peruanas, 
+            especialmente en zonas rurales y comunidades vulnerables.
+          </p>
+        </div>
+        <div class="footer-links">
+          <h4>Plataforma</h4>
+          <a href="#funciones">Funciones</a>
+          <a href="#demo">Demo WhatsApp</a>
+          <a href="/admin">Conectar mi número</a>
+          <a href="https://yaya.sh" target="_blank" rel="noopener">Ecosistema Yaya</a>
+        </div>
+        <div class="footer-links">
+          <h4>Salud</h4>
+          <a href="#superalimentos">Superalimentos peruanos</a>
+          <a href="#problema">Anemia infantil</a>
+          <a href="#funciones">Control de crecimiento</a>
+          <a href="mailto:hello@yaya.sh">Soporte médico</a>
+        </div>
+        <div class="footer-links">
+          <h4>Recursos</h4>
+          <a href="https://github.com/yaraai" target="_blank" rel="noopener">Código abierto</a>
+          <a href="https://yaya.sh" target="_blank" rel="noopener">Documentación</a>
+          <a href="#" target="_blank" rel="noopener">API para desarrolladores</a>
+          <a href="#" target="_blank" rel="noopener">Centro de ayuda</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>
+          🇵🇪 <strong>Hecho con ❤️ para las familias que merecen mejor tecnología</strong> • 
+          <a href="https://yaya.sh" target="_blank" rel="noopener">Ecosistema Yaya</a> • 
+          <a href="/admin">Conectar WhatsApp</a> • 
+          <a href="mailto:hello@yaya.sh">Contacto</a>
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Smooth scroll for navigation links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }
+      });
+    });
+
+    // Enhanced scroll effect for navigation
+    window.addEventListener('scroll', () => {
+      const nav = document.getElementById('nav');
+      if (window.scrollY > 100) {
+        nav.style.background = 'rgba(10, 10, 11, 0.95)';
+        nav.style.borderBottom = '1px solid rgba(255, 255, 255, 0.15)';
+      } else {
+        nav.style.background = 'rgba(10, 10, 11, 0.8)';
+        nav.style.borderBottom = '1px solid rgba(255, 255, 255, 0.1)';
+      }
+    });
+
+    // Enable animations after page load for safety
+    document.addEventListener('DOMContentLoaded', () => {
+      // Add animations class after a brief delay to ensure content is visible first
+      setTimeout(() => {
+        document.body.classList.add('animations-enabled');
+      }, 100);
+    });
+
+    // Intersection Observer for fade-in animations
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, observerOptions);
+
+    // Observe all fade-in elements
+    document.querySelectorAll('.fade-in-up').forEach(el => {
+      observer.observe(el);
+    });
+
+    // Add staggered animation delays for grid items
+    document.querySelectorAll('.features-grid .feature-card').forEach((card, index) => {
+      card.style.animationDelay = `${index * 0.1}s`;
+    });
+
+    document.querySelectorAll('.superfood-grid .superfood-card').forEach((card, index) => {
+      card.style.animationDelay = `${index * 0.05}s`;
+    });
+
+    document.querySelectorAll('.personas-grid .persona-card').forEach((card, index) => {
+      card.style.animationDelay = `${index * 0.1}s`;
+    });
+
+    // Add loading state simulation for demo
+    setTimeout(() => {
+      const demoPhone = document.querySelector('.demo-phone');
+      if (demoPhone) {
+        demoPhone.style.transform = 'translateY(0)';
+        demoPhone.style.opacity = '1';
+      }
+    }, 1000);
+
+    // Particle animation on hero section
+    function createParticle() {
+      const particle = document.createElement('div');
+      particle.style.position = 'absolute';
+      particle.style.width = '4px';
+      particle.style.height = '4px';
+      particle.style.background = 'rgba(16, 185, 129, 0.3)';
+      particle.style.borderRadius = '50%';
+      particle.style.pointerEvents = 'none';
+      particle.style.left = Math.random() * 100 + '%';
+      particle.style.top = '100%';
+      particle.style.animation = 'float-up 8s linear infinite';
+      
+      document.querySelector('.hero').appendChild(particle);
+      
+      setTimeout(() => {
+        particle.remove();
+      }, 8000);
+    }
+
+    // Add CSS animation for floating particles
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes float-up {
+        0% {
+          transform: translateY(0) scale(1);
+          opacity: 0;
+        }
+        10% {
+          opacity: 1;
+        }
+        90% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(-100vh) scale(0);
+          opacity: 0;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Create particles periodically
+    setInterval(createParticle, 3000);
+  </script>
+
+</body>
+</html>

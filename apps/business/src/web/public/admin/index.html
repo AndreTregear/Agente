@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agente.ceo Admin | Centro de Control</title>
+  <link rel="stylesheet" href="/dashboard/shared/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-background"></div>
+    <div class="login-container">
+      <div class="login-card glass-card">
+        <div class="login-header">
+          <div class="login-logo">
+            <span class="logo-gradient">agente.ceo</span> Admin
+          </div>
+          <div class="login-subtitle">Centro de Control del Sistema</div>
+        </div>
+
+        <div id="login-form" class="login-form">
+          <div class="form-header">
+            <h2>Acceso Administrativo</h2>
+            <p>Panel de control avanzado</p>
+          </div>
+          
+          <div id="login-error" class="error-message"></div>
+          
+          <form id="form-login">
+            <div class="form-group">
+              <label class="form-label">Correo del Admin</label>
+              <div class="form-input-wrapper">
+                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <input type="email" id="email-input" class="form-input" placeholder="admin@agente.ceo" autocomplete="email" required>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Contraseña</label>
+              <div class="form-input-wrapper">
+                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <input type="password" id="password-input" class="form-input" placeholder="••••••••" autocomplete="current-password" required>
+              </div>
+            </div>
+            
+            <div class="form-actions">
+              <button type="submit" id="btn-login" class="btn-login">
+                <span>Iniciar Sesión</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/>
+                </svg>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div class="app" id="app-main">
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <span class="logo-gradient">agente.ceo</span>
+        </div>
+        <div class="sidebar-business">Panel Administrativo</div>
+      </div>
+
+      <div class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Sistema</div>
+          <div class="nav-item active" data-page="dashboard">
+            <div class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+              </svg>
+            </div>
+            <span class="nav-label">Dashboard</span>
+          </div>
+          <div class="nav-item" data-page="users">
+            <div class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </div>
+            <span class="nav-label">Usuarios</span>
+          </div>
+          <div class="nav-item" data-page="businesses">
+            <div class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 21h18"/>
+                <path d="M5 21V7l8-4v18"/>
+                <path d="M19 21V11l-6-4"/>
+              </svg>
+            </div>
+            <span class="nav-label">Negocios</span>
+          </div>
+          <div class="nav-item" data-page="analytics">
+            <div class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v18h18"/>
+                <path d="M18.7 8L12 13.3 7.7 9 3 13.3"/>
+              </svg>
+            </div>
+            <span class="nav-label">Analíticas</span>
+          </div>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Configuración</div>
+          <div class="nav-item" data-page="settings">
+            <div class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 1v6m0 6v6"/>
+                <path d="M1 12h6m6 0h6"/>
+              </svg>
+            </div>
+            <span class="nav-label">Configuración</span>
+          </div>
+          <div class="nav-item" data-page="logs">
+            <div class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14,2 14,8 20,8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10,9 9,9 8,9"/>
+              </svg>
+            </div>
+            <span class="nav-label">Logs</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user" id="profile-dropdown">
+          <div class="user-avatar">A</div>
+          <div class="user-info">
+            <div class="user-name">Administrador</div>
+            <div class="user-email">admin@agente.ceo</div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Header -->
+      <header class="main-header">
+        <div class="header-left">
+          <button class="mobile-toggle" id="mobile-toggle">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+          <div>
+            <h1 class="header-title">Autobot Admin</h1>
+            <div class="header-subtitle">Panel de Control del Sistema</div>
+          </div>
+        </div>
+        
+        <div class="header-right">
+          <div class="header-actions">
+            <button class="header-btn" id="theme-toggle" title="Cambiar Tema">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            </button>
+            <button class="header-btn has-notification" title="Notificaciones">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                <path d="M13.73 21c-.21.38-.57.65-1 .74-.47.13-.97.06-1.43-.19-.46-.25-.78-.65-.86-1.15"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Page Content -->
+      <div id="page-content">
+        <!-- Dashboard page (default) -->
+        <div class="page active" id="page-dashboard">
+          <div class="page-header">
+            <h2 class="page-title">Dashboard del Sistema</h2>
+            <p class="page-subtitle">Monitoreo general de la plataforma Agente.ceo</p>
+          </div>
+
+          <!-- KPI Cards -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <div class="kpi-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                </div>
+                <div class="kpi-label">Usuarios Totales</div>
+              </div>
+              <div class="kpi-value" id="total-users">-</div>
+              <div class="kpi-change positive">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M7 14l5-5 5 5"/>
+                </svg>
+                +12% esta semana
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <div class="kpi-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 21h18"/>
+                    <path d="M5 21V7l8-4v18"/>
+                    <path d="M19 21V11l-6-4"/>
+                  </svg>
+                </div>
+                <div class="kpi-label">Negocios Activos</div>
+              </div>
+              <div class="kpi-value" id="active-businesses">-</div>
+              <div class="kpi-change positive">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M7 14l5-5 5 5"/>
+                </svg>
+                +8% esta semana
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <div class="kpi-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </div>
+                <div class="kpi-label">Mensajes/Día</div>
+              </div>
+              <div class="kpi-value" id="messages-today">-</div>
+              <div class="kpi-change positive">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M7 14l5-5 5 5"/>
+                </svg>
+                +25% vs ayer
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <div class="kpi-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M8 12l2 2 4-4"/>
+                  </svg>
+                </div>
+                <div class="kpi-label">Uptime Sistema</div>
+              </div>
+              <div class="kpi-value">99.9%</div>
+              <div class="kpi-change neutral">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M5 12h14"/>
+                </svg>
+                Estable
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Actividad Reciente</h3>
+              <a href="#" class="card-action">Ver todo</a>
+            </div>
+            <div id="recent-activity">
+              <div class="empty-state">
+                <div class="empty-state-icon">
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M8 12l2 2 4-4"/>
+                  </svg>
+                </div>
+                <h3>Sistema Operacional</h3>
+                <p>Todos los servicios funcionando correctamente</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Other pages would be populated by JavaScript -->
+        <div class="page" id="page-users">
+          <!-- Users management content -->
+        </div>
+
+        <div class="page" id="page-businesses">
+          <!-- Businesses management content -->
+        </div>
+
+        <div class="page" id="page-analytics">
+          <!-- Analytics content -->
+        </div>
+
+        <div class="page" id="page-settings">
+          <!-- Settings content -->
+        </div>
+
+        <div class="page" id="page-logs">
+          <!-- Logs content -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

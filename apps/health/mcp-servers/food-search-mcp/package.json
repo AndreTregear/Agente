@@ -1,0 +1,16 @@
+{
+  "name": "food-search-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "deprecated": "Merged into health-mcp search_food tool. Use health-mcp instead.",
+  "description": "⚠️ DEPRECATED — Merged into health-mcp. Open Food Facts logic now lives in health-mcp/src/index.ts search_food tool.",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

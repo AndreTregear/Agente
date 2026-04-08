@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yaya.tech — Sovereign Computing Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --bg-card: #11111a;
+  --bg-card-hover: #16162a;
+  --border: #1e1e3a;
+  --border-accent: #2a2a5a;
+  --text: #e8e8f0;
+  --text-dim: #8888aa;
+  --text-muted: #555577;
+  --accent-cyan: #00d4ff;
+  --accent-green: #00ff88;
+  --accent-orange: #ff8844;
+  --accent-purple: #aa66ff;
+  --accent-red: #ff4466;
+  --accent-yellow: #ffcc00;
+  --glow-cyan: rgba(0, 212, 255, 0.15);
+  --glow-green: rgba(0, 255, 136, 0.15);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* Scanline overlay */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.noise-bg {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 40px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ========== HEADER ========== */
+header {
+  padding: 60px 0 40px;
+  border-bottom: 1px solid var(--border);
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 40px;
+}
+
+.logo {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  color: var(--accent-cyan);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+
+.logo span { color: var(--text-muted); }
+
+.doc-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  line-height: 1.8;
+}
+
+h1 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(32px, 5vw, 56px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -1px;
+  margin-bottom: 16px;
+}
+
+h1 .highlight { color: var(--accent-cyan); }
+
+.subtitle {
+  font-size: 18px;
+  color: var(--text-dim);
+  max-width: 700px;
+  line-height: 1.7;
+}
+
+/* ========== MISSION STATEMENT ========== */
+.mission {
+  padding: 60px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.mission-text {
+  font-size: 22px;
+  font-weight: 300;
+  color: var(--text);
+  max-width: 900px;
+  line-height: 1.8;
+  position: relative;
+  padding-left: 30px;
+  border-left: 3px solid var(--accent-cyan);
+}
+
+.mission-text strong {
+  color: var(--accent-cyan);
+  font-weight: 500;
+}
+
+/* ========== NAV ========== */
+.arch-nav {
+  position: sticky;
+  top: 0;
+  background: rgba(10, 10, 15, 0.9);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
+  padding: 0;
+}
+
+.arch-nav-inner {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.arch-nav-inner::-webkit-scrollbar { display: none; }
+
+.nav-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 18px 24px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.3s;
+  border-bottom: 2px solid transparent;
+}
+
+.nav-btn:hover { color: var(--text-dim); }
+.nav-btn.active {
+  color: var(--accent-cyan);
+  border-bottom-color: var(--accent-cyan);
+}
+
+/* ========== SECTIONS ========== */
+.section {
+  padding: 80px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-header {
+  margin-bottom: 50px;
+}
+
+.section-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-label::before {
+  content: '';
+  width: 20px;
+  height: 1px;
+  background: var(--accent-cyan);
+}
+
+.section-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(24px, 3vw, 36px);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.section-desc {
+  color: var(--text-dim);
+  font-size: 16px;
+  max-width: 700px;
+  line-height: 1.7;
+}
+
+/* ========== LAYER CARDS ========== */
+.layer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 20px;
+}
+
+.layer-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 32px;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.layer-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--card-accent, var(--accent-cyan));
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.layer-card:hover {
+  border-color: var(--border-accent);
+  background: var(--bg-card-hover);
+}
+
+.layer-card:hover::before { opacity: 1; }
+
+.card-icon {
+  font-size: 20px;
+  margin-bottom: 16px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(0, 212, 255, 0.15);
+}
+
+.card-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.card-subtitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+
+.card-body {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.card-body strong {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.tech-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.tech-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(0, 212, 255, 0.06);
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  color: var(--accent-cyan);
+  letter-spacing: 0.5px;
+}
+
+.tech-tag.green {
+  background: rgba(0, 255, 136, 0.06);
+  border-color: rgba(0, 255, 136, 0.12);
+  color: var(--accent-green);
+}
+
+.tech-tag.orange {
+  background: rgba(255, 136, 68, 0.06);
+  border-color: rgba(255, 136, 68, 0.12);
+  color: var(--accent-orange);
+}
+
+.tech-tag.purple {
+  background: rgba(170, 102, 255, 0.06);
+  border-color: rgba(170, 102, 255, 0.12);
+  color: var(--accent-purple);
+}
+
+.tech-tag.red {
+  background: rgba(255, 68, 102, 0.06);
+  border-color: rgba(255, 68, 102, 0.12);
+  color: var(--accent-red);
+}
+
+.tech-tag.yellow {
+  background: rgba(255, 204, 0, 0.06);
+  border-color: rgba(255, 204, 0, 0.12);
+  color: var(--accent-yellow);
+}
+
+/* ========== FLOW DIAGRAM ========== */
+.flow-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 40px;
+  margin-top: 40px;
+  overflow-x: auto;
+}
+
+.flow-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--accent-cyan);
+  margin-bottom: 30px;
+  letter-spacing: 1px;
+}
+
+.handshake-flow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-width: 900px;
+  padding: 20px 0;
+}
+
+.flow-step {
+  flex: 1;
+  text-align: center;
+  position: relative;
+  padding: 20px 16px;
+}
+
+.flow-step-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.flow-step-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  font-size: 22px;
+  border: 2px solid;
+}
+
+.flow-step-icon.cyan { border-color: var(--accent-cyan); background: rgba(0, 212, 255, 0.08); }
+.flow-step-icon.green { border-color: var(--accent-green); background: rgba(0, 255, 136, 0.08); }
+.flow-step-icon.purple { border-color: var(--accent-purple); background: rgba(170, 102, 255, 0.08); }
+.flow-step-icon.orange { border-color: var(--accent-orange); background: rgba(255, 136, 68, 0.08); }
+.flow-step-icon.yellow { border-color: var(--accent-yellow); background: rgba(255, 204, 0, 0.08); }
+
+.flow-step-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.flow-step-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.flow-arrow {
+  width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* ========== STACK DIAGRAM ========== */
+.stack-visual {
+  margin-top: 40px;
+}
+
+.stack-layer {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 4px;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.stack-layer:hover {
+  border-color: var(--border-accent);
+}
+
+.stack-layer-header {
+  display: flex;
+  align-items: center;
+  padding: 20px 28px;
+  gap: 16px;
+  cursor: default;
+}
+
+.stack-depth {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  width: 60px;
+  flex-shrink: 0;
+  letter-spacing: 1px;
+}
+
+.stack-bar {
+  height: 4px;
+  border-radius: 2px;
+  flex: 1;
+}
+
+.stack-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  width: 200px;
+  flex-shrink: 0;
+}
+
+.stack-components {
+  font-size: 13px;
+  color: var(--text-dim);
+  flex: 1;
+}
+
+/* Color coding for stack */
+.l-hw .stack-bar { background: var(--accent-red); }
+.l-hw .stack-label { color: var(--accent-red); }
+.l-fw .stack-bar { background: var(--accent-orange); }
+.l-fw .stack-label { color: var(--accent-orange); }
+.l-os .stack-bar { background: var(--accent-yellow); }
+.l-os .stack-label { color: var(--accent-yellow); }
+.l-net .stack-bar { background: var(--accent-green); }
+.l-net .stack-label { color: var(--accent-green); }
+.l-svc .stack-bar { background: var(--accent-cyan); }
+.l-svc .stack-label { color: var(--accent-cyan); }
+.l-app .stack-bar { background: var(--accent-purple); }
+.l-app .stack-label { color: var(--accent-purple); }
+
+/* ========== DNS DIAGRAM ========== */
+.dns-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 30px;
+  align-items: start;
+  margin-top: 30px;
+}
+
+.dns-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 28px;
+}
+
+.dns-box-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.dns-box-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  margin-bottom: 20px;
+}
+
+.dns-entries {
+  list-style: none;
+}
+
+.dns-entries li {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(30, 30, 58, 0.5);
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.dns-entries li:last-child { border-bottom: none; }
+
+.dns-domain { color: var(--accent-green); }
+.dns-target { color: var(--text-muted); }
+
+.dns-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 60px;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.dns-connector-line {
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan));
+  position: relative;
+}
+
+.dns-connector-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+/* ========== BUSINESS MODEL ========== */
+.biz-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.biz-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 32px;
+  text-align: center;
+}
+
+.biz-icon {
+  font-size: 28px;
+  margin-bottom: 16px;
+}
+
+.biz-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.biz-subtitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent-green);
+  margin-bottom: 16px;
+}
+
+.biz-items {
+  list-style: none;
+  text-align: left;
+}
+
+.biz-items li {
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(30, 30, 58, 0.3);
+}
+
+.biz-items li:last-child { border-bottom: none; }
+
+/* ========== FOOTER ========== */
+footer {
+  padding: 60px 0;
+  text-align: center;
+}
+
+.footer-logo {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--accent-cyan);
+  letter-spacing: 4px;
+  margin-bottom: 12px;
+}
+
+.footer-tagline {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 900px) {
+  .container { padding: 0 20px; }
+  .layer-grid { grid-template-columns: 1fr; }
+  .dns-grid { grid-template-columns: 1fr; }
+  .biz-grid { grid-template-columns: 1fr; }
+  .dns-connector { display: none; }
+  .header-top { flex-direction: column; gap: 20px; }
+  .doc-meta { text-align: left; }
+  .stack-layer-header { flex-wrap: wrap; }
+}
+
+/* ========== PHASE TIMELINE ========== */
+.phase-timeline {
+  position: relative;
+  padding-left: 40px;
+}
+
+.phase-timeline::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--accent-cyan), var(--accent-green), var(--accent-purple));
+}
+
+.phase-item {
+  position: relative;
+  margin-bottom: 40px;
+  padding: 24px 28px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.phase-item::before {
+  content: '';
+  position: absolute;
+  left: -34px;
+  top: 28px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-cyan);
+  background: var(--bg);
+}
+
+.phase-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  margin-bottom: 8px;
+}
+
+.phase-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.phase-body {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.phase-body strong { color: var(--text); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="noise-bg"></div>
+
+<div class="container">
+
+<!-- ==================== HEADER ==================== -->
+<header>
+  <div class="header-top">
+    <div class="logo">YAYA<span>.TECH</span></div>
+    <div class="doc-meta">
+      ARCHITECTURE DOCUMENT v1.0<br>
+      CLASSIFICATION: INTERNAL<br>
+      DATE: 2026-02-20
+    </div>
+  </div>
+  <h1>Sovereign Computing <span class="highlight">Architecture</span></h1>
+  <p class="subtitle">Complete system architecture for a decentralized, post-quantum secured, user-sovereign computing platform delivering elite cybersecurity to SMBs across Peru and Latin America.</p>
+</header>
+
+<!-- ==================== MISSION ==================== -->
+<div class="mission">
+  <div class="mission-text">
+    Peru's government has repeatedly failed to protect citizen data. RENIEC breaches, DNI leaks, health records exposed. <strong>Yaya.tech is the response:</strong> sovereign digital infrastructure where the citizen holds the keys, owns the compute, and the state is no longer the custodian of trust.
+  </div>
+</div>
+
+<!-- ==================== NAV ==================== -->
+<nav class="arch-nav">
+  <div class="container">
+    <div class="arch-nav-inner">
+      <button class="nav-btn active" onclick="scrollToSection('stack')">Full Stack</button>
+      <button class="nav-btn" onclick="scrollToSection('hardware')">Hardware Layer</button>
+      <button class="nav-btn" onclick="scrollToSection('network')">Network Layer</button>
+      <button class="nav-btn" onclick="scrollToSection('handshake')">Trust Handshake</button>
+      <button class="nav-btn" onclick="scrollToSection('dns')">DNS Architecture</button>
+      <button class="nav-btn" onclick="scrollToSection('services')">Services</button>
+      <button class="nav-btn" onclick="scrollToSection('app')">Yaya App</button>
+      <button class="nav-btn" onclick="scrollToSection('business')">Business Model</button>
+      <button class="nav-btn" onclick="scrollToSection('roadmap')">Roadmap</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ==================== FULL STACK ==================== -->
+<section class="section" id="stack">
+  <div class="section-header">
+    <div class="section-label">Layer 00</div>
+    <h2 class="section-title">Complete Stack Overview</h2>
+    <p class="section-desc">Six layers from silicon to user interface. Every layer sovereign, every layer verifiable, every layer owned by the business.</p>
+  </div>
+
+  <div class="stack-visual">
+    <div class="stack-layer l-app">
+      <div class="stack-layer-header">
+        <span class="stack-depth">L5 APP</span>
+        <div class="stack-bar"></div>
+        <span class="stack-label">Application Layer</span>
+        <span class="stack-components">Yaya App · .yaya Browser · Marketplace · ERP · WhatsApp AI · POS</span>
+      </div>
+    </div>
+    <div class="stack-layer l-svc">
+      <div class="stack-layer-header">
+        <span class="stack-depth">L4 SVC</span>
+        <div class="stack-bar"></div>
+        <span class="stack-label">Services Layer</span>
+        <span class="stack-components">CoreDNS (L1+L2) · Headscale · Exit Nodes · Identity PKI · Marketplace Engine</span>
+      </div>
+    </div>
+    <div class="stack-layer l-net">
+      <div class="stack-layer-header">
+        <span class="stack-depth">L3 NET</span>
+        <div class="stack-bar"></div>
+        <span class="stack-label">Network Layer</span>
+        <span class="stack-components">WireGuard + Rosenpass PQ · Mesh Topology · ZKP Attestation Handshake · Yaya RoT PQE Acceleration</span>
+      </div>
+    </div>
+    <div class="stack-layer l-os">
+      <div class="stack-layer-header">
+        <span class="stack-depth">L2 OS</span>
+        <div class="stack-bar"></div>
+        <span class="stack-label">Operating System</span>
+        <span class="stack-components">Hardened Linux · Full-Disk Encryption · SELinux/AppArmor · Secure Boot Chain</span>
+      </div>
+    </div>
+    <div class="stack-layer l-fw">
+      <div class="stack-layer-header">
+        <span class="stack-depth">L1 FW</span>
+        <div class="stack-bar"></div>
+        <span class="stack-label">Firmware Layer</span>
+        <span class="stack-components">Coreboot/Libreboot · Neutered Intel ME · Measured Boot · Yaya RoT PCIe (replaces TPM)</span>
+      </div>
+    </div>
+    <div class="stack-layer l-hw">
+      <div class="stack-layer-header">
+        <span class="stack-depth">L0 HW</span>
+        <div class="stack-bar"></div>
+        <span class="stack-label">Hardware Layer</span>
+        <span class="stack-components">ThinkPad (T440p/X230/T480) · Yaya RoT PCIe Chip · User-Owned · Physically Inspectable · No Backdoors</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== HARDWARE ==================== -->
+<section class="section" id="hardware">
+  <div class="section-header">
+    <div class="section-label">Layer 01</div>
+    <h2 class="section-title">Hardware & Firmware</h2>
+    <p class="section-desc">The trust anchor. Every Yaya node starts with verified, open-source firmware on inspectable hardware. No Intel ME. No hidden processors. No backdoors.</p>
+  </div>
+
+  <div class="layer-grid">
+    <div class="layer-card" style="--card-accent: var(--accent-red)">
+      <div class="card-icon">💻</div>
+      <div class="card-title">ThinkPad Hardware Node</div>
+      <div class="card-subtitle">PHYSICAL COMPUTE UNIT</div>
+      <div class="card-body">
+        Refurbished ThinkPads (T440p, X230, T480) selected for Coreboot/Libreboot compatibility. Upgraded with SSDs and maxed RAM. <strong>The business owns this hardware outright.</strong> No leasing, no cloud dependency.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag red">THINKPAD</span>
+        <span class="tech-tag red">USER-OWNED</span>
+        <span class="tech-tag red">SSD UPGRADE</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-orange)">
+      <div class="card-icon">🔧</div>
+      <div class="card-title">Libreboot / Coreboot</div>
+      <div class="card-subtitle">OPEN-SOURCE FIRMWARE</div>
+      <div class="card-body">
+        Proprietary BIOS replaced with open-source firmware. Intel Management Engine neutered — no hidden remote access processor running below the OS. <strong>Firmware hash is the root of the attestation chain.</strong>
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag orange">COREBOOT</span>
+        <span class="tech-tag orange">LIBREBOOT</span>
+        <span class="tech-tag orange">ME NEUTERED</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-orange)">
+      <div class="card-icon">📏</div>
+      <div class="card-title">Measured Boot & Attestation</div>
+      <div class="card-subtitle">FIRMWARE INTEGRITY PROOF</div>
+      <div class="card-body">
+        Each boot measures firmware state into a cryptographic chain. This measurement becomes the basis for <strong>remote attestation</strong> — proving to peers on the .yaya mesh that this node's firmware is genuine and unmodified. Initially uses TPM 2.0, transitioning to the Yaya RoT chip.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag orange">TPM 2.0 → YAYA ROT</span>
+        <span class="tech-tag orange">PCR MEASUREMENTS</span>
+        <span class="tech-tag orange">BOOT CHAIN</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-red)">
+      <div class="card-icon">⚙️</div>
+      <div class="card-title">Yaya Root of Trust PCIe Chip</div>
+      <div class="card-subtitle">CUSTOM SILICON — TPM REPLACEMENT</div>
+      <div class="card-body">
+        A custom PCIe security module designed by Yaya.tech, manufactured via Seeed Studio. <strong>Replaces the TPM entirely</strong> with a sovereign root of trust that Yaya controls end-to-end. Combines three functions in one chip: (1) hardware root of trust and measured boot attestation, (2) <strong>post-quantum cryptography acceleration</strong> — hardware-accelerated Classic McEliece + Kyber key encapsulation, and (3) ZKP proof generation offload. By moving PQE key encapsulation to dedicated silicon, the mesh scales without CPU overhead bottlenecks. <strong>Each handshake becomes near-instant regardless of node count.</strong>
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag red">PCIE 3.0</span>
+        <span class="tech-tag red">SEEED STUDIO</span>
+        <span class="tech-tag red">PQE ACCELERATOR</span>
+        <span class="tech-tag red">ZKP OFFLOAD</span>
+        <span class="tech-tag red">CUSTOM ASIC</span>
+        <span class="tech-tag red">SOVEREIGN SILICON</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-yellow)">
+      <div class="card-icon">🐧</div>
+      <div class="card-title">Hardened Linux OS</div>
+      <div class="card-subtitle">OPERATING SYSTEM</div>
+      <div class="card-body">
+        Minimal Linux distribution with full-disk encryption (LUKS), mandatory access control (SELinux/AppArmor), automatic security updates, and sandboxed application containers. <strong>User holds the LUKS key. Not even Yaya can access their data.</strong>
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag yellow">LUKS</span>
+        <span class="tech-tag yellow">SELINUX</span>
+        <span class="tech-tag yellow">CONTAINERS</span>
+        <span class="tech-tag yellow">AUTO-UPDATE</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== NETWORK ==================== -->
+<section class="section" id="network">
+  <div class="section-header">
+    <div class="section-label">Layer 02</div>
+    <h2 class="section-title">Network Primitives</h2>
+    <p class="section-desc">A sovereign mesh network connecting all Yaya nodes. Post-quantum encrypted. Zero-knowledge attested. Private DNS. A parallel internet for business.</p>
+  </div>
+
+  <div class="layer-grid">
+    <div class="layer-card" style="--card-accent: var(--accent-green)">
+      <div class="card-icon">🌐</div>
+      <div class="card-title">Headscale Coordination</div>
+      <div class="card-subtitle">MESH COORDINATOR — CENTRAL SERVER</div>
+      <div class="card-body">
+        Open-source Tailscale control plane running on Yaya's dedicated server. Manages device registration, key distribution, ACL policies, and network topology. <strong>Coordinates the mesh but never sees the traffic.</strong>
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag green">HEADSCALE</span>
+        <span class="tech-tag green">DERP RELAY</span>
+        <span class="tech-tag green">ACL ENGINE</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-green)">
+      <div class="card-icon">🔒</div>
+      <div class="card-title">WireGuard + Rosenpass</div>
+      <div class="card-subtitle">POST-QUANTUM VPN TUNNELS</div>
+      <div class="card-body">
+        WireGuard provides the fast, kernel-level encrypted tunnel. Rosenpass adds a <strong>post-quantum key exchange layer</strong> using Classic McEliece + Kyber. Harvest-now-decrypt-later attacks are neutralized.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag green">WIREGUARD</span>
+        <span class="tech-tag green">ROSENPASS</span>
+        <span class="tech-tag green">MCELIECE</span>
+        <span class="tech-tag green">KYBER</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-green)">
+      <div class="card-icon">🚪</div>
+      <div class="card-title">Exit Node Routing</div>
+      <div class="card-subtitle">INTERNET GATEWAY</div>
+      <div class="card-body">
+        Yaya's central server acts as an exit node, allowing businesses to route internet traffic through the mesh. <strong>Enables remote access to business data via the Yaya app</strong> without exposing services to the public internet.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag green">EXIT NODE</span>
+        <span class="tech-tag green">NAT TRAVERSAL</span>
+        <span class="tech-tag green">SPLIT TUNNELING</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-green)">
+      <div class="card-icon">🕸️</div>
+      <div class="card-title">Peer-to-Peer Mesh</div>
+      <div class="card-subtitle">DIRECT NODE-TO-NODE ROUTING</div>
+      <div class="card-body">
+        Nodes establish direct WireGuard tunnels where possible, bypassing the central server entirely. <strong>Business A talks to Business B directly.</strong> The coordinator only facilitates the introduction — like a handshake at a party.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag green">P2P TUNNELS</span>
+        <span class="tech-tag green">HOLE PUNCHING</span>
+        <span class="tech-tag green">MESH TOPOLOGY</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TRUST HANDSHAKE ==================== -->
+<section class="section" id="handshake">
+  <div class="section-header">
+    <div class="section-label">Layer 03</div>
+    <h2 class="section-title">Zero-Knowledge Trust Handshake</h2>
+    <p class="section-desc">Before two nodes can communicate on the .yaya mesh, they must prove hardware integrity, software compliance, and identity — all without revealing system details.</p>
+  </div>
+
+  <div class="flow-container">
+    <div class="flow-title">→ NODE-TO-NODE CONNECTION FLOW</div>
+    <div class="handshake-flow">
+      <div class="flow-step">
+        <div class="flow-step-num">STEP 01</div>
+        <div class="flow-step-icon cyan">🔍</div>
+        <div class="flow-step-label">Firmware Attestation</div>
+        <div class="flow-step-desc">Node measures its Coreboot/Libreboot firmware state via Yaya RoT PCIe chip (or TPM on legacy nodes)</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-step-num">STEP 02</div>
+        <div class="flow-step-icon green">🛡️</div>
+        <div class="flow-step-label">Software Compliance</div>
+        <div class="flow-step-desc">OS and service versions verified against known-good manifests</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-step-num">STEP 03</div>
+        <div class="flow-step-icon purple">🧮</div>
+        <div class="flow-step-label">ZKP Generation</div>
+        <div class="flow-step-desc">ZKP generated (offloaded to Yaya RoT chip): "I am compliant" without revealing config details</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-step-num">STEP 04</div>
+        <div class="flow-step-icon orange">🔑</div>
+        <div class="flow-step-label">Rosenpass PQ Exchange</div>
+        <div class="flow-step-desc">Hardware-accelerated PQ key exchange via Yaya RoT chip — McEliece + Kyber at wire speed</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-step-num">STEP 05</div>
+        <div class="flow-step-icon yellow">⚡</div>
+        <div class="flow-step-label">WireGuard Tunnel</div>
+        <div class="flow-step-desc">Encrypted tunnel established. .yaya domains resolve. Business communication begins.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layer-grid" style="margin-top: 30px;">
+    <div class="layer-card" style="--card-accent: var(--accent-purple)">
+      <div class="card-icon">🧮</div>
+      <div class="card-title">ZKP Attestation Circuit</div>
+      <div class="card-subtitle">PRIVACY-PRESERVING VERIFICATION</div>
+      <div class="card-body">
+        The ZK circuit proves: (1) firmware hash matches known-good Coreboot build, (2) OS version ≥ minimum required, (3) security patches are current, (4) no known compromised software present. <strong>All without revealing the actual firmware hash, OS version, or software list.</strong> On nodes with the Yaya RoT chip, proof generation is hardware-accelerated — sub-millisecond attestation at scale.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag purple">ZK-SNARKS</span>
+        <span class="tech-tag purple">GROTH16</span>
+        <span class="tech-tag purple">CIRCOM</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-purple)">
+      <div class="card-icon">🔐</div>
+      <div class="card-title">Cryptographic Identity</div>
+      <div class="card-subtitle">USER-HELD KEYPAIR</div>
+      <div class="card-body">
+        Each business holds an Ed25519 keypair generated locally on their ThinkPad. <strong>This is their identity.</strong> No centralized identity provider. No government database. The private key never leaves the device. The public key is their address on the .yaya network.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag purple">ED25519</span>
+        <span class="tech-tag purple">LOCAL KEYGEN</span>
+        <span class="tech-tag purple">PKI</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-red)">
+      <div class="card-icon">🚫</div>
+      <div class="card-title">Compromised Node Exclusion</div>
+      <div class="card-subtitle">SELF-HEALING MESH SECURITY</div>
+      <div class="card-body">
+        A node with tampered firmware, outdated software, or a failed ZKP proof <strong>cannot complete the handshake</strong>. It is automatically excluded from the mesh. No manual intervention needed. The network heals itself by rejecting compromised participants.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag red">AUTO-EXCLUDE</span>
+        <span class="tech-tag red">SELF-HEALING</span>
+        <span class="tech-tag red">ZERO TRUST</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== DNS ==================== -->
+<section class="section" id="dns">
+  <div class="section-header">
+    <div class="section-label">Layer 04</div>
+    <h2 class="section-title">Two-Level DNS Architecture</h2>
+    <p class="section-desc">Private name resolution at two scopes: business-internal services and the global .yaya inter-business mesh.</p>
+  </div>
+
+  <div class="dns-grid">
+    <div class="dns-box" style="border-color: rgba(255, 204, 0, 0.3);">
+      <div class="dns-box-title" style="color: var(--accent-yellow);">Level 1 — Business LAN</div>
+      <div class="dns-box-sub">RUNS ON EACH THINKPAD · PRIVATE TO BUSINESS</div>
+      <ul class="dns-entries">
+        <li><span class="dns-domain">inventario.mitienda</span> <span class="dns-target">→ 127.0.0.1:8080</span></li>
+        <li><span class="dns-domain">ventas.mitienda</span> <span class="dns-target">→ 127.0.0.1:8081</span></li>
+        <li><span class="dns-domain">caja.mitienda</span> <span class="dns-target">→ 127.0.0.1:8082</span></li>
+        <li><span class="dns-domain">mensajes.mitienda</span> <span class="dns-target">→ 127.0.0.1:8083</span></li>
+        <li><span class="dns-domain">archivos.mitienda</span> <span class="dns-target">→ 127.0.0.1:8084</span></li>
+      </ul>
+    </div>
+
+    <div class="dns-connector">
+      <div class="dns-connector-label">HEADSCALE</div>
+      <div class="dns-connector-line"></div>
+      <div class="dns-connector-label">MESH LINK</div>
+    </div>
+
+    <div class="dns-box" style="border-color: rgba(0, 212, 255, 0.3);">
+      <div class="dns-box-title" style="color: var(--accent-cyan);">Level 2 — Global .yaya</div>
+      <div class="dns-box-sub">RUNS ON YAYA SERVER · VISIBLE TO ALL MESH NODES</div>
+      <ul class="dns-entries">
+        <li><span class="dns-domain">mitienda.yaya</span> <span class="dns-target">→ 100.64.0.10</span></li>
+        <li><span class="dns-domain">proveedor.yaya</span> <span class="dns-target">→ 100.64.0.22</span></li>
+        <li><span class="dns-domain">bodega-central.yaya</span> <span class="dns-target">→ 100.64.0.35</span></li>
+        <li><span class="dns-domain">mercado.yaya</span> <span class="dns-target">→ 100.64.0.1</span></li>
+        <li><span class="dns-domain">pagos.yaya</span> <span class="dns-target">→ 100.64.0.2</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="layer-grid" style="margin-top: 30px;">
+    <div class="layer-card" style="--card-accent: var(--accent-yellow)">
+      <div class="card-icon">🏠</div>
+      <div class="card-title">CoreDNS — Local Instance</div>
+      <div class="card-subtitle">PER-NODE DNS SERVER</div>
+      <div class="card-body">
+        Each ThinkPad runs a CoreDNS instance resolving the business's internal domain. <strong>Never leaves the machine.</strong> Other devices on the business's local WiFi can point to the ThinkPad as DNS resolver to access internal services.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag yellow">COREDNS</span>
+        <span class="tech-tag yellow">LOCAL ZONE</span>
+        <span class="tech-tag yellow">MDNS</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-cyan)">
+      <div class="card-icon">🌍</div>
+      <div class="card-title">CoreDNS — Global .yaya</div>
+      <div class="card-subtitle">AUTHORITATIVE NAMESERVER</div>
+      <div class="card-body">
+        Yaya's central server runs the authoritative DNS for the .yaya zone. Resolves inter-business domains to Tailscale/Headscale mesh IPs (100.64.x.x). <strong>Acts as a private TLD</strong> visible only to authenticated mesh participants.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag">COREDNS</span>
+        <span class="tech-tag">AUTHORITATIVE</span>
+        <span class="tech-tag">PRIVATE TLD</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-green)">
+      <div class="card-icon">🔄</div>
+      <div class="card-title">DNS Registration Flow</div>
+      <div class="card-subtitle">AUTOMATIC DISCOVERY</div>
+      <div class="card-body">
+        When a new ThinkPad joins the mesh via Headscale, it registers its chosen .yaya domain. <strong>The domain is cryptographically bound to the business's keypair</strong> — no one else can claim it. Resolution is automatic for all mesh peers.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag green">AUTO-REGISTER</span>
+        <span class="tech-tag green">KEY-BOUND</span>
+        <span class="tech-tag green">DNSSEC</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== SERVICES ==================== -->
+<section class="section" id="services">
+  <div class="section-header">
+    <div class="section-label">Layer 05</div>
+    <h2 class="section-title">Business Software Stack</h2>
+    <p class="section-desc">Everything a business needs to operate, running locally on their ThinkPad. No SaaS subscriptions. No cloud dependency. All data stays on the machine.</p>
+  </div>
+
+  <div class="layer-grid">
+    <div class="layer-card" style="--card-accent: var(--accent-cyan)">
+      <div class="card-icon">📊</div>
+      <div class="card-title">ERP System</div>
+      <div class="card-subtitle">BUSINESS OPERATIONS</div>
+      <div class="card-body">
+        Full enterprise resource planning: inventory management, sales tracking, purchase orders, accounting, and reporting. <strong>Runs locally</strong> as a containerized web application accessible at <code>erp.mitienda</code>.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag">ERPNEXT</span>
+        <span class="tech-tag">DOCKER</span>
+        <span class="tech-tag">MARIADB</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-cyan)">
+      <div class="card-icon">🤖</div>
+      <div class="card-title">AI WhatsApp Agent</div>
+      <div class="card-subtitle">AUTOMATED CUSTOMER COMMS</div>
+      <div class="card-body">
+        AI agent connected to the business's WhatsApp that handles customer inquiries, takes orders, provides stock info, and routes complex queries to the owner. <strong>Trained on the business's own data.</strong> Runs locally.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag">LLAMA</span>
+        <span class="tech-tag">WHATSAPP API</span>
+        <span class="tech-tag">RAG</span>
+        <span class="tech-tag">LOCAL LLM</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-cyan)">
+      <div class="card-icon">💰</div>
+      <div class="card-title">Point of Sale</div>
+      <div class="card-subtitle">SALES TERMINAL</div>
+      <div class="card-body">
+        Touch-friendly POS interface for daily sales. Integrates with inventory, generates SUNAT-compliant receipts and invoices, supports Yape/Plin QR payments. <strong>Works offline</strong> — syncs when connectivity returns.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag">POS</span>
+        <span class="tech-tag">OFFLINE-FIRST</span>
+        <span class="tech-tag">SUNAT</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-cyan)">
+      <div class="card-icon">📁</div>
+      <div class="card-title">File Storage & Sync</div>
+      <div class="card-subtitle">SOVEREIGN CLOUD REPLACEMENT</div>
+      <div class="card-body">
+        Self-hosted file storage replacing Google Drive / Dropbox. Accessible at <code>archivos.mitienda</code>. Auto-encrypted backups. <strong>Syncs across the business owner's devices via the mesh</strong> — phone, tablet, desktop.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag">NEXTCLOUD</span>
+        <span class="tech-tag">SYNCTHING</span>
+        <span class="tech-tag">E2EE</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-purple)">
+      <div class="card-icon">🏪</div>
+      <div class="card-title">Mercado.yaya Marketplace</div>
+      <div class="card-subtitle">B2B COMMERCE ENGINE</div>
+      <div class="card-body">
+        Decentralized marketplace where .yaya businesses list products, discover suppliers, negotiate, and transact. <strong>Each business's catalog is served from their own ThinkPad.</strong> No central database. Federated search across the mesh.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag purple">FEDERATED</span>
+        <span class="tech-tag purple">P2P COMMERCE</span>
+        <span class="tech-tag purple">MESH SEARCH</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-purple)">
+      <div class="card-icon">🪪</div>
+      <div class="card-title">Identity & Payments</div>
+      <div class="card-subtitle">SOVEREIGN FINANCIAL RAILS</div>
+      <div class="card-body">
+        Cryptographic identity replaces government-issued digital credentials for mesh interactions. <strong>Payment settlements between businesses routed through the mesh</strong> with on/off ramps to Yape, Plin, and bank transfers.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag purple">PKI IDENTITY</span>
+        <span class="tech-tag purple">MESH PAYMENTS</span>
+        <span class="tech-tag purple">YAPE/PLIN</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== YAYA APP ==================== -->
+<section class="section" id="app">
+  <div class="section-header">
+    <div class="section-label">Layer 06</div>
+    <h2 class="section-title">The Yaya App</h2>
+    <p class="section-desc">The user-facing gateway. One tap to connect. Elite cybersecurity made invisible. The business owner sees simplicity — the infrastructure handles the complexity.</p>
+  </div>
+
+  <div class="layer-grid">
+    <div class="layer-card" style="--card-accent: var(--accent-purple)">
+      <div class="card-icon">📱</div>
+      <div class="card-title">Mobile VPN Client</div>
+      <div class="card-subtitle">ONE-TAP MESH ACCESS</div>
+      <div class="card-body">
+        Business owner downloads the Yaya app, authenticates with their keypair (stored on phone's secure enclave), and taps connect. <strong>Instantly resolves .yaya domains.</strong> <code>inventario.yaya</code>, <code>ventas.yaya</code> — all accessible from anywhere.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag purple">IOS</span>
+        <span class="tech-tag purple">ANDROID</span>
+        <span class="tech-tag purple">WIREGUARD</span>
+        <span class="tech-tag purple">ROSENPASS</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-purple)">
+      <div class="card-icon">🔎</div>
+      <div class="card-title">.yaya Browser</div>
+      <div class="card-subtitle">MESH-NATIVE NAVIGATION</div>
+      <div class="card-body">
+        Built-in browser that natively resolves .yaya domains. Business owners browse the mesh like the regular internet. <strong>Type <code>proveedor.yaya</code> and you're there.</strong> Integrated marketplace discovery, business directory, and payment initiation.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag purple">WEBVIEW</span>
+        <span class="tech-tag purple">.YAYA RESOLVER</span>
+        <span class="tech-tag purple">DIRECTORY</span>
+      </div>
+    </div>
+
+    <div class="layer-card" style="--card-accent: var(--accent-purple)">
+      <div class="card-icon">🔔</div>
+      <div class="card-title">Business Dashboard</div>
+      <div class="card-subtitle">UNIFIED CONTROL PLANE</div>
+      <div class="card-body">
+        Real-time view of business metrics pulled from the ThinkPad: daily sales, inventory alerts, pending orders, WhatsApp agent activity. <strong>Data rendered on the phone, computed on the ThinkPad.</strong> The phone is a window, not a server.
+      </div>
+      <div class="tech-tags">
+        <span class="tech-tag purple">REAL-TIME</span>
+        <span class="tech-tag purple">PUSH NOTIFICATIONS</span>
+        <span class="tech-tag purple">METRICS</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== BUSINESS MODEL ==================== -->
+<section class="section" id="business">
+  <div class="section-header">
+    <div class="section-label">Layer 07</div>
+    <h2 class="section-title">Revenue Architecture</h2>
+    <p class="section-desc">Hardware sale + recurring service fee + marketplace commission. Three revenue streams that grow with the network.</p>
+  </div>
+
+  <div class="biz-grid">
+    <div class="biz-card">
+      <div class="biz-icon">💻</div>
+      <div class="biz-title">Hardware Sale</div>
+      <div class="biz-subtitle">ONE-TIME REVENUE</div>
+      <ul class="biz-items">
+        <li>Librebooted ThinkPad</li>
+        <li>Pre-configured software stack</li>
+        <li>Business onboarding setup</li>
+        <li>Hardware warranty & support</li>
+        <li>Training session included</li>
+      </ul>
+    </div>
+
+    <div class="biz-card">
+      <div class="biz-icon">🔄</div>
+      <div class="biz-title">Service Fee</div>
+      <div class="biz-subtitle">MONTHLY RECURRING</div>
+      <ul class="biz-items">
+        <li>.yaya mesh coordination</li>
+        <li>Exit node internet routing</li>
+        <li>DNS resolution & domain</li>
+        <li>Software updates & patches</li>
+        <li>AI agent model updates</li>
+      </ul>
+    </div>
+
+    <div class="biz-card">
+      <div class="biz-icon">🏪</div>
+      <div class="biz-title">Marketplace Fee</div>
+      <div class="biz-subtitle">TRANSACTION COMMISSION</div>
+      <ul class="biz-items">
+        <li>mercado.yaya listings</li>
+        <li>B2B transaction facilitation</li>
+        <li>Payment processing bridge</li>
+        <li>Escrow services</li>
+        <li>Featured listing placement</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== ROADMAP ==================== -->
+<section class="section" id="roadmap">
+  <div class="section-header">
+    <div class="section-label">Layer 08</div>
+    <h2 class="section-title">Build Roadmap</h2>
+    <p class="section-desc">From proof of concept with 3 ThinkPads to sovereign infrastructure for Peru's SMB economy.</p>
+  </div>
+
+  <div class="phase-timeline">
+    <div class="phase-item">
+      <div class="phase-label">PHASE 1 — NOW</div>
+      <div class="phase-title">Proof of Concept (3 ThinkPads)</div>
+      <div class="phase-body">
+        Deploy Headscale on the free Kamatera server. Configure WireGuard mesh between 3 librebooted ThinkPads. Set up CoreDNS with Level 1 (local) and Level 2 (.yaya) resolution. Install basic ERP stack (ERPNext containers). <strong>Validate the full stack works end-to-end.</strong> Test exit node routing and remote access via phone.
+      </div>
+    </div>
+
+    <div class="phase-item">
+      <div class="phase-label">PHASE 2 — MONTH 2-3</div>
+      <div class="phase-title">Rosenpass + Attestation Integration</div>
+      <div class="phase-body">
+        Integrate Rosenpass sidecar with WireGuard for post-quantum key exchange. Build the firmware attestation module using TPM PCR measurements. Develop the <strong>ZKP attestation circuit</strong> (Circom/Groth16) for privacy-preserving compliance verification. Test the full trust handshake flow between nodes.
+      </div>
+    </div>
+
+    <div class="phase-item">
+      <div class="phase-label">PHASE 3 — MONTH 3-4</div>
+      <div class="phase-title">Yaya App MVP</div>
+      <div class="phase-body">
+        Build mobile app with WireGuard VPN client + .yaya DNS resolver. <strong>One-tap connect to business mesh.</strong> Basic dashboard showing business metrics from ThinkPad. Push notifications for sales, inventory alerts, WhatsApp agent activity.
+      </div>
+    </div>
+
+    <div class="phase-item">
+      <div class="phase-label">PHASE 4 — MONTH 5-6</div>
+      <div class="phase-title">First Paying Customers</div>
+      <div class="phase-body">
+        Deploy librebooted ThinkPads to <strong>5-10 SMBs in Cañete/Lima</strong>. Full software stack: ERP, POS, WhatsApp AI agent, file storage. Onboard them to .yaya mesh. Collect feedback, iterate on UX. Establish monthly service fee billing.
+      </div>
+    </div>
+
+    <div class="phase-item">
+      <div class="phase-label">PHASE 5 — MONTH 7-12</div>
+      <div class="phase-title">Marketplace & Payments</div>
+      <div class="phase-body">
+        Launch <strong>mercado.yaya</strong> — federated B2B marketplace. Businesses discover each other, list products, transact. Integrate Yape/Plin on/off ramps. Build reputation system based on cryptographic transaction history. Identity layer for mesh-native business verification.
+      </div>
+    </div>
+
+    <div class="phase-item">
+      <div class="phase-label">PHASE 6 — YEAR 2+</div>
+      <div class="phase-title">Scale & Sovereignty</div>
+      <div class="phase-body">
+        Regional exit nodes for performance. <strong>Yaya Root of Trust PCIe chip</strong> manufactured with Seeed Studio — custom silicon replacing TPM with sovereign attestation, hardware-accelerated PQE key encapsulation (McEliece + Kyber), and ZKP proof generation offload. This chip is the scaling breakthrough: as the mesh grows to thousands of nodes, PQE handshakes that would bottleneck CPUs are handled by dedicated silicon at wire speed. Expand beyond Peru to Latin America. Open-source the stack for community-run .yaya meshes. <strong>The infrastructure becomes a public good.</strong>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<!-- ==================== FOOTER ==================== -->
+<footer>
+  <div class="container">
+    <div class="footer-logo">YAYA<span style="color: var(--text-muted);">.TECH</span></div>
+    <div class="footer-tagline">Sovereign Computing for the People · Cerro Yaya, Cañete, Peru</div>
+  </div>
+</footer>
+
+<script>
+function scrollToSection(id) {
+  document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+}
+
+// Active nav tracking
+const navBtns = document.querySelectorAll('.nav-btn');
+const sections = document.querySelectorAll('.section');
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navBtns.forEach(btn => btn.classList.remove('active'));
+      const idx = Array.from(sections).indexOf(entry.target);
+      if (navBtns[idx]) navBtns[idx].classList.add('active');
+    }
+  });
+}, { threshold: 0.3 });
+
+sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>

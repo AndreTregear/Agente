@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quechua Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">Q</div>
+    <span class="brand-text">Quechua</span>
+  </div>
+  <nav class="sidebar-nav">
+    <button class="nav-btn active" data-view="overview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Overview
+    </button>
+    <button class="nav-btn" data-view="benchmarks">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Benchmarks
+    </button>
+    <button class="nav-btn" data-view="jobs">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+      Jobs
+    </button>
+    <button class="nav-btn" data-view="system">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M9 2v2M15 20v2M9 20v2M2 15h2M2 9h2M20 15h2M20 9h2"/></svg>
+      System
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="refresh-indicator">
+      <div class="pulse-dot"></div>
+      <span id="last-update">--</span>
+    </div>
+  </div>
+</aside>
+
+<!-- Main content -->
+<main class="main">
+  <header class="topbar">
+    <h1 id="page-title">Overview</h1>
+    <div class="topbar-actions">
+      <span class="status-badge" id="conn-status">Connecting...</span>
+    </div>
+  </header>
+
+  <!-- Overview View -->
+  <section class="view active" id="view-overview">
+    <div class="cards-row">
+      <div class="stat-card">
+        <div class="stat-label">Current Phase</div>
+        <div class="stat-value" id="current-phase">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Progress</div>
+        <div class="stat-value" id="overall-progress">--%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active Jobs</div>
+        <div class="stat-value accent-blue" id="active-jobs">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Plan Tasks</div>
+        <div class="stat-value" id="plan-tasks">--</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">Project Phases</h2>
+      <div id="phases-timeline" class="phases-container"></div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">Plan Progress</h2>
+      <div class="chart-wrapper" style="max-width:500px;margin:0 auto;">
+        <canvas id="chart-plan"></canvas>
+      </div>
+      <div id="plan-summary" class="plan-summary"></div>
+    </div>
+  </section>
+
+  <!-- Benchmarks View -->
+  <section class="view" id="view-benchmarks">
+    <div id="bench-pending" class="empty-state" style="display:none;">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="64" height="64"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <h3>Benchmarks Pending</h3>
+      <p>No benchmark results available yet. They will appear here once benchmark jobs complete.</p>
+    </div>
+    <div id="bench-charts" class="grid-2col">
+      <div class="panel">
+        <h2 class="panel-title">GPU Compute FLOPS</h2>
+        <div class="chart-wrapper"><canvas id="chart-flops"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2 class="panel-title">Memory Bandwidth</h2>
+        <div class="chart-wrapper"><canvas id="chart-bandwidth"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2 class="panel-title">NVLink P2P Bandwidth</h2>
+        <div class="chart-wrapper"><canvas id="chart-nvlink"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2 class="panel-title">Thermal & Power</h2>
+        <div class="chart-wrapper"><canvas id="chart-thermal"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2 class="panel-title">Inference Throughput vs Concurrency</h2>
+        <div class="chart-wrapper"><canvas id="chart-throughput"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2 class="panel-title">Inference Latency Distribution</h2>
+        <div class="chart-wrapper"><canvas id="chart-latency"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Jobs View -->
+  <section class="view" id="view-jobs">
+    <div id="jobs-empty" class="empty-state" style="display:none;">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="64" height="64"><path d="M20 6L9 17l-5-5"/></svg>
+      </div>
+      <h3>No Active Jobs</h3>
+      <p>There are no SLURM jobs currently running.</p>
+    </div>
+    <div class="panel" id="jobs-table-panel">
+      <h2 class="panel-title">SLURM Jobs</h2>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Job ID</th>
+              <th>Name</th>
+              <th>State</th>
+              <th>Elapsed</th>
+              <th>Time Limit</th>
+              <th>Partition</th>
+              <th>Nodes</th>
+            </tr>
+          </thead>
+          <tbody id="jobs-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel" id="logs-panel">
+      <h2 class="panel-title">Recent Job Logs</h2>
+      <div id="logs-container" class="logs-container"></div>
+    </div>
+  </section>
+
+  <!-- System View -->
+  <section class="view" id="view-system">
+    <div class="cards-row" id="sys-summary">
+      <div class="stat-card">
+        <div class="stat-label">CPU Usage</div>
+        <div class="stat-value accent-blue" id="sys-cpu">--%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Memory</div>
+        <div class="stat-value accent-amber" id="sys-mem">-- / -- GB</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Storage (/blue)</div>
+        <div class="stat-value" id="sys-disk">--</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">GPU Status</h2>
+      <div id="gpu-cards" class="gpu-grid"></div>
+      <div id="gpu-empty" class="empty-state" style="display:none;">
+        <p>No GPU data available.</p>
+      </div>
+    </div>
+
+    <div class="grid-2col">
+      <div class="panel">
+        <h2 class="panel-title">GPU Utilization</h2>
+        <div class="chart-wrapper"><canvas id="chart-gpu-util"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2 class="panel-title">GPU Temperature</h2>
+        <div class="chart-wrapper"><canvas id="chart-gpu-temp"></canvas></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

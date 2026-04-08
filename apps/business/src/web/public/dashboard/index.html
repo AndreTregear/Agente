@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agente.ceo — Tu negocio, inteligente</title>
+  <link rel="stylesheet" href="shared/style.css?v=20260406a">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Login Screen -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-background"></div>
+    <div class="login-container">
+      <div class="login-card">
+        <div class="login-header">
+          <div class="login-logo">
+            <span class="logo-gradient">agente.ceo</span>
+          </div>
+          <div class="login-subtitle">Tu negocio, inteligente</div>
+        </div>
+
+        <!-- Login Form -->
+        <div id="login-form" class="login-form">
+          <div class="form-header">
+            <h2>Iniciar Sesión</h2>
+            <p>Accede a tu dashboard inteligente</p>
+          </div>
+          
+          <div id="login-error" class="error-message"></div>
+          
+          <form id="form-login">
+            <div class="form-group">
+              <label class="form-label">Correo electrónico</label>
+              <div class="form-input-wrapper">
+                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <input type="email" id="login-email" class="form-input" placeholder="tu@email.com" autocomplete="email" required>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Contraseña</label>
+              <div class="form-input-wrapper">
+                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <input type="password" id="login-password" class="form-input" placeholder="••••••••" autocomplete="current-password" required>
+              </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-gradient">
+              <span>Iniciar Sesión</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14m-7-7l7 7-7 7"/>
+              </svg>
+            </button>
+          </form>
+          
+          <div class="form-footer">
+            <span>¿No tienes cuenta?</span>
+            <a id="show-register" class="text-link">Regístrate gratis</a>
+          </div>
+        </div>
+
+        <!-- Register Form -->
+        <div id="register-form" class="login-form hidden">
+          <div class="form-header">
+            <h2>Crear Cuenta</h2>
+            <p>Comienza tu journey digital</p>
+          </div>
+          
+          <div id="register-error" class="error-message"></div>
+          
+          <form id="form-register">
+            <div class="form-group">
+              <label class="form-label">Nombre del negocio</label>
+              <div class="form-input-wrapper">
+                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 9v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9"/>
+                  <path d="M9 22V12h6v10"/>
+                  <path d="M2 10.6L12 2l10 8.6"/>
+                </svg>
+                <input type="text" id="register-business" class="form-input" placeholder="Mi Pollería" autocomplete="organization">
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Correo electrónico *</label>
+              <div class="form-input-wrapper">
+                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <input type="email" id="register-email" class="form-input" placeholder="tu@email.com" autocomplete="email" required>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Contraseña *</label>
+              <div class="form-input-wrapper">
+                <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <input type="password" id="register-password" class="form-input" placeholder="Mínimo 6 caracteres" autocomplete="new-password" required>
+              </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-gradient">
+              <span>Crear Cuenta</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14m-7-7l7 7-7 7"/>
+              </svg>
+            </button>
+          </form>
+          
+          <div class="form-footer">
+            <span>¿Ya tienes cuenta?</span>
+            <a id="show-login" class="text-link">Inicia sesión</a>
+          </div>
+        </div>
+
+        <div class="login-features">
+          <div class="feature-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>Datos encriptados</span>
+          </div>
+          <div class="feature-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9.937 4.519a3.5 3.5 0 0 0-6.874 0C1.899 6.81 1.228 9.307 2.26 11.174 2.26 11.174 8 21.5 12 13.5c4-8 9.74-2.326 9.74-2.326 1.032-1.867.361-4.364-1.803-6.655a3.5 3.5 0 0 0-6.874 0c-1.299.98-2.76.98-4.059 0Z"/>
+            </svg>
+            <span>IA 100% local</span>
+          </div>
+          <div class="feature-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
+            <span>WhatsApp integrado</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- App Layout -->
+  <div id="app" class="app-layout" style="display:none;">
+
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+      <button class="hamburger" id="btn-hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="mobile-logo">
+        <span class="logo-gradient">agente.ceo</span>
+      </div>
+      <div class="mobile-actions">
+        <button class="btn btn-icon" title="Notificaciones">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <span class="logo-gradient">agente.ceo</span>
+        </div>
+        <div class="sidebar-business" id="sidebar-business"></div>
+      </div>
+
+      <div class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Tu Agente</div>
+          <div class="nav-item active" data-page="chat">
+            <div class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+            <span class="nav-label">Chat</span>
+          </div>
+          <div class="nav-item" data-page="voice">
+            <div class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" x2="12" y1="19" y2="23"/>
+                <line x1="8" x2="16" y1="23" y2="23"/>
+              </svg>
+            </div>
+            <span class="nav-label">Modo Voz</span>
+          </div>
+          <div class="nav-item" data-page="dashboard">
+            <div class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9,22 9,12 15,12 15,22"/>
+              </svg>
+            </div>
+            <span class="nav-label">Dashboard</span>
+          </div>
+          <div class="nav-item" data-page="analytics">
+            <div class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v18h18"/>
+                <path d="M18.7 8L12 13.3 7.7 9 3 13.3"/>
+              </svg>
+            </div>
+            <span class="nav-label">Analíticas</span>
+          </div>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Negocio</div>
+          <div class="nav-item" data-page="orders">
+            <div class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="20" height="14" x="2" y="3" rx="2" ry="2"/>
+                <line x1="8" x2="16" y1="21" y2="21"/>
+                <line x1="12" x2="12" y1="17" y2="21"/>
+              </svg>
+            </div>
+            <span class="nav-label">Pedidos</span>
+          </div>
+          <div class="nav-item" data-page="customers">
+            <div class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </div>
+            <span class="nav-label">Clientes</span>
+          </div>
+          <div class="nav-item" data-page="products">
+            <div class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="9" cy="21" r="1"/>
+                <circle cx="20" cy="21" r="1"/>
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+              </svg>
+            </div>
+            <span class="nav-label">Productos</span>
+          </div>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Finanzas</div>
+          <div class="nav-item" data-page="payments">
+            <div class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="20" height="14" x="2" y="5" rx="2"/>
+                <path d="M2 10h20"/>
+              </svg>
+            </div>
+            <span class="nav-label">Pagos</span>
+          </div>
+          <div class="nav-item" data-page="expenses">
+            <div class="nav-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" x2="12" y1="2" y2="22"/>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              </svg>
+            </div>
+            <span class="nav-label">Gastos</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="nav-item" data-page="settings">
+          <div class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </div>
+          <span class="nav-label">Configuración</span>
+        </div>
+        
+        <div class="sidebar-user">
+          <div class="user-info">
+            <div class="avatar" id="user-avatar"></div>
+            <div class="user-details">
+              <span class="user-name" id="user-name">Usuario</span>
+              <span class="user-status">En línea</span>
+            </div>
+          </div>
+          <button class="btn-logout" id="btn-logout" title="Cerrar sesión">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16,17 21,12 16,7"/>
+              <line x1="21" x2="9" y1="12" y2="12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content" id="main-content">
+      <div id="page-dashboard" class="page active"></div>
+      <div id="page-chat" class="page"></div>
+      <div id="page-voice" class="page"></div>
+      <div id="page-analytics" class="page"></div>
+      <div id="page-orders" class="page"></div>
+      <div id="page-customers" class="page"></div>
+      <div id="page-products" class="page"></div>
+      <div id="page-payments" class="page"></div>
+      <div id="page-expenses" class="page"></div>
+      <div id="page-settings" class="page"></div>
+    </main>
+  </div>
+
+  <!-- Modal Container -->
+  <div id="modal-backdrop" class="modal-backdrop"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

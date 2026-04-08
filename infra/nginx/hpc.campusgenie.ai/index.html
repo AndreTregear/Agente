@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quechua NLP — HPC Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d;
+    --text: #e6edf3; --text-dim: #8b949e; --accent: #58a6ff;
+    --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #bc8cff;
+    --orange: #f0883e; --cyan: #39d2c0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+  .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+  header { text-align: center; padding: 32px 0 24px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+  header h1 { font-size: 28px; font-weight: 700; }
+  header h1 span { color: var(--accent); }
+  header .subtitle { color: var(--text-dim); margin-top: 4px; font-size: 14px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+  .badge-green { background: rgba(63,185,80,.15); color: var(--green); }
+  .badge-yellow { background: rgba(210,153,34,.15); color: var(--yellow); }
+  .badge-dim { background: rgba(139,148,158,.1); color: var(--text-dim); }
+
+  /* Report banner */
+  .report-banner { background: linear-gradient(135deg, rgba(88,166,255,.08), rgba(188,140,255,.08)); border: 1px solid var(--accent); border-radius: 10px; padding: 16px 24px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .report-banner h2 { font-size: 18px; font-weight: 700; }
+  .report-banner h2 .icon { margin-right: 8px; }
+  .report-banner .meta { color: var(--text-dim); font-size: 13px; }
+  .report-banner .btn { background: var(--accent); color: #0d1117; padding: 8px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px; transition: opacity .2s; }
+  .report-banner .btn:hover { opacity: .85; }
+
+  /* Section headers */
+  .section-title { font-size: 16px; font-weight: 700; color: var(--text); margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .section-title .icon { font-size: 18px; }
+
+  /* Phase pipeline */
+  .pipeline { display: flex; gap: 8px; margin: 24px 0; flex-wrap: wrap; }
+  .phase { flex: 1; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .phase-name { font-size: 13px; color: var(--text-dim); margin-bottom: 6px; }
+  .phase-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .phase-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+  .phase-fill.complete { background: var(--green); }
+  .phase-fill.active { background: var(--accent); }
+  .phase-fill.pending { background: var(--border); }
+  .phase-pct { font-size: 12px; color: var(--text-dim); margin-top: 4px; text-align: right; }
+
+  /* Cards */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .card h2 { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .5px; }
+  .card h3 { font-size: 12px; color: var(--text-dim); margin: 10px 0 6px; text-transform: uppercase; letter-spacing: .3px; }
+  .stat-row { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px solid rgba(48,54,61,.5); }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { color: var(--text-dim); font-size: 13px; }
+  .stat-value { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.accent { color: var(--accent); }
+  .stat-value.yellow { color: var(--yellow); }
+  .stat-value.purple { color: var(--purple); }
+  .stat-value.cyan { color: var(--cyan); }
+  .stat-value.orange { color: var(--orange); }
+  .stat-unit { font-size: 12px; color: var(--text-dim); font-weight: 400; }
+  .stat-big { font-size: 32px; font-weight: 800; line-height: 1.1; }
+  .stat-subtitle { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  /* Mini bar for latency breakdown */
+  .latency-bar { display: flex; height: 24px; border-radius: 4px; overflow: hidden; margin: 8px 0; font-size: 11px; font-weight: 600; }
+  .latency-bar > div { display: flex; align-items: center; justify-content: center; color: #fff; min-width: 30px; }
+  .latency-bar .asr { background: var(--accent); }
+  .latency-bar .llm { background: var(--purple); }
+  .latency-bar .tts { background: var(--green); }
+  .latency-legend { display: flex; gap: 16px; font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  .latency-legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+  .latency-legend .l-asr::before { background: var(--accent); }
+  .latency-legend .l-llm::before { background: var(--purple); }
+  .latency-legend .l-tts::before { background: var(--green); }
+
+  /* Chart containers */
+  .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .chart-card h2 { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .5px; }
+  .chart-wrap { position: relative; height: 300px; }
+  .chart-wrap.tall { height: 360px; }
+
+  /* Thermal table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--text-dim); font-weight: 600; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 6px; border-bottom: 1px solid rgba(48,54,61,.3); font-variant-numeric: tabular-nums; }
+
+  /* Log */
+  .log-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .log-card h2 { font-size: 14px; color: var(--text-dim); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .5px; }
+  pre.log { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 14px; font-size: 12px; font-family: 'JetBrains Mono', 'Fira Code', monospace; overflow-x: auto; max-height: 400px; overflow-y: auto; color: var(--text-dim); line-height: 1.6; }
+
+  footer { text-align: center; color: var(--text-dim); font-size: 12px; padding: 24px 0; border-top: 1px solid var(--border); margin-top: 24px; }
+  #error-banner { display: none; background: rgba(248,81,73,.1); border: 1px solid var(--red); color: var(--red); padding: 12px; border-radius: 8px; margin-bottom: 16px; text-align: center; }
+  #loading { text-align: center; padding: 60px; color: var(--text-dim); font-size: 16px; }
+
+  .hidden { display: none !important; }
+
+  /* Report modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 1000; overflow-y: auto; backdrop-filter: blur(4px); }
+  .modal-overlay.open { display: flex; justify-content: center; padding: 40px 20px; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; max-width: 900px; width: 100%; padding: 32px 40px; position: relative; margin: auto; }
+  .modal-close { position: sticky; top: 0; float: right; background: var(--border); border: none; color: var(--text); font-size: 20px; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; z-index: 1; }
+  .modal-close:hover { background: var(--red); }
+  .modal-body h1 { font-size: 24px; margin: 24px 0 12px; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .modal-body h1:first-child { margin-top: 0; }
+  .modal-body h2 { font-size: 19px; margin: 28px 0 10px; color: var(--accent); }
+  .modal-body h3 { font-size: 15px; margin: 20px 0 8px; color: var(--text); }
+  .modal-body p { margin: 8px 0; color: var(--text); font-size: 14px; line-height: 1.7; }
+  .modal-body ul, .modal-body ol { margin: 8px 0 8px 24px; color: var(--text); font-size: 14px; }
+  .modal-body li { margin: 4px 0; }
+  .modal-body strong { color: var(--green); }
+  .modal-body em { color: var(--text-dim); }
+  .modal-body code { background: rgba(88,166,255,.1); padding: 2px 6px; border-radius: 4px; font-size: 13px; color: var(--accent); }
+  .modal-body pre { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-x: auto; margin: 12px 0; }
+  .modal-body pre code { background: none; padding: 0; font-size: 12px; color: var(--text-dim); }
+  .modal-body table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  .modal-body th { text-align: left; color: var(--accent); font-weight: 600; padding: 10px 8px; border-bottom: 2px solid var(--border); }
+  .modal-body td { padding: 8px; border-bottom: 1px solid rgba(48,54,61,.4); }
+  .modal-body tr:hover td { background: rgba(88,166,255,.04); }
+  .modal-body blockquote { border-left: 3px solid var(--accent); padding: 8px 16px; margin: 12px 0; background: rgba(88,166,255,.05); border-radius: 0 6px 6px 0; }
+  .modal-body blockquote p { color: var(--text-dim); }
+  .modal-body hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .grid { grid-template-columns: 1fr; }
+    .report-banner { flex-direction: column; text-align: center; }
+    .modal { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🦙 Quechua NLP — <span>HPC Dashboard</span></h1>
+    <div class="subtitle">HiPerGator · 4× NVIDIA B200 · Phase 1 Benchmarks · Static Reports</div>
+  </header>
+
+  <div id="error-banner"></div>
+  <div id="loading">Loading benchmark data…</div>
+  <div id="app" style="display:none;">
+
+    <!-- Phase 1 Report Banner -->
+    <div class="report-banner" id="report-banner">
+      <div>
+        <h2><span class="icon">📋</span>Phase 1 Complete — Infrastructure & Benchmarking</h2>
+        <div class="meta">4× B200 · Qwen3.5-27B · Whisper · Kokoro TTS · Full hardware characterization</div>
+      </div>
+      <a class="btn" href="#" onclick="openReport(event)">📄 View Full Report</a>
+    </div>
+
+    <!-- Phase Pipeline -->
+    <div class="pipeline" id="pipeline"></div>
+
+    <!-- ═══════════════ INFERENCE SECTION ═══════════════ -->
+    <div class="section-title" id="sec-inference"><span class="icon">⚡</span> LLM Inference — Qwen3.5-27B</div>
+
+    <!-- Key Stats -->
+    <div class="grid" id="stats-grid"></div>
+
+    <!-- TP Scaling Comparison -->
+    <div class="chart-card" id="tp-scaling-section">
+      <h2>TP Scaling — TP=1 vs TP=4 Throughput</h2>
+      <div class="chart-wrap"><canvas id="chart-tp-scaling"></canvas></div>
+    </div>
+
+    <!-- Throughput & Latency -->
+    <div class="grid">
+      <div class="chart-card">
+        <h2>Throughput vs Concurrency (TP=1)</h2>
+        <div class="chart-wrap"><canvas id="chart-throughput"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Latency vs Concurrency (TP=1)</h2>
+        <div class="chart-wrap"><canvas id="chart-latency"></canvas></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="chart-card">
+        <h2>Output Length Sweep (TP=1)</h2>
+        <div class="chart-wrap"><canvas id="chart-length"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Long Context — TTFT by Input Length</h2>
+        <div class="chart-wrap"><canvas id="chart-long-ctx"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ HARDWARE SECTION ═══════════════ -->
+    <div class="section-title" id="sec-hardware"><span class="icon">🔧</span> Hardware Characterization — B200</div>
+
+    <!-- FLOPS -->
+    <div class="chart-card" id="flops-section">
+      <h2>Compute FLOPS — Matrix 8192×8192</h2>
+      <div class="chart-wrap tall"><canvas id="chart-flops"></canvas></div>
+    </div>
+
+    <!-- Memory BW & NCCL -->
+    <div class="grid">
+      <div class="chart-card" id="membw-section">
+        <h2>Memory Bandwidth (H2D / D2H / D2D)</h2>
+        <div class="chart-wrap"><canvas id="chart-membw"></canvas></div>
+      </div>
+      <div class="chart-card" id="nccl-section">
+        <h2>NCCL All-Reduce Bandwidth (2 GPUs)</h2>
+        <div class="chart-wrap"><canvas id="chart-nccl"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ VOICE PIPELINE SECTION ═══════════════ -->
+    <div class="section-title" id="sec-voice"><span class="icon">🎙️</span> Voice AI Pipeline</div>
+
+    <!-- Whisper / TTS / E2E Cards -->
+    <div class="grid grid-3" id="voice-grid"></div>
+
+    <!-- ═══════════════ THERMAL SECTION ═══════════════ -->
+    <div class="section-title" id="sec-thermal"><span class="icon">🌡️</span> Thermal & Power</div>
+
+    <div class="chart-card" id="thermal-section">
+      <h2>Thermal & Power (90s Stress Test)</h2>
+      <div class="chart-wrap"><canvas id="chart-thermal"></canvas></div>
+    </div>
+
+    <div class="card" id="thermal-summary" style="margin-bottom:16px;"></div>
+
+    <!-- Raw Log -->
+    <div class="log-card">
+      <h2>Benchmark Log</h2>
+      <pre class="log" id="bench-log">Loading…</pre>
+    </div>
+  </div>
+
+  <footer>
+    <span id="last-updated"></span> · Quechua NLP Project · FSU × UF HiPerGator
+  </footer>
+</div>
+
+<script>
+const PHASES = [
+  { id: 1, name: "Infrastructure & Benchmarking", status: "complete", pct: 100 },
+  { id: 2, name: "Data Pipeline", status: "active", pct: 45 },
+  { id: 3, name: "Model Training", status: "pending", pct: 0 },
+  { id: 4, name: "Evaluation & Tuning", status: "pending", pct: 0 },
+  { id: 5, name: "Deployment & Docs", status: "pending", pct: 0 },
+];
+
+Chart.defaults.color = '#8b949e';
+Chart.defaults.borderColor = '#30363d';
+const gridColor = 'rgba(48,54,61,.5)';
+
+/* ── Helpers ── */
+function fmt(n, d=1) { return n != null ? n.toFixed(d) : '—'; }
+function fmtI(n) { return n != null ? Math.round(n).toLocaleString() : '—'; }
+
+async function loadJSON(path) {
+  const r = await fetch(path);
+  if (!r.ok) return null;
+  return r.json();
+}
+
+function hide(id) { const el = document.getElementById(id); if (el) el.classList.add('hidden'); }
+
+/* ── Pipeline ── */
+function renderPipeline() {
+  const el = document.getElementById('pipeline');
+  el.innerHTML = PHASES.map(p => {
+    const badge = p.status === 'complete' ? '<span class="badge badge-green">✓ Done</span>'
+      : p.status === 'active' ? '<span class="badge badge-yellow">In Progress</span>'
+      : '<span class="badge badge-dim">Pending</span>';
+    return `<div class="phase">
+      <div class="phase-name">${p.name} ${badge}</div>
+      <div class="phase-bar"><div class="phase-fill ${p.status}" style="width:${p.pct}%"></div></div>
+      <div class="phase-pct">${p.pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Key Stats (TP=1 data) ── */
+function renderStats(tp1, tp4, hw) {
+  const grid = document.getElementById('stats-grid');
+
+  // TP=1 stats
+  const sr = tp1.single_request;
+  const peakTP1 = tp1.throughput.reduce((a, b) => a.est_tokens_per_sec > b.est_tokens_per_sec ? a : b);
+  const voiceAI = tp1.voice_ai;
+
+  // TP=4 peak (old baseline format)
+  let peakTP4tps = '—';
+  if (tp4) {
+    const tc = tp4.benchmarks.throughput_vs_concurrency;
+    const peakEntry = Object.values(tc).reduce((a, b) => a.throughput_tok_per_sec > b.throughput_tok_per_sec ? a : b);
+    peakTP4tps = fmtI(peakEntry.throughput_tok_per_sec);
+  }
+
+  // HW peak
+  let peakFLOPS = '—', peakBW = '—';
+  if (hw) {
+    const fp8 = hw.flops.filter(f => f.dtype === 'fp8_e4m3fn' && f.matrix_size === 8192);
+    if (fp8.length) peakFLOPS = fmt(fp8[0].tflops, 0);
+    const bwMax = hw.memory_bandwidth.reduce((a, b) => a.d2d_gbps > b.d2d_gbps ? a : b);
+    peakBW = fmtI(bwMax.d2d_gbps);
+  }
+
+  grid.innerHTML = `
+    <div class="card">
+      <h2>Single Request (TP=1)</h2>
+      <div class="stat-row"><span class="stat-label">TTFT (p50)</span><span class="stat-value accent">${fmt(sr.ttft.p50 * 1000, 0)} <span class="stat-unit">ms</span></span></div>
+      <div class="stat-row"><span class="stat-label">Latency (p50)</span><span class="stat-value">${fmt(sr.latency.p50, 2)} <span class="stat-unit">s</span></span></div>
+      <div class="stat-row"><span class="stat-label">Latency (p95)</span><span class="stat-value yellow">${fmt(sr.latency.p95, 2)} <span class="stat-unit">s</span></span></div>
+      <div class="stat-row"><span class="stat-label">Voice AI Latency (p50)</span><span class="stat-value green">${fmt(voiceAI.total_latency.p50 * 1000, 0)} <span class="stat-unit">ms</span></span></div>
+    </div>
+    <div class="card">
+      <h2>Peak Throughput</h2>
+      <div class="stat-row"><span class="stat-label">TP=1 Peak</span><span class="stat-value green">${fmtI(peakTP1.est_tokens_per_sec)} <span class="stat-unit">tok/s</span></span></div>
+      <div class="stat-row"><span class="stat-label">at Concurrency</span><span class="stat-value accent">${peakTP1.concurrency}</span></div>
+      <div class="stat-row"><span class="stat-label">TP=4 Peak</span><span class="stat-value purple">${peakTP4tps} <span class="stat-unit">tok/s</span></span></div>
+      <div class="stat-row"><span class="stat-label">Scaling</span><span class="stat-value yellow">TP=1 > TP=4 <span class="stat-unit">(AWQ sharding overhead)</span></span></div>
+    </div>
+    <div class="card">
+      <h2>Hardware Highlights</h2>
+      <div class="stat-row"><span class="stat-label">GPUs</span><span class="stat-value">4× B200</span></div>
+      <div class="stat-row"><span class="stat-label">VRAM Total</span><span class="stat-value">766 <span class="stat-unit">GB HBM3e</span></span></div>
+      <div class="stat-row"><span class="stat-label">Peak FP8 TFLOPS</span><span class="stat-value cyan">${peakFLOPS} <span class="stat-unit">TFLOPS</span></span></div>
+      <div class="stat-row"><span class="stat-label">Peak D2D BW</span><span class="stat-value">${peakBW} <span class="stat-unit">GB/s</span></span></div>
+    </div>
+  `;
+}
+
+/* ── TP Scaling Chart ── */
+function renderTPScaling(tp1, tp4) {
+  if (!tp4) { hide('tp-scaling-section'); return; }
+
+  const tp4data = tp4.benchmarks.throughput_vs_concurrency;
+  // Build aligned concurrency levels
+  const tp1Map = {};
+  tp1.throughput.forEach(t => { tp1Map[t.concurrency] = t.est_tokens_per_sec; });
+  const tp4Map = {};
+  Object.values(tp4data).forEach(t => { tp4Map[t.concurrency] = t.throughput_tok_per_sec; });
+
+  const allC = [...new Set([...Object.keys(tp1Map).map(Number), ...Object.keys(tp4Map).map(Number)])].sort((a,b) => a-b);
+
+  new Chart(document.getElementById('chart-tp-scaling'), {
+    type: 'bar',
+    data: {
+      labels: allC.map(c => `c=${c}`),
+      datasets: [{
+        label: 'TP=1 (single B200)',
+        data: allC.map(c => tp1Map[c] || null),
+        backgroundColor: 'rgba(88,166,255,.6)',
+        borderColor: '#58a6ff',
+        borderWidth: 1, borderRadius: 4,
+      }, {
+        label: 'TP=4 (4× B200)',
+        data: allC.map(c => tp4Map[c] || null),
+        backgroundColor: 'rgba(188,140,255,.6)',
+        borderColor: '#bc8cff',
+        borderWidth: 1, borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { title: { display: true, text: 'Throughput (tok/s)' }, grid: { color: gridColor } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+/* ── Throughput Chart (TP=1) ── */
+function renderThroughputChart(tp1) {
+  const entries = tp1.throughput.sort((a, b) => a.concurrency - b.concurrency);
+  const peak = entries.reduce((a, b) => a.est_tokens_per_sec > b.est_tokens_per_sec ? a : b);
+  new Chart(document.getElementById('chart-throughput'), {
+    type: 'bar',
+    data: {
+      labels: entries.map(e => `c=${e.concurrency}`),
+      datasets: [{
+        label: 'Aggregate tok/s',
+        data: entries.map(e => e.est_tokens_per_sec),
+        backgroundColor: entries.map(e => e.concurrency === peak.concurrency ? 'rgba(63,185,80,.7)' : 'rgba(88,166,255,.5)'),
+        borderColor: entries.map(e => e.concurrency === peak.concurrency ? '#3fb950' : '#58a6ff'),
+        borderWidth: 1, borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { title: { display: true, text: 'tok/s' }, grid: { color: gridColor } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+/* ── Latency Chart (TP=1) ── */
+function renderLatencyChart(tp1) {
+  const entries = tp1.throughput.sort((a, b) => a.concurrency - b.concurrency);
+  new Chart(document.getElementById('chart-latency'), {
+    type: 'line',
+    data: {
+      labels: entries.map(e => `c=${e.concurrency}`),
+      datasets: [{
+        label: 'p50 Latency (s)',
+        data: entries.map(e => e.latency.p50),
+        borderColor: '#d29922', backgroundColor: 'rgba(210,153,34,.1)',
+        fill: true, tension: .3, pointBackgroundColor: '#d29922',
+      }, {
+        label: 'p95 Latency (s)',
+        data: entries.map(e => e.latency.p95),
+        borderColor: '#f85149', backgroundColor: 'transparent',
+        borderDash: [5, 5], tension: .3, pointBackgroundColor: '#f85149',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { title: { display: true, text: 'Latency (s)' }, grid: { color: gridColor } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+/* ── Output Length Sweep (TP=1) ── */
+function renderLengthChart(tp1) {
+  const entries = tp1.output_length.sort((a, b) => a.max_tokens - b.max_tokens);
+  new Chart(document.getElementById('chart-length'), {
+    type: 'line',
+    data: {
+      labels: entries.map(e => `${e.max_tokens} tok`),
+      datasets: [{
+        label: 'tok/s',
+        data: entries.map(e => e.approx_tokens_per_sec),
+        borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,.1)',
+        fill: true, tension: .3, pointBackgroundColor: '#58a6ff',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { title: { display: true, text: 'tok/s' }, grid: { color: gridColor } },
+        x: { title: { display: true, text: 'Max Output Tokens' }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+/* ── Long Context TTFT (TP=1) ── */
+function renderLongContextChart(tp1) {
+  const entries = tp1.long_context.filter(e => e.success);
+  if (!entries.length) return;
+  new Chart(document.getElementById('chart-long-ctx'), {
+    type: 'bar',
+    data: {
+      labels: entries.map(e => `${(e.target_input_tokens/1024).toFixed(0)}K`),
+      datasets: [{
+        label: 'TTFT (ms)',
+        data: entries.map(e => e.ttft_s * 1000),
+        backgroundColor: 'rgba(57,210,192,.5)',
+        borderColor: '#39d2c0',
+        borderWidth: 1, borderRadius: 4,
+      }, {
+        label: 'Total (ms)',
+        data: entries.map(e => e.total_s * 1000),
+        backgroundColor: 'rgba(188,140,255,.3)',
+        borderColor: '#bc8cff',
+        borderWidth: 1, borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { title: { display: true, text: 'Time (ms)' }, grid: { color: gridColor } },
+        x: { title: { display: true, text: 'Input Context Length' }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+/* ── FLOPS Chart ── */
+function renderFLOPSChart(hw) {
+  if (!hw) { hide('flops-section'); hide('sec-hardware'); return; }
+  const target = 8192;
+  const dtypes = ['fp64', 'fp32', 'tf32', 'fp16', 'bf16', 'fp8_e4m3fn', 'int8'];
+  const labels = ['FP64', 'FP32', 'TF32', 'FP16', 'BF16', 'FP8', 'INT8'];
+  const colors = ['#f85149', '#d29922', '#f0883e', '#58a6ff', '#3fb950', '#39d2c0', '#bc8cff'];
+
+  const vals = dtypes.map(dt => {
+    const entry = hw.flops.find(f => f.dtype === dt && f.matrix_size === target);
+    return entry ? entry.tflops : 0;
+  });
+
+  new Chart(document.getElementById('chart-flops'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'TFLOPS',
+        data: vals,
+        backgroundColor: colors.map(c => c + '99'),
+        borderColor: colors,
+        borderWidth: 1, borderRadius: 6,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `${ctx.parsed.x.toLocaleString()} TFLOPS` } }
+      },
+      scales: {
+        x: { title: { display: true, text: 'TFLOPS' }, grid: { color: gridColor } },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+/* ── Memory BW Chart ── */
+function renderMemBWChart(hw) {
+  if (!hw) { hide('membw-section'); return; }
+  const bw = hw.memory_bandwidth;
+  new Chart(document.getElementById('chart-membw'), {
+    type: 'line',
+    data: {
+      labels: bw.map(b => b.size_mb >= 1024 ? `${b.size_mb/1024}G` : `${b.size_mb}M`),
+      datasets: [{
+        label: 'H2D (GB/s)',
+        data: bw.map(b => b.h2d_gbps),
+        borderColor: '#58a6ff', backgroundColor: 'transparent',
+        tension: .3, pointBackgroundColor: '#58a6ff',
+      }, {
+        label: 'D2H (GB/s)',
+        data: bw.map(b => b.d2h_gbps),
+        borderColor: '#d29922', backgroundColor: 'transparent',
+        tension: .3, pointBackgroundColor: '#d29922',
+      }, {
+        label: 'D2D (GB/s)',
+        data: bw.map(b => b.d2d_gbps),
+        borderColor: '#3fb950', backgroundColor: 'rgba(63,185,80,.1)',
+        fill: true, tension: .3, pointBackgroundColor: '#3fb950', yAxisID: 'y1',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { title: { display: true, text: 'H2D/D2H (GB/s)' }, grid: { color: gridColor } },
+        y1: { position: 'right', title: { display: true, text: 'D2D (GB/s)' }, grid: { drawOnChartArea: false } },
+        x: { title: { display: true, text: 'Transfer Size' }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+/* ── NCCL Chart ── */
+function renderNCCLChart(hw) {
+  if (!hw) { hide('nccl-section'); return; }
+  // Filter to valid entries (no errors)
+  const nccl = hw.nccl_allreduce.filter(n => n.busbw_gbps != null && !n.error);
+  if (!nccl.length) { hide('nccl-section'); return; }
+
+  new Chart(document.getElementById('chart-nccl'), {
+    type: 'line',
+    data: {
+      labels: nccl.map(n => n.size_mb >= 1024 ? `${n.size_mb/1024}G` : `${n.size_mb}M`),
+      datasets: [{
+        label: 'Bus BW (GB/s)',
+        data: nccl.map(n => n.busbw_gbps),
+        borderColor: '#bc8cff', backgroundColor: 'rgba(188,140,255,.1)',
+        fill: true, tension: .3, pointBackgroundColor: '#bc8cff',
+      }, {
+        label: 'Algo BW (GB/s)',
+        data: nccl.map(n => n.algbw_gbps),
+        borderColor: '#58a6ff', backgroundColor: 'transparent',
+        borderDash: [5, 5], tension: .3, pointBackgroundColor: '#58a6ff',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { title: { display: true, text: 'Bandwidth (GB/s)' }, grid: { color: gridColor } },
+        x: { title: { display: true, text: 'Message Size' }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+/* ── Voice Pipeline Cards ── */
+function renderVoiceCards(whisper, tts, multimodal) {
+  const grid = document.getElementById('voice-grid');
+  if (!whisper && !tts && !multimodal) {
+    hide('sec-voice');
+    grid.classList.add('hidden');
+    return;
+  }
+  let html = '';
+
+  // Whisper card
+  if (whisper && whisper.models && whisper.models.length) {
+    const bestModel = whisper.models[0]; // whisper-large-v3-turbo
+    const bestTest = bestModel.tests[0]; // fp16 bs=1
+    html += `
+      <div class="card">
+        <h2>🎤 Whisper ASR</h2>
+        <div class="stat-row"><span class="stat-label">Model</span><span class="stat-value" style="font-size:13px">${bestModel.model.split('/').pop()}</span></div>
+        <div class="stat-row"><span class="stat-label">RTF (real-time factor)</span><span class="stat-value green">${fmt(bestTest.rtf, 4)}</span></div>
+        <div class="stat-row"><span class="stat-label">Speed</span><span class="stat-value accent">${fmt(1/bestTest.rtf, 0)}× <span class="stat-unit">real-time</span></span></div>
+        <div class="stat-row"><span class="stat-label">WER</span><span class="stat-value">${fmt(bestTest.wer * 100, 1)} <span class="stat-unit">%</span></span></div>
+        <div class="stat-row"><span class="stat-label">Model Memory</span><span class="stat-value">${fmt(bestTest.model_memory_gb, 2)} <span class="stat-unit">GB</span></span></div>
+        <div class="stat-row"><span class="stat-label">Quantization</span><span class="stat-value" style="font-size:14px">${bestTest.quantization}</span></div>
+        <h3>Batch Scaling (FP16)</h3>
+        ${bestModel.tests.filter(t => t.quantization === 'fp16').map(t =>
+          `<div class="stat-row"><span class="stat-label">BS=${t.batch_size}</span><span class="stat-value" style="font-size:14px">${fmt(t.rtf, 4)} RTF · ${fmt(t.wer*100,1)}% WER</span></div>`
+        ).join('')}
+      </div>`;
+  }
+
+  // TTS card
+  if (tts && tts.models && tts.models.length) {
+    const kokoro = tts.models.find(m => m.model.includes('Kokoro')) || tts.models[0];
+    if (kokoro && kokoro.tests && kokoro.tests.length) {
+      const medium = kokoro.tests.find(t => t.text_type === 'medium_50w') || kokoro.tests[0];
+      const long = kokoro.tests.find(t => t.text_type === 'long_200w');
+      html += `
+        <div class="card">
+          <h2>🔊 Kokoro TTS</h2>
+          <div class="stat-row"><span class="stat-label">Model</span><span class="stat-value" style="font-size:13px">${kokoro.model.split('/').pop()}</span></div>
+          <div class="stat-row"><span class="stat-label">RTF (50 words)</span><span class="stat-value green">${fmt(medium.rtf.mean, 4)}</span></div>
+          <div class="stat-row"><span class="stat-label">Speed</span><span class="stat-value accent">${fmt(1/medium.rtf.mean, 0)}× <span class="stat-unit">real-time</span></span></div>
+          <div class="stat-row"><span class="stat-label">Latency (50w mean)</span><span class="stat-value">${fmt(medium.latency_s.mean * 1000, 0)} <span class="stat-unit">ms</span></span></div>
+          <div class="stat-row"><span class="stat-label">Memory</span><span class="stat-value">${fmt(medium.memory.allocated_gb, 2)} <span class="stat-unit">GB</span></span></div>
+          <h3>By Text Length</h3>
+          ${kokoro.tests.map(t =>
+            `<div class="stat-row"><span class="stat-label">${t.text_type.replace('_', ' ')}</span><span class="stat-value" style="font-size:14px">${fmt(t.latency_s.mean * 1000, 0)}ms · RTF ${fmt(t.rtf.mean, 4)}</span></div>`
+          ).join('')}
+        </div>`;
+    }
+  }
+
+  // E2E Voice Pipeline card
+  if (multimodal && multimodal.configs && multimodal.configs.length) {
+    // Find best config (lowest average total, skip warmup)
+    let bestCfg = null, bestAvg = Infinity;
+    for (const cfg of multimodal.configs) {
+      for (const test of cfg.tests) {
+        const warm = test.timings.slice(1);
+        if (!warm.length) continue;
+        const avg = warm.reduce((s, t) => s + t.total_s, 0) / warm.length;
+        if (avg < bestAvg) { bestAvg = avg; bestCfg = { config: cfg.config, test, warm }; }
+      }
+    }
+    if (bestCfg) {
+      const w = bestCfg.warm;
+      const avgASR = w.reduce((s, t) => s + t.asr_s, 0) / w.length;
+      const avgLLM = w.reduce((s, t) => s + t.llm_s, 0) / w.length;
+      const avgTTS = w.reduce((s, t) => s + t.tts_s, 0) / w.length;
+      const avgTotal = avgASR + avgLLM + avgTTS;
+      const pctASR = (avgASR / avgTotal * 100);
+      const pctLLM = (avgLLM / avgTotal * 100);
+      const pctTTS = (avgTTS / avgTotal * 100);
+
+      html += `
+        <div class="card">
+          <h2>🗣️ Voice Pipeline E2E</h2>
+          <div class="stat-row"><span class="stat-label">Total Latency</span><span class="stat-value green stat-big">${fmt(avgTotal * 1000, 0)} <span class="stat-unit">ms</span></span></div>
+          <div class="stat-subtitle">Warmed up, ${w.length} runs averaged</div>
+          <div class="latency-bar">
+            <div class="asr" style="width:${pctASR}%">ASR</div>
+            <div class="llm" style="width:${pctLLM}%">LLM</div>
+            <div class="tts" style="width:${pctTTS}%">TTS</div>
+          </div>
+          <div class="latency-legend">
+            <span class="l-asr">ASR ${fmt(avgASR * 1000, 0)}ms</span>
+            <span class="l-llm">LLM ${fmt(avgLLM * 1000, 0)}ms</span>
+            <span class="l-tts">TTS ${fmt(avgTTS * 1000, 0)}ms</span>
+          </div>
+          <div style="margin-top:12px">
+            <div class="stat-row"><span class="stat-label">Config</span><span class="stat-value" style="font-size:12px">${bestCfg.config}</span></div>
+            <div class="stat-row"><span class="stat-label">Audio Input</span><span class="stat-value" style="font-size:14px">${bestCfg.test.audio_duration_s}s</span></div>
+            <div class="stat-row"><span class="stat-label">Best Single Run</span><span class="stat-value accent">${fmt(Math.min(...w.map(t => t.total_s)) * 1000, 0)} <span class="stat-unit">ms</span></span></div>
+          </div>
+        </div>`;
+    }
+  }
+
+  grid.innerHTML = html;
+}
+
+/* ── Thermal Chart ── */
+function renderThermalChart(thermal) {
+  if (!thermal || !thermal.thermal_readings) { hide('thermal-section'); hide('thermal-summary'); hide('sec-thermal'); return; }
+  const readings = thermal.thermal_readings;
+  const gpuColors = ['#58a6ff', '#3fb950', '#d29922', '#bc8cff'];
+  new Chart(document.getElementById('chart-thermal'), {
+    type: 'line',
+    data: {
+      labels: readings.map(r => `${r.time_s}s`),
+      datasets: [
+        ...readings[0].gpus.map((_, i) => ({
+          label: `GPU ${i} Temp (°C)`,
+          data: readings.map(r => r.gpus[i].temp_c),
+          borderColor: gpuColors[i], backgroundColor: 'transparent',
+          tension: .3, pointRadius: 1, yAxisID: 'y',
+        })),
+        {
+          label: 'Avg Power (W)',
+          data: readings.map(r => r.gpus.reduce((s, g) => s + g.power_w, 0) / r.gpus.length),
+          borderColor: '#f85149', backgroundColor: 'rgba(248,81,73,.1)',
+          fill: true, tension: .3, pointRadius: 1, yAxisID: 'y1', borderDash: [4, 4],
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { title: { display: true, text: 'Temperature °C' }, min: 40, grid: { color: gridColor } },
+        y1: { position: 'right', title: { display: true, text: 'Power (W)' }, min: 700, grid: { drawOnChartArea: false } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+
+  const last = readings[readings.length - 1];
+  const el = document.getElementById('thermal-summary');
+  el.innerHTML = `<h2>GPU Summary (Steady State)</h2>
+    <table>
+      <tr><th>GPU</th><th>Temp</th><th>Power</th><th>SM Clock</th><th>VRAM Used</th><th>Util</th></tr>
+      ${last.gpus.map(g => `<tr>
+        <td>GPU ${g.idx}</td>
+        <td style="color:${g.temp_c > 80 ? 'var(--red)' : g.temp_c > 70 ? 'var(--yellow)' : 'var(--green)'}">${g.temp_c}°C</td>
+        <td>${g.power_w.toFixed(0)}W</td>
+        <td>${g.sm_mhz} MHz</td>
+        <td>${(g.mem_used_mb / 1024).toFixed(1)} GB / ${(g.mem_total_mb / 1024).toFixed(0)} GB</td>
+        <td>${g.util_pct}%</td>
+      </tr>`).join('')}
+    </table>`;
+}
+
+/* ── Main Init ── */
+async function init() {
+  const loading = document.getElementById('loading');
+  const app = document.getElementById('app');
+  const errBanner = document.getElementById('error-banner');
+
+  try {
+    // Load all data files in parallel — missing files return null
+    const [tp1, tp4, hw, whisper, tts, multimodal, thermal] = await Promise.all([
+      loadJSON('data/inference_vllm_tp1.json'),
+      loadJSON('data/inference_vllm_baseline_20260329_135134.json'),
+      loadJSON('data/hardware_benchmark.json'),
+      loadJSON('data/whisper_benchmark.json'),
+      loadJSON('data/tts_benchmark.json'),
+      loadJSON('data/multimodal_benchmark.json'),
+      loadJSON('data/thermal_power.json'),
+    ]);
+
+    // Also try the renamed TP4 file
+    let tp4Data = tp4;
+    if (!tp4Data) {
+      tp4Data = await loadJSON('data/inference_vllm_tp4_early.json');
+    }
+
+    loading.style.display = 'none';
+    app.style.display = '';
+
+    // Always render pipeline
+    renderPipeline();
+
+    // Need at least TP=1 data to render main stats
+    if (tp1) {
+      renderStats(tp1, tp4Data, hw);
+      renderTPScaling(tp1, tp4Data);
+      renderThroughputChart(tp1);
+      renderLatencyChart(tp1);
+      renderLengthChart(tp1);
+      renderLongContextChart(tp1);
+    } else if (tp4Data) {
+      // Fallback: use old TP4 data with old rendering
+      hide('sec-inference');
+      document.getElementById('stats-grid').innerHTML =
+        '<div class="card"><h2>Inference Data</h2><p style="color:var(--text-dim)">TP=1 benchmark data not yet available. Run publish.sh after benchmarks complete.</p></div>';
+    } else {
+      hide('sec-inference');
+      hide('tp-scaling-section');
+    }
+
+    // Hardware section
+    if (hw) {
+      renderFLOPSChart(hw);
+      renderMemBWChart(hw);
+      renderNCCLChart(hw);
+    } else {
+      hide('sec-hardware');
+      hide('flops-section');
+      hide('membw-section');
+      hide('nccl-section');
+    }
+
+    // Voice pipeline
+    renderVoiceCards(whisper, tts, multimodal);
+
+    // Thermal
+    renderThermalChart(thermal);
+    if (!thermal) { hide('sec-thermal'); hide('thermal-summary'); }
+
+    // Timestamp
+    const ts = tp1 ? tp1.timestamp : (tp4Data ? tp4Data.timestamp : null);
+    document.getElementById('last-updated').textContent =
+      `Report generated: ${ts ? new Date(ts).toLocaleString() : 'unknown'} · Last published: ${new Date().toLocaleString()}`;
+
+    // Try loading the raw log
+    try {
+      const logResp = await fetch('data/run_bench.log');
+      if (logResp.ok) document.getElementById('bench-log').textContent = await logResp.text();
+      else document.getElementById('bench-log').textContent = 'Log not available';
+    } catch { document.getElementById('bench-log').textContent = 'Log not available'; }
+
+    // Check if report exists
+    try {
+      const reportResp = await fetch('data/PHASE1_REPORT.md', { method: 'HEAD' });
+      if (!reportResp.ok) hide('report-banner');
+    } catch { /* keep banner, link will 404 gracefully */ }
+
+  } catch (err) {
+    loading.style.display = 'none';
+    errBanner.style.display = '';
+    errBanner.textContent = `Failed to load data: ${err.message}. Run publish.sh to push latest results.`;
+    app.style.display = '';
+    renderPipeline();
+  }
+}
+
+init();
+
+// === Report Modal ===
+async function openReport(e) {
+  e.preventDefault();
+  let overlay = document.getElementById('report-modal');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'report-modal';
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `<div class="modal">
+      <button class="modal-close" onclick="closeReport()">&times;</button>
+      <div class="modal-body" id="report-body">Loading report…</div>
+    </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(ev) {
+      if (ev.target === overlay) closeReport();
+    });
+  }
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const resp = await fetch('data/PHASE1_REPORT.md');
+    if (!resp.ok) throw new Error('Failed to load report');
+    const md = await resp.text();
+    document.getElementById('report-body').innerHTML = marked.parse(md);
+  } catch (err) {
+    document.getElementById('report-body').innerHTML =
+      '<p style="color:var(--red)">Failed to load report. <a href="data/PHASE1_REPORT.md" target="_blank" style="color:var(--accent)">Download instead</a></p>';
+  }
+}
+
+function closeReport() {
+  const overlay = document.getElementById('report-modal');
+  if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeReport();
+});
+</script>
+</body>
+</html>

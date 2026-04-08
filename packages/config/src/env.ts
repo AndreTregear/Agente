@@ -33,6 +33,7 @@ export const config = {
   vllm: {
     url: env('VLLM_API_BASE', 'http://localhost:8000/v1'),
     apiKey: env('VLLM_API_KEY', ''),
+    model: env('VLLM_MODEL', 'qwen3.5-35b-a3b'),
   },
 
   hpc: {
@@ -55,7 +56,7 @@ export const config = {
   whisper: {
     baseUrl: env('WHISPER_BASE_URL', 'http://localhost:9300/v1'),
     apiKey: env('WHISPER_API_KEY', ''),
-    model: env('WHISPER_MODEL', 'large-v3-turbo'),
+    model: env('WHISPER_MODEL', 'large-v3'),
     language: env('WHISPER_LANGUAGE', 'es'),
   },
 
@@ -71,7 +72,7 @@ export const config = {
   tts: {
     baseUrl: env('TTS_BASE_URL', 'http://localhost:9400'),
     apiKey: env('TTS_API_KEY', ''),
-    defaultVoice: env('TTS_DEFAULT_VOICE', 'af_heart'),
+    defaultVoice: env('TTS_DEFAULT_VOICE', 'ef_dora'),
     provider: env('TTS_PROVIDER', 'kokoro') as 'kokoro' | 'qwen3',
     qwen: {
       baseUrl: envOptional('QWEN_TTS_BASE_URL'),

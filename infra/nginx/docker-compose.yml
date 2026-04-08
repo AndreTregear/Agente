@@ -1,0 +1,30 @@
+# ═══════════════════════════════════════════════════════════════
+# Yaya Sites — Static Site Server
+# ═══════════════════════════════════════════════════════════════
+# Convention:
+#   ~/sites/{domain}/index.html  → served at that domain
+#   ./generate-nginx.sh          → regenerates config & reloads
+#
+# Adding a new site:
+#   1. mkdir ~/sites/newdomain.com
+#   2. cp index.html ~/sites/newdomain.com/
+#   3. ./generate-nginx.sh
+#   4. Add Cloudflare tunnel: newdomain.com → http://localhost:80
+# ═══════════════════════════════════════════════════════════════
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: websites
+    restart: unless-stopped
+    ports:
+      - "4400:80"
+    volumes:
+      - ./.nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./:/usr/share/nginx/sites:ro
+      - ./logs:/var/log/nginx
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 0"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Darwin Sales Lab — The AI That Sells Itself</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+/* ── Light Mode (default) ── */
+:root{
+  --bg:#ffffff;
+  --bg-subtle:#f8f9fa;
+  --card:#ffffff;
+  --card-hover:#f0f1f3;
+  --accent:#e94560;
+  --secondary:#0077cc;
+  --orb-blue:#3b82f6;
+  --orb-red:#ef4444;
+  --text:#1a1a2e;
+  --text-dim:#6b7280;
+  --green:#16a34a;
+  --yellow:#ca8a04;
+  --red:#dc2626;
+  --purple:#7c3aed;
+  --border:#e5e7eb;
+  --nav-bg:rgba(255,255,255,0.92);
+  --hero-glow1:rgba(59,130,246,0.06);
+  --hero-glow2:rgba(239,68,68,0.06);
+  --chat-buyer-bg:rgba(124,58,237,0.08);
+  --chat-buyer-border:rgba(124,58,237,0.2);
+  --chat-seller-bg:rgba(59,130,246,0.08);
+  --chat-seller-border:rgba(59,130,246,0.2);
+  --review-bg:rgba(248,249,250,1);
+  --shadow:0 1px 3px rgba(0,0,0,0.08);
+  --shadow-lg:0 4px 20px rgba(0,0,0,0.06);
+  --chart-text:#1a1a2e;
+  --chart-dim:#6b7280;
+  --chart-grid:rgba(0,0,0,0.06);
+  --scrollbar-track:#f0f1f3;
+  --scrollbar-thumb:#d1d5db;
+  --coming-soon-bg:#f0fdf4;
+  --terminal-bg:#0f172a;
+  --terminal-text:#22c55e;
+}
+
+/* ── Dark Mode ── */
+[data-theme="dark"]{
+  --bg:#0a0a1a;
+  --bg-subtle:#111127;
+  --card:#1a1a2e;
+  --card-hover:#222244;
+  --accent:#e94560;
+  --secondary:#00d2ff;
+  --orb-blue:#3b82f6;
+  --orb-red:#ef4444;
+  --text:#e0e0e0;
+  --text-dim:#888;
+  --green:#00e676;
+  --yellow:#ffd740;
+  --red:#ff5252;
+  --purple:#bb86fc;
+  --border:#2a2a4a;
+  --nav-bg:rgba(10,10,26,0.95);
+  --hero-glow1:rgba(59,130,246,0.08);
+  --hero-glow2:rgba(239,68,68,0.08);
+  --chat-buyer-bg:rgba(187,134,252,0.12);
+  --chat-buyer-border:rgba(187,134,252,0.25);
+  --chat-seller-bg:rgba(0,210,255,0.08);
+  --chat-seller-border:rgba(0,210,255,0.2);
+  --review-bg:rgba(10,10,26,0.5);
+  --shadow:0 1px 3px rgba(0,0,0,0.3);
+  --shadow-lg:0 4px 20px rgba(0,0,0,0.3);
+  --chart-text:#e0e0e0;
+  --chart-dim:#888;
+  --chart-grid:rgba(255,255,255,0.05);
+  --scrollbar-track:#0a0a1a;
+  --scrollbar-thumb:#2a2a4a;
+  --coming-soon-bg:rgba(0,230,118,0.04);
+  --terminal-bg:#0a0a1a;
+  --terminal-text:#00e676;
+}
+
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.6;overflow-x:hidden;transition:background .3s,color .3s}
+a{color:var(--secondary);text-decoration:none}
+.container{max-width:1100px;margin:0 auto;padding:0 24px}
+
+/* ── Nav ── */
+nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:12px 0;transition:background .3s}
+nav .container{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+nav .logo{font-weight:800;font-size:1rem;letter-spacing:.5px;color:var(--accent)}
+nav .nav-right{display:flex;align-items:center;gap:4px}
+nav .nav-links{display:flex;gap:2px;flex-wrap:wrap}
+nav .nav-links a{padding:6px 14px;border-radius:20px;font-size:.82rem;color:var(--text-dim);transition:.2s;font-weight:500}
+nav .nav-links a:hover,nav .nav-links a.active{color:var(--text);background:var(--bg-subtle)}
+
+/* Theme Toggle */
+.theme-toggle{background:none;border:1px solid var(--border);border-radius:50%;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:var(--text-dim);transition:.2s;margin-left:8px;flex-shrink:0}
+.theme-toggle:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── Hero ── */
+.hero{text-align:center;padding:80px 24px 48px;position:relative;overflow:hidden;min-height:80vh;display:flex;align-items:center;justify-content:center}
+.hero-inner{position:relative;z-index:2;width:100%}
+
+/* Agent Animation Container */
+.agent-arena{position:relative;width:100%;max-width:700px;height:320px;margin:0 auto 48px}
+
+/* Orbs */
+.orb{position:absolute;border-radius:50%;filter:blur(0px);transition:transform 2s ease}
+.orb-a{width:140px;height:140px;left:8%;top:50%;transform:translateY(-50%);background:radial-gradient(circle at 35% 35%,rgba(59,130,246,0.25),rgba(59,130,246,0.08));border:2px solid rgba(59,130,246,0.3);animation:orbPulseA 4s ease-in-out infinite;box-shadow:0 0 60px rgba(59,130,246,0.15),inset 0 0 40px rgba(59,130,246,0.08)}
+.orb-b{width:140px;height:140px;right:8%;top:50%;transform:translateY(-50%);background:radial-gradient(circle at 35% 35%,rgba(239,68,68,0.25),rgba(239,68,68,0.08));border:2px solid rgba(239,68,68,0.3);animation:orbPulseB 4s ease-in-out infinite;box-shadow:0 0 60px rgba(239,68,68,0.15),inset 0 0 40px rgba(239,68,68,0.08)}
+.orb-label{position:absolute;bottom:-32px;left:50%;transform:translateX(-50%);font-size:.75rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;white-space:nowrap}
+.orb-a .orb-label{color:var(--orb-blue)}
+.orb-b .orb-label{color:var(--orb-red)}
+.orb-score{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:2rem;font-weight:800;opacity:.7}
+.orb-a .orb-score{color:rgba(59,130,246,0.6)}
+.orb-b .orb-score{color:rgba(239,68,68,0.6)}
+
+@keyframes orbPulseA{0%,100%{transform:translateY(-50%) scale(1);box-shadow:0 0 60px rgba(59,130,246,0.15),inset 0 0 40px rgba(59,130,246,0.08)}50%{transform:translateY(-50%) scale(1.08);box-shadow:0 0 80px rgba(59,130,246,0.25),inset 0 0 50px rgba(59,130,246,0.12)}}
+@keyframes orbPulseB{0%,100%{transform:translateY(-50%) scale(1);box-shadow:0 0 60px rgba(239,68,68,0.15),inset 0 0 40px rgba(239,68,68,0.08)}50%{transform:translateY(-50%) scale(1.06);box-shadow:0 0 80px rgba(239,68,68,0.25),inset 0 0 50px rgba(239,68,68,0.12)}}
+
+/* Neural connection lines between orbs */
+.neural-lines{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.neural-line{position:absolute;height:2px;left:22%;right:22%;opacity:0.15;border-radius:1px}
+.neural-line:nth-child(1){top:30%;background:linear-gradient(90deg,var(--orb-blue),transparent 20%,transparent 80%,var(--orb-red));animation:dataFlow 3s ease-in-out infinite}
+.neural-line:nth-child(2){top:42%;background:linear-gradient(90deg,var(--orb-blue),transparent 15%,transparent 85%,var(--orb-red));animation:dataFlow 3s ease-in-out infinite .5s}
+.neural-line:nth-child(3){top:50%;background:linear-gradient(90deg,var(--orb-blue),var(--purple) 50%,var(--orb-red));opacity:0.2;animation:dataFlow 3s ease-in-out infinite .2s;height:2px}
+.neural-line:nth-child(4){top:58%;background:linear-gradient(90deg,var(--orb-blue),transparent 15%,transparent 85%,var(--orb-red));animation:dataFlow 3s ease-in-out infinite .7s}
+.neural-line:nth-child(5){top:70%;background:linear-gradient(90deg,var(--orb-blue),transparent 20%,transparent 80%,var(--orb-red));animation:dataFlow 3s ease-in-out infinite 1s}
+
+@keyframes dataFlow{0%,100%{opacity:0.08}50%{opacity:0.3}}
+
+/* Data particles flowing between orbs */
+.particle{position:absolute;width:6px;height:6px;border-radius:50%;top:50%;transform:translateY(-50%)}
+.particle-right{background:var(--orb-blue);animation:flowRight 4s linear infinite;left:22%}
+.particle-left{background:var(--orb-red);animation:flowLeft 4s linear infinite;right:22%}
+.particle:nth-child(7){animation-delay:.8s;top:35%}
+.particle:nth-child(8){animation-delay:1.6s;top:65%}
+.particle:nth-child(9){animation-delay:2.4s;top:42%}
+.particle:nth-child(10){animation-delay:.4s;top:58%}
+.particle:nth-child(11){animation-delay:1.2s;top:30%}
+.particle:nth-child(12){animation-delay:2s;top:70%}
+.particle:nth-child(13){animation-delay:3.2s;top:48%}
+.particle:nth-child(14){animation-delay:2.8s;top:55%}
+
+@keyframes flowRight{0%{left:22%;opacity:0}10%{opacity:1}90%{opacity:1}100%{left:72%;opacity:0}}
+@keyframes flowLeft{0%{right:22%;opacity:0}10%{opacity:1}90%{opacity:1}100%{right:72%;opacity:0}}
+
+/* Persona icons flowing in from top */
+.persona-flow{position:absolute;top:-10px;font-size:1.1rem;animation:personaDrift 6s ease-in-out infinite;opacity:0}
+.persona-flow:nth-child(1){left:30%;animation-delay:0s}
+.persona-flow:nth-child(2){left:45%;animation-delay:1.5s}
+.persona-flow:nth-child(3){left:60%;animation-delay:3s}
+.persona-flow:nth-child(4){left:38%;animation-delay:4.5s}
+.persona-flow:nth-child(5){left:55%;animation-delay:2s}
+@keyframes personaDrift{0%{transform:translateY(-10px);opacity:0}15%{opacity:0.7}50%{transform:translateY(140px);opacity:0.5}100%{transform:translateY(300px);opacity:0}}
+
+/* Hero Text */
+.hero h1{font-size:clamp(2.2rem,5vw,3.5rem);font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,var(--orb-blue),var(--purple),var(--orb-red));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;background-size:200% 200%;animation:shimmer 4s ease infinite;line-height:1.1;margin-bottom:8px}
+@keyframes shimmer{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.hero .tagline{font-size:clamp(1rem,2.5vw,1.4rem);color:var(--text-dim);font-weight:300;font-style:italic;margin-bottom:24px}
+.hero .hero-desc{font-size:clamp(.85rem,1.5vw,1rem);color:var(--text-dim);max-width:560px;margin:0 auto;line-height:1.7;font-weight:400}
+
+/* ── Stats Row ── */
+.stats-strip{padding:20px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--bg-subtle);transition:background .3s}
+.stats-strip .container{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;font-family:'SF Mono',SFMono-Regular,ui-monospace,'Cascadia Mono','Segoe UI Mono',monospace;font-size:.88rem;color:var(--text-dim)}
+.stats-strip .stat-item{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.stats-strip .stat-val{font-weight:700;color:var(--text)}
+.stats-strip .stat-sep{color:var(--border);font-size:.7rem}
+.stats-strip .stat-winner{color:var(--green);font-weight:700}
+
+/* ── Section ── */
+section{padding:64px 0}
+section h2{font-size:1.6rem;font-weight:800;margin-bottom:32px;letter-spacing:-.5px}
+section h2 span{color:var(--accent)}
+
+/* ── Results Table ── */
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:32px}
+.chart-container{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;box-shadow:var(--shadow)}
+.table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+thead{background:var(--bg-subtle)}
+th{padding:14px 16px;text-align:left;font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);border-bottom:2px solid var(--border)}
+td{padding:12px 16px;border-bottom:1px solid var(--border)}
+tbody tr{cursor:pointer;transition:.15s}
+tbody tr:hover{background:var(--card-hover)}
+.outcome{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:600;text-transform:uppercase}
+.outcome.purchased{background:rgba(22,163,74,.1);color:var(--green)}
+.outcome.interested{background:rgba(202,138,4,.1);color:var(--yellow)}
+.outcome.rejected{background:rgba(220,38,38,.1);color:var(--red)}
+.outcome.ghosted{background:rgba(107,114,128,.1);color:var(--text-dim)}
+[data-theme="dark"] .outcome.purchased{background:rgba(0,230,118,.12)}
+[data-theme="dark"] .outcome.interested{background:rgba(255,215,64,.12)}
+[data-theme="dark"] .outcome.rejected{background:rgba(255,82,82,.12)}
+[data-theme="dark"] .outcome.ghosted{background:rgba(136,136,136,.12)}
+.agent-tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700}
+.agent-tag.a{background:rgba(59,130,246,.12);color:var(--orb-blue)}
+.agent-tag.b{background:rgba(239,68,68,.12);color:var(--orb-red)}
+.score-bar{display:inline-block;width:60px;height:8px;background:var(--border);border-radius:4px;overflow:hidden;vertical-align:middle;margin-left:6px}
+.score-bar .fill{height:100%;border-radius:4px;transition:.5s}
+
+/* ── Chat Transcript ── */
+.transcript-panel{display:none;background:var(--card);border-radius:0 0 12px 12px;padding:24px;border:1px solid var(--border);border-top:none;animation:slideDown .3s ease}
+.transcript-panel.open{display:block}
+@keyframes slideDown{from{opacity:0;max-height:0}to{opacity:1;max-height:2000px}}
+.chat-container{max-width:700px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+.chat-bubble{max-width:80%;padding:12px 16px;border-radius:16px;font-size:.88rem;line-height:1.5;word-break:break-word;position:relative}
+.chat-bubble.buyer{align-self:flex-start;background:var(--chat-buyer-bg);border:1px solid var(--chat-buyer-border);border-bottom-left-radius:4px}
+.chat-bubble.seller{align-self:flex-end;background:var(--chat-seller-bg);border:1px solid var(--chat-seller-border);border-bottom-right-radius:4px}
+.chat-bubble .sender{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.chat-bubble.buyer .sender{color:var(--purple)}
+.chat-bubble.seller .sender{color:var(--secondary)}
+.review-card{background:var(--review-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:20px}
+.review-card h4{font-size:.88rem;color:var(--accent);margin-bottom:16px}
+.review-dim{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.review-dim .dim-name{width:160px;font-size:.78rem;color:var(--text-dim);flex-shrink:0}
+.review-dim .dim-bar{flex:1;height:10px;background:var(--border);border-radius:5px;overflow:hidden}
+.review-dim .dim-bar .dim-fill{height:100%;border-radius:5px;transition:width 1s ease}
+.review-dim .dim-score{width:36px;text-align:right;font-weight:700;font-size:.82rem}
+
+/* ── Methodology Flow ── */
+.method-flow{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;padding:8px 0}
+.method-step{display:flex;flex-direction:column;align-items:center;text-align:center;padding:16px 12px;min-width:100px;max-width:130px}
+.method-icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:8px;border:2px solid var(--border);background:var(--bg-subtle);transition:border-color .3s}
+.method-step:hover .method-icon{border-color:var(--accent)}
+.method-label{font-size:.78rem;font-weight:600;color:var(--text);line-height:1.3}
+.method-arrow{color:var(--border);font-size:1.2rem;flex-shrink:0;margin:0 -4px;align-self:center;margin-top:-20px}
+
+/* ── Coming Soon ── */
+.coming-soon{padding:64px 0;border-top:1px solid var(--border)}
+.coming-soon-inner{text-align:center;max-width:600px;margin:0 auto}
+.pulse-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green);margin-right:8px;animation:pulseDot 2s ease-in-out infinite;vertical-align:middle}
+@keyframes pulseDot{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(22,163,74,0.4)}50%{opacity:.7;box-shadow:0 0 0 8px rgba(22,163,74,0)}}
+[data-theme="dark"] .pulse-dot{box-shadow:0 0 0 0 rgba(0,230,118,0.4)}
+@keyframes pulseDotDark{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,230,118,0.4)}50%{opacity:.7;box-shadow:0 0 0 8px rgba(0,230,118,0)}}
+.experiment-label{font-size:.82rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green);vertical-align:middle}
+.terminal-box{background:var(--terminal-bg);border:1px solid #1e293b;border-radius:12px;padding:20px 24px;margin:24px auto;max-width:500px;text-align:left;font-family:'SF Mono',SFMono-Regular,ui-monospace,monospace;font-size:.78rem;line-height:1.8;color:var(--terminal-text)}
+.terminal-box .prompt{color:#64748b}
+.terminal-box .cmd{color:#e2e8f0}
+.terminal-box .result{color:var(--terminal-text)}
+.terminal-cursor{display:inline-block;width:8px;height:14px;background:var(--terminal-text);animation:blink 1s step-end infinite;vertical-align:text-bottom;margin-left:2px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.coming-soon .tagline-pe{font-size:1.1rem;margin-top:24px;color:var(--text-dim);font-style:italic}
+
+/* ── Footer ── */
+footer{text-align:center;padding:32px 24px;border-top:1px solid var(--border)}
+footer .tech{font-size:.78rem;color:var(--text-dim);opacity:.7}
+
+/* ── Mobile ── */
+@media(max-width:768px){
+  .chart-row{grid-template-columns:1fr}
+  .agent-arena{height:260px}
+  .orb-a,.orb-b{width:100px;height:100px}
+  .orb-a{left:2%}.orb-b{right:2%}
+  .orb-score{font-size:1.5rem}
+  .neural-line{left:18%;right:18%}
+  .particle-right{left:18%}
+  .particle-left{right:18%}
+  @keyframes flowRight{0%{left:18%;opacity:0}10%{opacity:1}90%{opacity:1}100%{left:74%;opacity:0}}
+  @keyframes flowLeft{0%{right:18%;opacity:0}10%{opacity:1}90%{opacity:1}100%{right:74%;opacity:0}}
+}
+@media(max-width:640px){
+  .chat-bubble{max-width:92%}
+  .method-flow{flex-direction:column;gap:4px}
+  .method-arrow{transform:rotate(90deg);margin:0}
+  .review-dim{flex-wrap:wrap}
+  .review-dim .dim-name{width:100%}
+  .stats-strip .container{font-size:.8rem}
+  .orb-label{font-size:.65rem}
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:var(--scrollbar-track)}
+::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-dim)}
+</style>
+</head>
+<body>
+
+<nav>
+<div class="container">
+<div class="logo">DARWIN SALES LAB</div>
+<div class="nav-right">
+<div class="nav-links">
+<a href="#hero" class="active">Overview</a>
+<a href="#results">Results</a>
+<a href="#transcripts">Transcripts</a>
+<a href="#methodology">Methodology</a>
+</div>
+<button class="theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Toggle light/dark mode">
+<span id="themeIcon">&#9789;</span>
+</button>
+</div>
+</div>
+</nav>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero" id="hero">
+<div class="hero-inner">
+
+<div class="agent-arena">
+  <!-- Agent A Orb -->
+  <div class="orb orb-a">
+    <div class="orb-score">64</div>
+    <div class="orb-label">Agent A &middot; Evolved</div>
+  </div>
+
+  <!-- Agent B Orb -->
+  <div class="orb orb-b">
+    <div class="orb-score">51</div>
+    <div class="orb-label">Agent B &middot; Baseline</div>
+  </div>
+
+  <!-- Neural connection lines -->
+  <div class="neural-lines">
+    <div class="neural-line"></div>
+    <div class="neural-line"></div>
+    <div class="neural-line"></div>
+    <div class="neural-line"></div>
+    <div class="neural-line"></div>
+    <!-- Particles flowing right (A → B) -->
+    <div class="particle particle-right"></div>
+    <div class="particle particle-right"></div>
+    <div class="particle particle-right"></div>
+    <div class="particle particle-right"></div>
+    <!-- Particles flowing left (B → A) -->
+    <div class="particle particle-left"></div>
+    <div class="particle particle-left"></div>
+    <div class="particle particle-left"></div>
+    <div class="particle particle-left"></div>
+  </div>
+
+  <!-- Persona icons drifting down -->
+  <div class="persona-flow">&#x1F487;</div>
+  <div class="persona-flow">&#x1F45F;</div>
+  <div class="persona-flow">&#x1F3E2;</div>
+  <div class="persona-flow">&#x1F372;</div>
+  <div class="persona-flow">&#x1F48A;</div>
+</div>
+
+<h1>DARWIN SALES LAB</h1>
+<p class="tagline">The AI That Sells Itself</p>
+<p class="hero-desc">
+  Two AI agents. Thousands of simulated conversations.<br>
+  One evolutionary loop. The best seller wins.
+</p>
+
+</div>
+</section>
+
+<!-- ═══ STATS STRIP ═══ -->
+<div class="stats-strip">
+<div class="container">
+  <span class="stat-item"><span class="stat-val">10</span> conversations</span>
+  <span class="stat-sep">&middot;</span>
+  <span class="stat-item"><span class="stat-val">5</span> personas</span>
+  <span class="stat-sep">&middot;</span>
+  <span class="stat-item"><span class="stat-val">2</span> agents</span>
+  <span class="stat-sep">&middot;</span>
+  <span class="stat-item">A: <span class="stat-winner">64pts</span></span>
+  <span class="stat-sep">&middot;</span>
+  <span class="stat-item">B: <span class="stat-val">51pts</span></span>
+  <span class="stat-sep">&middot;</span>
+  <span class="stat-item"><span class="stat-winner">60%</span> conversion</span>
+</div>
+</div>
+
+<!-- ═══ RESULTS ═══ -->
+<section id="results">
+<div class="container">
+<h2><span>Results</span></h2>
+<div class="chart-row">
+<div class="chart-container">
+<canvas id="scoreChart" height="200"></canvas>
+</div>
+<div class="chart-container">
+<canvas id="outcomeChart" height="200"></canvas>
+</div>
+</div>
+<div class="table-wrap">
+<table id="resultsTable">
+<thead>
+<tr>
+<th>Persona</th>
+<th>Sector</th>
+<th>Tier</th>
+<th>Agent</th>
+<th>Outcome</th>
+<th>Exchanges</th>
+<th>Score</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+</section>
+
+<!-- ═══ TRANSCRIPTS ═══ -->
+<section id="transcripts">
+<div class="container">
+<h2><span>Chat</span> Transcripts</h2>
+<p style="color:var(--text-dim);margin-bottom:24px;font-size:.88rem">Click any row in the results table above to expand the transcript, or browse all conversations below.</p>
+<div id="allTranscripts"></div>
+</div>
+</section>
+
+<!-- ═══ METHODOLOGY ═══ -->
+<section id="methodology">
+<div class="container">
+<h2><span>Methodology</span></h2>
+<div class="method-flow">
+  <div class="method-step">
+    <div class="method-icon">&#x1F9EC;</div>
+    <div class="method-label">Generate Personas</div>
+  </div>
+  <div class="method-arrow">&rarr;</div>
+  <div class="method-step">
+    <div class="method-icon">&#x1F4AC;</div>
+    <div class="method-label">Simulate Conversations</div>
+  </div>
+  <div class="method-arrow">&rarr;</div>
+  <div class="method-step">
+    <div class="method-icon">&#x1F50D;</div>
+    <div class="method-label">Review<br>(6 dimensions)</div>
+  </div>
+  <div class="method-arrow">&rarr;</div>
+  <div class="method-step">
+    <div class="method-icon">&#x1F4A1;</div>
+    <div class="method-label">Form Hypothesis</div>
+  </div>
+  <div class="method-arrow">&rarr;</div>
+  <div class="method-step">
+    <div class="method-icon">&#x1F9EA;</div>
+    <div class="method-label">Deploy Variants</div>
+  </div>
+  <div class="method-arrow">&rarr;</div>
+  <div class="method-step">
+    <div class="method-icon">&#x1F504;</div>
+    <div class="method-label">Test Again</div>
+  </div>
+  <div class="method-arrow">&rarr;</div>
+  <div class="method-step">
+    <div class="method-icon">&#x1F680;</div>
+    <div class="method-label">Evolve</div>
+  </div>
+</div>
+</div>
+</section>
+
+<!-- ═══ COMING SOON ═══ -->
+<div class="coming-soon">
+<div class="container">
+<div class="coming-soon-inner">
+  <div style="margin-bottom:20px">
+    <span class="pulse-dot"></span>
+    <span class="experiment-label">Experiment Running</span>
+  </div>
+  <div class="terminal-box">
+    <div><span class="prompt">$</span> <span class="cmd">darwin evolve --loop continuous</span></div>
+    <div><span class="result">&#x2714; Cycle 1 complete &middot; Agent A wins (64 vs 51)</span></div>
+    <div><span class="result">&#x2714; Hypothesis generated &middot; 3 variants deployed</span></div>
+    <div><span class="result">&#x25B6; Cycle 2 in progress &middot; 5 new personas queued</span></div>
+    <div><span class="prompt">$</span> <span class="cmd">_</span><span class="terminal-cursor"></span></div>
+  </div>
+  <div class="tagline-pe">El agente que se vende solo. &#x1F1F5;&#x1F1EA;</div>
+</div>
+</div>
+</div>
+
+<!-- ═══ FOOTER ═══ -->
+<footer>
+<div class="container">
+<div class="tech">Built with qwen3.5-27b &middot; Claude Sonnet &middot; Perplexity &middot; Mastra &middot; March 2026 &middot; yaya.sh</div>
+</div>
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// EMBEDDED DATA — Darwin Sales Lab Experiment Results
+// Experiment: evolve-1773866195254
+// ═══════════════════════════════════════════════════════
+
+const PERSONAS = [
+  {
+    id: "maria-peluquera",
+    name: "María Elena Quispe",
+    emoji: "\u{1F487}\u200D\u2640\uFE0F",
+    business: "Rizos de Oro",
+    sector: "Peluquería",
+    tier: "micro",
+    difficulty: "medium",
+    age: 38,
+    revenue: "S/6,000–9,000",
+    pain: "Pierde clientas porque no puede contestar WhatsApp mientras atiende. Triple-agenda citas constantemente.",
+    sample_opening: "Hola, me dijeron que tienen algo para manejar citas por WhatsApp... porque ya no puedo más con mi cuadernito \u{1F605}",
+    concerns: [
+      "\u00BFY si la IA le dice algo raro a mis clientas?",
+      "S/185 al mes es lo que gasto en tintes",
+      "\u00BFPuede agendar citas? Ese es mi dolor de cabeza"
+    ]
+  },
+  {
+    id: "david-zapatillas",
+    name: "David Huamán Torres",
+    emoji: "\u{1F45F}",
+    business: "Zapatillas David",
+    sector: "Retail (Gamarra)",
+    tier: "pyme",
+    difficulty: "hard",
+    age: 29,
+    revenue: "S/15,000–25,000",
+    pain: "200+ modelos, clientes preguntan tallas a todas horas. Perdió ventas nocturnas por no responder.",
+    sample_opening: "Ya probé chatbots antes y fue un desastre. \u00BFPor qué este sería diferente? Tengo 200 modelos y necesito que busque por talla.",
+    concerns: [
+      "Ya probé un chatbot y fue un desastre",
+      "Tengo 200 modelos, \u00BFpuede buscar por marca, talla, precio?",
+      "\u00BFCuánto tiempo toma configurar?"
+    ]
+  },
+  {
+    id: "carlos-inmobiliaria",
+    name: "Carlos Alberto Mendoza",
+    emoji: "\u{1F3E2}",
+    business: "Inmobiliaria Horizonte",
+    sector: "Inmobiliaria",
+    tier: "pyme",
+    difficulty: "adversarial",
+    age: 45,
+    revenue: "S/8,000–15,000",
+    pain: "Los leads se enfrían en 5 minutos sin respuesta. Su asistente da info inconsistente.",
+    sample_opening: "Buenas tardes, estoy investigando soluciones de automatización. En inmobiliaria una palabra mal puesta puede matar un negocio.",
+    concerns: [
+      "Una palabra mal puesta puede matar un negocio",
+      "Necesito que califique leads: presupuesto, zona, timeline",
+      "\u00BFY la confidencialidad de precios?"
+    ]
+  },
+  {
+    id: "rosa-restaurante",
+    name: "Rosa Fernández de Castillo",
+    emoji: "\u{1F372}",
+    business: "Sabor Criollo",
+    sector: "Restaurante",
+    tier: "pyme",
+    difficulty: "easy",
+    age: 52,
+    revenue: "S/12,000–18,000",
+    pain: "Se inunda de pedidos por WhatsApp en hora punta. 3-4 pedidos mal por semana.",
+    sample_opening: "Oye, tengo un restaurante y en la hora del almuerzo se me llena el WhatsApp de pedidos. Mi hija me ayuda pero se va a la universidad...",
+    concerns: [
+      "Mi menú cambia todos los días, \u00BFla IA puede con eso?",
+      "\u00BFY si toma un pedido mal? Me cuesta ingredientes Y un cliente",
+      "S/185 es lo que gasto en pollo para 2 días"
+    ]
+  },
+  {
+    id: "lucia-farmacia",
+    name: "Lucía Paredes Morales",
+    emoji: "\u{1F48A}",
+    business: "Farmacia Santa Rosa",
+    sector: "Farmacia",
+    tier: "pyme",
+    difficulty: "medium",
+    age: 34,
+    revenue: "S/10,000–14,000",
+    pain: "Clientes preguntan disponibilidad a todas horas. Stock cambia diario. Info incorrecta puede ser peligrosa.",
+    sample_opening: "Hola, tengo una farmacia y me preocupa mucho la precisión. Si la IA da información incorrecta sobre un medicamento, puede ser peligroso.",
+    concerns: [
+      "Info incorrecta de medicamentos puede ser peligrosa",
+      "\u00BFPuedo poner reglas como 'nunca recomendar dosis'?",
+      "Necesito que consulte stock en tiempo real"
+    ]
+  }
+];
+
+const CONVERSATIONS = [
+  // ── Agent A conversations (5) ──
+  {
+    id: "conv-a-maria",
+    personaId: "maria-peluquera",
+    agentId: "A",
+    outcome: "purchased",
+    exchanges: 12,
+    messages: [
+      { role: "buyer", content: "Hola, me dijeron que tienen algo para manejar citas por WhatsApp... porque ya no puedo más con mi cuadernito \u{1F605}" },
+      { role: "seller", content: "\u00A1Hola María! Jaja el cuadernito es clásico, todas las peluqueras lo usan hasta que se pierden 3 citas el mismo día \u{1F604} Te entiendo perfecto. Yaya es un asistente de IA que se conecta a tu WhatsApp y puede agendar citas automáticamente, responder precios y horarios aunque estés atendiendo. \u00BFCuántas clientas atiendes al día más o menos?" },
+      { role: "buyer", content: "Como 8-10 clientas al día. El problema es que me escriben mientras estoy con las manos en el tinte y no puedo agarrar el celular. Luego se van a otra peluquería \u{1F624}" },
+      { role: "seller", content: "8-10 clientas al día y cada una te escribe mínimo 2 veces antes de confirmar... son como 20 mensajes que no puedes contestar. Si pierdes aunque sea 1 clienta por semana por no responder, son S/120-150 que se van. Al mes eso es S/500-600 perdidos. Yaya responde en segundos, agenda la cita y hasta le manda recordatorio un día antes." },
+      { role: "buyer", content: "Sí pues, fácil pierdo 2-3 por semana... pero \u00BFy si la IA le dice algo raro a mis clientas? Yo las conozco por nombre, son como familia." },
+      { role: "seller", content: "Totalmente válido tu miedo. Yaya no inventa cosas — solo responde con la información que TÚ configuras: tus servicios, tus precios, tus horarios. Si alguien pregunta algo que no sabe, dice 'María te va a responder personalmente' y te avisa. No reemplaza tu trato personal, es como una recepcionista que contesta cuando tú no puedes." },
+      { role: "buyer", content: "Ahh ok, o sea que yo sigo en control... \u00BFY puede agendar citas de verdad? Porque ese es mi dolor de cabeza número uno." },
+      { role: "seller", content: "\u00A1Ese es exactamente el punto fuerte! La clienta escribe '\u00BFtienes espacio el viernes a las 3?' y Yaya revisa tu agenda, confirma o sugiere otro horario, y lo agenda. Se acabaron las triple-agendaciones del cuadernito \u{1F4D2}\u27A1\uFE0F\u{1F4F1}" },
+      { role: "buyer", content: "Jaja me muero, la triple-agendación es mi pesadilla \u{1F602} \u00BFY cuánto cuesta esto?" },
+      { role: "seller", content: "S/185 al mes, todo incluido — mensajes ilimitados, agenda de citas, respuestas automáticas. Si lo piensas, es menos de lo que pierdes en una semana de clientas no contestadas. Y mira, si esas 2-3 clientas que pierdes por semana se quedan, son S/500+ extra al mes. Se paga solo." },
+      { role: "buyer", content: "Mmm S/185... es lo que gasto en tintes al mes. Pero si es verdad que recupero clientas... \u00BFtiene prueba gratis?" },
+      { role: "seller", content: "Te doy 3 días de prueba para que lo veas funcionando con tus propias clientas. Lo configuramos juntos en 15 minutos — yo te guío paso a paso, no necesitas saber de computadoras. Si en 3 días no ves la diferencia, lo cancelas sin costo. \u00BFEmpezamos?" },
+      { role: "buyer", content: "Ya pues, vamos con la prueba. Si funciona como dices, me ahorro el dolor de cabeza y no pierdo clientas. \u00A1Vamos! \u{1F4AA}" }
+    ]
+  },
+  {
+    id: "conv-a-david",
+    personaId: "david-zapatillas",
+    agentId: "A",
+    outcome: "purchased",
+    exchanges: 14,
+    messages: [
+      { role: "buyer", content: "A ver, ya probé chatbots antes y fue un desastre total. Los clientes se confundían y me reclamaban. \u00BFPor qué este sería diferente?" },
+      { role: "seller", content: "Directo al grano: los chatbots tradicionales tienen respuestas pre-programadas tipo '\u00BFquieres A, B o C?' — por eso confunden. Yaya es IA conversacional, entiende lenguaje natural. Si un cliente escribe 'tienes Nike blancas talla 42', busca en tu catálogo y responde con el modelo exacto, precio y foto. \u00BFCuántos modelos manejas?" },
+      { role: "buyer", content: "Tengo como 200 modelos entre Nike, Adidas, Puma, New Balance... Los clientes preguntan de todo: marca, talla, precio, color. Y necesito que mande fotos, no solo texto." },
+      { role: "seller", content: "200 modelos es perfecto para Yaya. Subes tu catálogo y cuando el cliente pregunta 'tienes Air Max 90 en negro?', Yaya busca, encuentra el modelo, muestra precio y manda la foto directo en el chat. Sin menús, sin opciones — busca como un vendedor de verdad. \u00BFCuántas ventas calculas que pierdes por no contestar de noche o fines de semana?" },
+      { role: "buyer", content: "Uf, fácil 5-6 por semana. Gamarra cierra pero WhatsApp no. Los clientes escriben a las 11pm y si no contesto en 1 hora se van a otro vendedor." },
+      { role: "seller", content: "5-6 ventas perdidas a la semana. Si tu ticket promedio es S/150, son S/750-900 por semana que se te escapan. S/3,000+ al mes. Yaya contesta 24/7, a las 11pm, a las 3am, domingos — no duerme. Por S/185 al mes estás recuperando mínimo 10x lo que inviertes." },
+      { role: "buyer", content: "Los números cuadran, eso no te voy a mentir. Pero cuéntame algo — \u00BFcuánto tiempo toma configurar? No puedo perder un día de ventas parando para configurar nada." },
+      { role: "seller", content: "30 minutos. Me mandas tu catálogo en Excel o fotos y yo lo subo. Si ya tienes fotos organizadas por modelo, más rápido aún. No cierras ni un minuto de ventas. Lo puedes hacer un domingo en la noche y lunes ya está vendiendo." },
+      { role: "buyer", content: "\u00BFY si un cliente pregunta algo raro tipo '\u00BFme hacen descuento si compro 3 pares'? \u00BFQué hace?" },
+      { role: "seller", content: "Tú configuras las reglas. Si quieres que Yaya ofrezca 10% en compras de 3+, lo hace automático. Si prefieres que diga 'para descuentos especiales te comunico con David', te pasa el chat. Tú decides qué nivel de autonomía le das." },
+      { role: "buyer", content: "Eso está bien, que yo tenga el control. Una cosa más — \u00BFse integra con Yape? Porque el 70% de mis ventas son por Yape." },
+      { role: "seller", content: "Sí. Yaya genera el enlace de pago por Yape, el cliente paga y Yaya confirma automáticamente. Hasta puede mandar el comprobante. Tu flujo completo: cliente pregunta \u2192 Yaya muestra producto \u2192 cliente elige \u2192 Yaya cobra por Yape \u2192 tú solo preparas el pedido." },
+      { role: "buyer", content: "Hermano, eso es exactamente lo que necesito. El flujo completo sin que yo toque el celular hasta que toca empaquetar." },
+      { role: "seller", content: "Exacto. Y con 200 modelos y el volumen que manejas en Gamarra, esto se paga solo en la primera semana. \u00BFLo activamos? Puedo mandarte el link de pago por Yape ahora mismo y mañana temprano subimos tu catálogo." },
+      { role: "buyer", content: "Dale, mándame el Yape. Si funciona como dices, con las ventas de la primera noche ya se pagó el mes. \u{1F4B0}" }
+    ]
+  },
+  {
+    id: "conv-a-carlos",
+    personaId: "carlos-inmobiliaria",
+    agentId: "A",
+    outcome: "interested",
+    exchanges: 11,
+    messages: [
+      { role: "buyer", content: "Buenas tardes. Estoy investigando soluciones de automatización para mi agencia inmobiliaria. He leído sobre IA pero en bienes raíces una palabra mal puesta puede arruinar un negocio. \u00BFQué garantías ofrecen?" },
+      { role: "seller", content: "Buenas tardes Carlos. Tiene toda la razón — en inmobiliaria la precisión es crítica. Por eso Yaya no improvisa: solo comparte la información que usted configura. Precios confidenciales, detalles de propiedades, todo lo controla usted. Y cuando un lead hace una pregunta fuera de lo configurado, Yaya dice 'le comunico con Carlos' en lugar de inventar." },
+      { role: "buyer", content: "Interesante. Mi problema principal es el tiempo de respuesta. Recibo como 60 consultas al mes por WhatsApp sobre propiedades. Para cuando respondo, el lead ya llamó a 3 agencias más. Solo convierto como 5 de 60." },
+      { role: "seller", content: "5 de 60 es un 8% de conversión. En inmobiliaria Lima, los agentes que responden en menos de 5 minutos convierten 3x más que los que tardan horas. Yaya responde en segundos y hace la calificación inicial: presupuesto, zona de interés, número de ambientes, timeline de compra. Usted recibe el lead ya calificado, listo para la visita." },
+      { role: "buyer", content: "La calificación me interesa mucho. \u00BFCómo funciona exactamente? Necesito que pregunte presupuesto, zona preferida, si es para vivir o inversión, y timeline." },
+      { role: "seller", content: "Configuramos exactamente esos campos. Cuando llega un lead, Yaya hace las preguntas de forma natural en conversación: '\u00BFQué zona le interesa? \u00BFTiene un presupuesto aproximado?' No suena a formulario — suena a un asistente profesional. Al final, usted recibe un resumen: 'Lead Juan García — Miraflores — USD 180K — departamento 2 dormitorios — quiere comprar en 3 meses'. Listo para agendar la visita." },
+      { role: "buyer", content: "Eso suena bien. Pero tengo preocupación con la confidencialidad. Algunos precios no son públicos — dependen de la negociación. \u00BFCómo manejan eso?" },
+      { role: "seller", content: "Usted define qué propiedades tienen precio público y cuáles no. Para las confidenciales, Yaya dice algo como 'El precio de esta propiedad se maneja directamente con el agente, le agendo una llamada con Carlos para darle todos los detalles.' Nunca comparte lo que usted no autoriza." },
+      { role: "buyer", content: "Y mis clientes son profesionales, gente educada. Van a notar inmediatamente si es un bot. \u00BFQué tan natural suena?" },
+      { role: "seller", content: "Le soy honesto — un 10-15% probablemente lo nota. Pero el punto no es engañar, sino dar respuesta inmediata. Un lead prefiere una respuesta profesional en 30 segundos a esperar 4 horas por la suya. Y Yaya se presenta como asistente: 'Soy el asistente virtual de Inmobiliaria Horizonte, Carlos le contactará personalmente para la visita.' Transparencia total." },
+      { role: "buyer", content: "Me gusta la honestidad. Voy a evaluarlo con más calma. \u00BFTienen algún caso de éxito en inmobiliaria que pueda revisar? Y me gustaría ver una demo con un escenario real de mi agencia." },
+      { role: "seller", content: "Claro, le preparo una demo personalizada con sus propiedades reales. Le mando por WhatsApp un video de 3 minutos mostrando cómo se ve la conversación con un lead buscando departamento en Miraflores. \u00BFLe parece si coordinamos para el jueves? Así lo ve funcionando con sus datos." }
+    ]
+  },
+  {
+    id: "conv-a-rosa",
+    personaId: "rosa-restaurante",
+    agentId: "A",
+    outcome: "purchased",
+    exchanges: 10,
+    messages: [
+      { role: "buyer", content: "Oye, tengo un restaurante y en la hora del almuerzo se me llena el WhatsApp de pedidos. Mi hija me ayudaba pero se va a la universidad el próximo mes y no sé qué voy a hacer \u{1F625}" },
+      { role: "seller", content: "Ay Rosa, te entiendo — cuando tu hija se vaya vas a tener que elegir entre cocinar o contestar WhatsApp, y las dos cosas no se pueden hacer a la vez. Es la realidad de muchos restaurantes en Lima. \u00BFCuántos pedidos por delivery recibes al día más o menos?" },
+      { role: "buyer", content: "Como 30 pedidos al día por WhatsApp. En la hora punta entre 11 y 2 llegan como 50 mensajes en esas 3 horas. Y ahí es cuando se mezclan los pedidos y me equivoco 3-4 veces por semana \u{1F61E}" },
+      { role: "seller", content: "3-4 pedidos equivocados por semana... cada uno te cuesta mínimo S/25 en ingredientes perdidos más el cliente que ya no vuelve. Son S/400-500 al mes solo en errores. Yaya recibe el pedido por WhatsApp, lo confirma con el cliente ('\u00BF1 lomo saltado y 2 ceviches, correcto?'), y te lo manda organizado a la cocina. Cero confusión." },
+      { role: "buyer", content: "Eso suena lindo pero mi menú cambia todos los días. Hoy tengo ceviche de lenguado pero mañana puede ser de corvina. \u00BFLa IA puede con eso?" },
+      { role: "seller", content: "\u00A1Sí! Cada mañana le mandas un mensaje a Yaya con el menú del día: 'Hoy: ceviche de corvina S/28, lomo saltado S/25, arroz con mariscos S/30'. En 2 minutos actualizas todo. Cuando el cliente pregunta '\u00BFqué tienen hoy?', Yaya responde con el menú actualizado. Más fácil que escribir en la pizarra." },
+      { role: "buyer", content: "Ah mira, eso sí es práctico. \u00BFY cuánto cuesta? Porque tengo los costos apretados..." },
+      { role: "seller", content: "S/185 al mes. Piénsalo así: es lo que gastas en pollo para 2 días, \u00BFverdad? Pero con los S/400-500 que pierdes al mes en pedidos equivocados, Yaya se paga solo. Además, si recuperas los clientes que ya no piden porque 'nunca contestan rápido', es ganancia pura." },
+      { role: "buyer", content: "Mmm cuando lo pones así... y con mi hija yéndose necesito algo. \u00BFEs difícil de usar? Porque yo apenas uso el WhatsApp y llamar, nada más." },
+      { role: "seller", content: "Rosa, si sabes mandar un mensaje de WhatsApp, sabes usar Yaya. Yo te ayudo a configurarlo en 20 minutos. Ponemos tus platos más pedidos, tus horarios, tu zona de delivery. Y cada mañana solo mandas el menú como un mensaje normal. Tu hija te puede ayudar a configurarlo antes de irse y después tú sigues sola sin problema." },
+      { role: "buyer", content: "Sabes qué, sí. Mi hija me ayuda a configurarlo esta semana antes de que se vaya y ya quedo lista. Vamos, \u00BFcómo empezamos? \u{1F64F}" }
+    ]
+  },
+  {
+    id: "conv-a-lucia",
+    personaId: "lucia-farmacia",
+    agentId: "A",
+    outcome: "interested",
+    exchanges: 11,
+    messages: [
+      { role: "buyer", content: "Hola, tengo una farmacia y me interesa automatizar las respuestas de WhatsApp. Pero mi preocupación principal es la precisión — si la IA da información incorrecta sobre un medicamento, puede ser peligroso." },
+      { role: "seller", content: "Hola Lucía. Tu preocupación es completamente válida y de hecho es lo primero que configuramos: reglas estrictas de seguridad. Yaya NUNCA recomienda dosis, NUNCA sugiere medicamentos por su cuenta, y siempre dice 'consulte con su farmacéutico' para temas clínicos. Solo maneja lo que tú autorizas: disponibilidad, precios y horarios." },
+      { role: "buyer", content: "Ok, eso me tranquiliza un poco. Mi otro problema es que el stock cambia todos los días. Los clientes preguntan '\u00BFtienes ibuprofeno 400mg?' y si yo no actualizo, Yaya respondería mal." },
+      { role: "seller", content: "Para eso hay dos opciones: o actualizas manualmente (mandas un mensaje con los cambios del día) o lo conectamos a tu sistema de inventario si tienes uno digital. La mayoría de farmacias empiezan manual y después automatizan. Lo importante es que cuando un producto no está seguro, Yaya dice 'déjame verificar disponibilidad con Lucía' en vez de adivinar." },
+      { role: "buyer", content: "Tengo un Excel con mi inventario que actualizo cada día. \u00BFPuede leer de ahí?" },
+      { role: "seller", content: "Sí. Subes el Excel actualizado y Yaya lo usa como base. Cuando un cliente pregunta por ibuprofeno 400mg, busca en tu inventario y responde: 'Sí, tenemos disponible, S/4.50 la caja. \u00BFTe lo separamos?' Si no está, dice 'Hoy no tenemos, pero tenemos ibuprofeno 600mg. \u00BFDesea que Lucía le confirme si le sirve?'" },
+      { role: "buyer", content: "Me gusta que siempre me pase las preguntas complicadas. \u00BFY puede manejar recordatorios de recetas? Tengo pacientes crónicos que necesitan refills cada mes." },
+      { role: "seller", content: "Sí, puedes programar recordatorios. Yaya manda un mensaje tipo: 'Hola Sra. García, ya pasó un mes desde su última compra de metformina. \u00BFDesea que le separemos una caja?' Es un toque personal que las cadenas grandes como InkaFarma no dan. Ahí está tu ventaja competitiva." },
+      { role: "buyer", content: "Eso de los recordatorios es muy bueno... las cadenas no hacen eso. \u00BFCuánto cuesta y hay periodo de prueba?" },
+      { role: "seller", content: "S/185 al mes. Y sí, damos 3 días de prueba sin costo. En tu caso sugiero que empecemos con los 20 medicamentos más consultados por tus clientes — no todo el inventario. Así verificas la precisión con calma antes de expandir." },
+      { role: "buyer", content: "Me parece sensato empezar con los 20 más consultados. Déjame pensarlo este fin de semana y revisar bien mi Excel de inventario. \u00BFTe puedo escribir el lunes con una decisión?" },
+      { role: "seller", content: "\u00A1Claro! Te mando un resumen por WhatsApp con todo lo que hablamos para que lo tengas a la mano cuando decidas. El lunes me escribes y si es sí, lo configuramos ese mismo día. Sin apuro, Lucía." }
+    ]
+  },
+  // ── Agent B conversations (5) ──
+  {
+    id: "conv-b-maria",
+    personaId: "maria-peluquera",
+    agentId: "B",
+    outcome: "interested",
+    exchanges: 9,
+    messages: [
+      { role: "buyer", content: "Hola, me dijeron que tienen algo para manejar citas por WhatsApp... es que ya no puedo más con mi libretita \u{1F605}" },
+      { role: "seller", content: "\u00A1Hola! Sí, tenemos Yaya, una plataforma de comercio con IA para WhatsApp. Puede manejar citas, responder mensajes automáticamente y procesar pagos por Yape. \u00BFTe gustaría saber más sobre las funcionalidades?" },
+      { role: "buyer", content: "Sí, cuéntame más. Mi problema es que me escriben cuando estoy atendiendo y no puedo contestar. Luego las clientas se van a otra peluquería." },
+      { role: "seller", content: "Yaya responde automáticamente 24/7 a tus clientes. Puede agendar citas, mostrar precios y horarios disponibles. Todo por WhatsApp. El precio es S/185 al mes con mensajes ilimitados y todas las funcionalidades incluidas." },
+      { role: "buyer", content: "\u00BFPero cómo sé que no le va a decir cosas raras a mis clientas? Yo las conozco por nombre, es personal." },
+      { role: "seller", content: "La IA solo responde con la información que tú configures. Si no sabe algo, te pasa el mensaje a ti. Puedes personalizar los mensajes y el tono de las respuestas." },
+      { role: "buyer", content: "Mmm ok... \u00BFy S/185 es el precio? Es bastante para lo que gano. \u00BFTienen algo más barato o prueba gratis?" },
+      { role: "seller", content: "Tenemos 3 días de prueba gratis para que lo pruebes sin compromiso. El precio de S/185 incluye todo — no hay planes diferentes. Comparado con el costo de perder clientes por no contestar, es una buena inversión." },
+      { role: "buyer", content: "Hmm dejame pensarlo. Suena interesante pero necesito ver si me cuadra con mis gastos del mes. Te aviso, \u00BFya?" }
+    ]
+  },
+  {
+    id: "conv-b-david",
+    personaId: "david-zapatillas",
+    agentId: "B",
+    outcome: "rejected",
+    exchanges: 8,
+    messages: [
+      { role: "buyer", content: "Ya probé chatbots antes y me fue pésimo. Los clientes se quejaban. \u00BFQué tiene de diferente esto?" },
+      { role: "seller", content: "\u00A1Hola! Yaya es diferente porque usa inteligencia artificial avanzada, no respuestas pre-programadas. Puede entender lo que tus clientes preguntan y responder de forma natural. Además maneja catálogo, pagos y pedidos." },
+      { role: "buyer", content: "Ok, suena bonito. Pero yo tengo 200 modelos de zapatillas. \u00BFPuede buscar por marca, talla y precio? Y necesito que mande fotos." },
+      { role: "seller", content: "Sí, Yaya puede buscar en tu catálogo por diferentes criterios y enviar imágenes de productos. Subes tu catálogo y los clientes pueden preguntar naturalmente por lo que buscan." },
+      { role: "buyer", content: "\u00BFCuánto demora configurar? Porque yo no puedo parar un día entero. Cada hora que no vendo en Gamarra es plata perdida." },
+      { role: "seller", content: "La configuración es rápida, dependiendo de tu catálogo. Para 200 productos necesitarías preparar las fotos y datos. Podemos ayudarte con la carga del catálogo." },
+      { role: "buyer", content: "O sea no me puedes decir exactamente cuánto toma. \u00BFY cuánto cuesta?" },
+      { role: "seller", content: "El precio es S/185 al mes, todo incluido. Ofrecemos prueba de 3 días gratis. Para la configuración, normalmente toma unas horas dependiendo de cómo tengas organizada la información de tus productos." },
+      { role: "buyer", content: "Mira, necesito respuestas más concretas. 'Unas horas dependiendo' no me sirve. Cuando tenga más tiempo lo reviso. Chau." }
+    ]
+  },
+  {
+    id: "conv-b-carlos",
+    personaId: "carlos-inmobiliaria",
+    agentId: "B",
+    outcome: "rejected",
+    exchanges: 8,
+    messages: [
+      { role: "buyer", content: "Buenas tardes. Estoy evaluando herramientas de automatización para mi agencia inmobiliaria. Me preocupa especialmente la precisión de la IA con información sensible." },
+      { role: "seller", content: "Buenas tardes. Yaya es una plataforma de IA para WhatsApp que puede automatizar respuestas, calificar leads y gestionar consultas. Para el sector inmobiliario puede ser muy útil para responder consultas sobre propiedades de forma automática." },
+      { role: "buyer", content: "Entiendo. Pero en inmobiliaria manejamos precios confidenciales y cada propiedad tiene condiciones diferentes. \u00BFCómo garantizan que no comparta información que no debe?" },
+      { role: "seller", content: "Tú configuras qué información se comparte y qué no. La IA solo responde con lo que tú autorizas. Para información sensible, puede derivar la consulta directamente a ti." },
+      { role: "buyer", content: "\u00BFY la calificación de leads? Necesito que pregunte presupuesto, zona, tipo de propiedad y timeline de compra. \u00BFPuede hacer eso?" },
+      { role: "seller", content: "Sí, se puede configurar un flujo de calificación con esas preguntas. La IA las hace en conversación natural y te entrega un resumen del lead calificado." },
+      { role: "buyer", content: "Suena genérico. \u00BFTienen algún caso de éxito específico en el sector inmobiliario? \u00BFDatos de mejora en conversión de leads?" },
+      { role: "seller", content: "Estamos creciendo en el mercado peruano y trabajamos con varios tipos de negocios. No tengo casos específicos de inmobiliaria que pueda compartirte ahora, pero las funcionalidades se adaptan bien al sector. \u00BFTe gustaría probarlo 3 días gratis?" },
+      { role: "buyer", content: "Sin casos de éxito en mi sector es difícil tomar una decisión. Voy a seguir investigando otras opciones. Gracias por la información." }
+    ]
+  },
+  {
+    id: "conv-b-rosa",
+    personaId: "rosa-restaurante",
+    agentId: "B",
+    outcome: "purchased",
+    exchanges: 10,
+    messages: [
+      { role: "buyer", content: "Hola, tengo un restaurante familiar y estoy desesperada porque mi hija que me ayudaba con WhatsApp se va a estudiar a la universidad. \u00BFTienen algo que me pueda ayudar?" },
+      { role: "seller", content: "\u00A1Hola! Sí, Yaya es un asistente de IA para WhatsApp perfecto para restaurantes. Puede tomar pedidos, mostrar el menú y responder preguntas de tus clientes automáticamente, 24/7. \u00BFCuántos pedidos recibes por WhatsApp al día?" },
+      { role: "buyer", content: "Como 30 pedidos diarios. En la hora del almuerzo entre 11 y 2 es un caos total. Se me mezclan los pedidos y me equivoco como 3-4 veces por semana \u{1F629}" },
+      { role: "seller", content: "30 pedidos diarios es bastante. Yaya puede tomar los pedidos automáticamente y confirmarlos con el cliente antes de pasártelos a la cocina. Así evitas errores y no pierdes tiempo contestando mensajes." },
+      { role: "buyer", content: "Pero mi menú cambia cada día. \u00BFCómo hago con eso?" },
+      { role: "seller", content: "Puedes actualizar el menú cada mañana mandando un mensaje con los platos del día. Yaya lo usa como referencia para responder a los clientes. Es fácil y rápido." },
+      { role: "buyer", content: "\u00BFY si toma un pedido mal? Porque si ya me equivoco yo que soy humana... un robot peor, \u00BFno?" },
+      { role: "seller", content: "Yaya siempre confirma el pedido completo antes de procesarlo: '\u00BFEntonces es 1 ceviche y 1 arroz con pollo, correcto?' El cliente verifica y confirma. Si hay algo mal, se corrige antes de llegar a tu cocina." },
+      { role: "buyer", content: "Eso de confirmar está bien. \u00BFY cuánto cuesta? Que el restaurante tiene costos ajustados..." },
+      { role: "seller", content: "S/185 al mes, todo incluido. Si lo piensas en términos de restaurante: los 3-4 pedidos mal por semana te cuestan mínimo S/100 en ingredientes desperdiciados, más los clientes molestos. Yaya se paga con lo que te ahorras en errores. Y la prueba es gratis por 3 días." },
+      { role: "buyer", content: "Bueno, probemos esos 3 días. Si me funciona en la hora punta del almuerzo, me quedo. \u00BFCómo empezamos?" }
+    ]
+  },
+  {
+    id: "conv-b-lucia",
+    personaId: "lucia-farmacia",
+    agentId: "B",
+    outcome: "ghosted",
+    exchanges: 7,
+    messages: [
+      { role: "buyer", content: "Hola, tengo una farmacia y busco algo para automatizar las consultas de WhatsApp. Pero me preocupa mucho la precisión con información de salud." },
+      { role: "seller", content: "Hola, Yaya es una plataforma de IA para WhatsApp que puede automatizar respuestas sobre disponibilidad, precios y horarios. Para temas de salud, se configura para siempre recomendar consultar con el farmacéutico." },
+      { role: "buyer", content: "Ok. \u00BFPero puedo definir reglas estrictas? Por ejemplo, que nunca recomiende dosis ni sugiera medicamentos alternativos." },
+      { role: "seller", content: "Sí, puedes configurar reglas de lo que puede y no puede decir. La IA seguirá tus instrucciones sobre qué tipo de información compartir." },
+      { role: "buyer", content: "\u00BFY el stock? Mi inventario cambia todos los días. Los clientes preguntan si tengo tal medicamento y necesito que la respuesta sea precisa, no aproximada." },
+      { role: "seller", content: "Puedes actualizar el inventario manualmente o conectar un sistema digital si tienes uno. La IA responde basándose en la información más reciente que hayas cargado." },
+      { role: "buyer", content: "Entiendo. Voy a ver si me cuadra con mi presupuesto. \u00BFCuánto dijiste que costaba?" },
+      { role: "seller", content: "S/185 al mes, todo incluido. Ofrecemos 3 días de prueba gratis. \u00BFTe gustaría empezar la prueba?" }
+    ]
+  }
+];
+
+const REVIEWS = [
+  {
+    conversationId: "conv-a-maria",
+    empathy_score: 88,
+    pain_amplification: 82,
+    objection_handling: 85,
+    style_matching: 90,
+    demo_effectiveness: 75,
+    time_efficiency: 80,
+    total_score: 78,
+    conversion_result: "converted",
+    conversion_score: 100,
+    strengths: [
+      "Excelente empatía — mencionó 'el cuadernito' y la triple-agendación con humor, conectando emocionalmente",
+      "Cuantificó el dolor: S/120-150 por clienta perdida, S/500-600/mes — hizo tangible el costo de inacción",
+      "La analogía de 'recepcionista que contesta cuando no puedes' eliminó el miedo a perder control personal"
+    ],
+    failures: [
+      "No mencionó la funcionalidad de fotos antes/después que le interesaría a una peluquera"
+    ],
+    missed_opportunities: [
+      "Podría haber mencionado la competencia que ya usa reservas online como urgencia adicional"
+    ]
+  },
+  {
+    conversationId: "conv-a-david",
+    empathy_score: 82,
+    pain_amplification: 92,
+    objection_handling: 88,
+    style_matching: 85,
+    demo_effectiveness: 80,
+    time_efficiency: 78,
+    total_score: 81,
+    conversion_result: "converted",
+    conversion_score: 100,
+    strengths: [
+      "Diferenció claramente de chatbots tradicionales en la primera respuesta — atacó la objeción principal de entrada",
+      "ROI devastador: S/750-900/semana perdidos vs S/185/mes — 10x retorno. Irrefutable para alguien numbers-driven",
+      "Flujo completo de venta por Yape cerró el deal: pregunta \u2192 producto \u2192 pago \u2192 empaqueta"
+    ],
+    failures: [
+      "Pudo haber dado un ejemplo más específico con un modelo real de zapatilla para hacer la demo más tangible"
+    ],
+    missed_opportunities: [
+      "No exploró la oportunidad de analytics — David es data-driven y le interesaría ver qué modelos se consultan más"
+    ]
+  },
+  {
+    conversationId: "conv-a-carlos",
+    empathy_score: 80,
+    pain_amplification: 70,
+    objection_handling: 78,
+    style_matching: 82,
+    demo_effectiveness: 68,
+    time_efficiency: 72,
+    total_score: 63,
+    conversion_result: "nurture",
+    conversion_score: 50,
+    strengths: [
+      "Tono profesional acorde al perfil ejecutivo — adaptó registro de comunicación",
+      "Honestidad sobre el 10-15% que notaría el bot generó confianza — no sobre-prometió",
+      "Ofreció demo personalizada con propiedades reales — siguiente paso concreto"
+    ],
+    failures: [
+      "Faltó cuantificar mejor: cuánto cuesta un lead perdido en inmobiliaria (comisión promedio S/5,000-15,000)",
+      "No mencionó la integración con Google Calendar que Carlos preguntó específicamente"
+    ],
+    missed_opportunities: [
+      "Podría haber calculado: de 60 leads, si convierte 3 más al mes = S/15,000-45,000 adicionales"
+    ]
+  },
+  {
+    conversationId: "conv-a-rosa",
+    empathy_score: 95,
+    pain_amplification: 88,
+    objection_handling: 90,
+    style_matching: 92,
+    demo_effectiveness: 85,
+    time_efficiency: 88,
+    total_score: 84,
+    conversion_result: "converted",
+    conversion_score: 100,
+    strengths: [
+      "Empatía excepcional — conectó con la emoción de la hija yéndose a la universidad",
+      "Cuantificó errores: S/400-500/mes en pedidos equivocados — ROI claro e inmediato",
+      "Explicación del menú diario en términos de restaurante: 'más fácil que escribir en la pizarra'"
+    ],
+    failures: [],
+    missed_opportunities: [
+      "Podría haber mencionado la coordinación de delivery/riders como valor extra"
+    ]
+  },
+  {
+    conversationId: "conv-a-lucia",
+    empathy_score: 85,
+    pain_amplification: 65,
+    objection_handling: 82,
+    style_matching: 78,
+    demo_effectiveness: 72,
+    time_efficiency: 75,
+    total_score: 64,
+    conversion_result: "nurture",
+    conversion_score: 50,
+    strengths: [
+      "Abordó la preocupación de seguridad de medicamentos de forma inmediata y seria",
+      "Estrategia de empezar con top 20 medicamentos demuestra enfoque prudente y profesional",
+      "Los recordatorios de refill como ventaja competitiva vs cadenas fue brillante"
+    ],
+    failures: [
+      "No amplificó suficiente el dolor: \u00BFcuántas ventas pierde por no contestar rápido?"
+    ],
+    missed_opportunities: [
+      "Pudo mencionar delivery a adultos mayores como diferenciador emocional",
+      "No calculó ROI específico en soles para una farmacia"
+    ]
+  },
+  // Agent B reviews
+  {
+    conversationId: "conv-b-maria",
+    empathy_score: 45,
+    pain_amplification: 35,
+    objection_handling: 50,
+    style_matching: 40,
+    demo_effectiveness: 38,
+    time_efficiency: 55,
+    total_score: 43,
+    conversion_result: "nurture",
+    conversion_score: 50,
+    strengths: [
+      "Mencionó las funcionalidades correctas: citas, pagos, respuestas 24/7"
+    ],
+    failures: [
+      "No conectó emocionalmente — respuesta genérica sin mencionar la realidad de una peluquera",
+      "Lanzó el precio sin construir valor primero — S/185 sin contexto de ROI",
+      "Tono corporativo ('funcionalidades', 'plataforma') en vez de conversacional"
+    ],
+    missed_opportunities: [
+      "No cuantificó cuántas clientas pierde por no contestar",
+      "No usó el cuadernito como punto de conexión emocional",
+      "No explicó cómo funciona la agenda — la función que más le interesaba"
+    ]
+  },
+  {
+    conversationId: "conv-b-david",
+    empathy_score: 40,
+    pain_amplification: 30,
+    objection_handling: 42,
+    style_matching: 45,
+    demo_effectiveness: 35,
+    time_efficiency: 48,
+    total_score: 38,
+    conversion_result: "burned",
+    conversion_score: 0,
+    strengths: [
+      "Mencionó que es IA conversacional vs chatbot tradicional — diferenciación correcta"
+    ],
+    failures: [
+      "Respuestas vagas: 'dependiendo de tu catálogo', 'unas horas' — David necesita números concretos",
+      "No calculó las ventas perdidas en soles — perdió la oportunidad de hacer el ROI irrefutable",
+      "Quemó al prospecto con falta de precisión — David se fue frustrado"
+    ],
+    missed_opportunities: [
+      "No mencionó búsqueda por talla/marca/precio de forma específica",
+      "No habló del flujo de Yape que David necesita (70% de ventas)",
+      "No demostró el catálogo con un ejemplo concreto de zapatilla"
+    ]
+  },
+  {
+    conversationId: "conv-b-carlos",
+    empathy_score: 35,
+    pain_amplification: 25,
+    objection_handling: 40,
+    style_matching: 50,
+    demo_effectiveness: 30,
+    time_efficiency: 45,
+    total_score: 35,
+    conversion_result: "graceful_exit",
+    conversion_score: 25,
+    strengths: [
+      "Mencionó calificación de leads y control de información confidencial"
+    ],
+    failures: [
+      "Respuestas genéricas: 'varios tipos de negocios' — Carlos pidió caso específico de inmobiliaria",
+      "No calculó el costo de un lead perdido en comisiones inmobiliarias",
+      "Admitió no tener casos de éxito en el sector sin ofrecer alternativa convincente"
+    ],
+    missed_opportunities: [
+      "No mencionó la velocidad de respuesta como ventaja competitiva (leads se enfrían en 5 min)",
+      "No ofreció demo personalizada con propiedades reales de Carlos",
+      "No cuantificó: de 60 leads, 55 se pierden — \u00BFcuánto es eso en comisiones?"
+    ]
+  },
+  {
+    conversationId: "conv-b-rosa",
+    empathy_score: 60,
+    pain_amplification: 65,
+    objection_handling: 68,
+    style_matching: 58,
+    demo_effectiveness: 55,
+    time_efficiency: 62,
+    total_score: 58,
+    conversion_result: "committed",
+    conversion_score: 75,
+    strengths: [
+      "Preguntó por volumen de pedidos — mostró interés en entender el negocio",
+      "La confirmación de pedido fue un buen punto para manejar la objeción de errores",
+      "ROI de errores fue mencionado aunque de forma más genérica"
+    ],
+    failures: [
+      "No conectó emocionalmente con la situación de la hija yéndose",
+      "Tono más corporativo que maternal — Rosa responde mejor a empatía"
+    ],
+    missed_opportunities: [
+      "No usó analogías de cocina/restaurante para explicar la tecnología",
+      "No mencionó la coordinación de delivery como valor extra"
+    ]
+  },
+  {
+    conversationId: "conv-b-lucia",
+    empathy_score: 38,
+    pain_amplification: 20,
+    objection_handling: 45,
+    style_matching: 42,
+    demo_effectiveness: 28,
+    time_efficiency: 50,
+    total_score: 34,
+    conversion_result: "ghosted",
+    conversion_score: 0,
+    strengths: [
+      "Mencionó reglas configurables y opción de sistema digital"
+    ],
+    failures: [
+      "Respuestas roboticas y genéricas — no mostró comprensión del sector farmacéutico",
+      "No amplificó ningún dolor — \u00BFcuántas ventas pierde? \u00BFcuánto cuesta la competencia de InkaFarma?",
+      "Lucia preguntó el precio al final como afterthought — señal de bajo interés generado",
+      "No ofreció la estrategia de empezar con top 20 medicamentos — fue todo o nada"
+    ],
+    missed_opportunities: [
+      "No mencionó recordatorios de recetas como diferenciador vs cadenas",
+      "No habló de delivery a adultos mayores",
+      "No calculó ROI específico para una farmacia de barrio"
+    ]
+  }
+];
+
+// ═══════════════════════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════════════════════
+
+function getPersona(id) { return PERSONAS.find(p => p.id === id); }
+function getReview(convId) { return REVIEWS.find(r => r.conversationId === convId); }
+
+function outcomeClass(o) {
+  const map = { purchased: 'purchased', converted: 'purchased', committed: 'purchased', interested: 'interested', nurture: 'interested', rejected: 'rejected', burned: 'rejected', graceful_exit: 'rejected', ghosted: 'ghosted' };
+  return map[o] || 'ghosted';
+}
+function outcomeLabel(o) {
+  const map = { purchased: 'Compró', converted: 'Compró', committed: 'Compró', interested: 'Interesado', nurture: 'Interesado', rejected: 'Rechazó', burned: 'Quemado', graceful_exit: 'Rechazó', ghosted: 'Ghosted' };
+  return map[o] || o;
+}
+function scoreColor(s) {
+  if (s >= 75) return 'var(--green)';
+  if (s >= 50) return 'var(--yellow)';
+  return 'var(--red)';
+}
+
+// Results Table
+function renderTable() {
+  const tbody = document.querySelector('#resultsTable tbody');
+  CONVERSATIONS.forEach((conv, i) => {
+    const p = getPersona(conv.personaId);
+    const r = getReview(conv.id);
+    const score = r ? r.total_score : 0;
+    const tr = document.createElement('tr');
+    tr.dataset.idx = i;
+    tr.innerHTML = `
+      <td><strong>${p.name}</strong><br><span style="color:var(--text-dim);font-size:.78rem">${p.business}</span></td>
+      <td>${p.sector}</td>
+      <td style="text-transform:uppercase;font-size:.78rem;font-weight:600">${p.tier}</td>
+      <td><span class="agent-tag ${conv.agentId.toLowerCase()}">${conv.agentId}</span></td>
+      <td><span class="outcome ${outcomeClass(conv.outcome)}">${outcomeLabel(conv.outcome)}</span></td>
+      <td>${conv.exchanges}</td>
+      <td>
+        <strong style="color:${scoreColor(score)}">${score}</strong>
+        <span class="score-bar"><span class="fill" style="width:${score}%;background:${scoreColor(score)}"></span></span>
+      </td>`;
+    tr.addEventListener('click', () => toggleTranscript(i, tr));
+    tbody.appendChild(tr);
+
+    // Hidden transcript row
+    const trPanel = document.createElement('tr');
+    trPanel.innerHTML = `<td colspan="7" style="padding:0"><div class="transcript-panel" id="panel-${i}">${renderChat(conv, r)}</div></td>`;
+    tbody.appendChild(trPanel);
+  });
+}
+
+function toggleTranscript(i, tr) {
+  const panel = document.getElementById(`panel-${i}`);
+  const isOpen = panel.classList.contains('open');
+  document.querySelectorAll('.transcript-panel').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('#resultsTable tbody tr').forEach(t => t.style.background = '');
+  if (!isOpen) {
+    panel.classList.add('open');
+    tr.style.background = 'var(--card-hover)';
+  }
+}
+
+function renderChat(conv, review) {
+  const p = getPersona(conv.personaId);
+  let html = `<div style="margin-bottom:12px;font-size:.82rem;color:var(--text-dim)">
+    <strong style="color:var(--text)">${p.name}</strong> (${p.business}) vs <span class="agent-tag ${conv.agentId.toLowerCase()}">Agent ${conv.agentId}</span>
+    &nbsp;&middot;&nbsp;${conv.exchanges} exchanges
+  </div><div class="chat-container">`;
+
+  conv.messages.forEach(m => {
+    const isBuyer = m.role === 'buyer' || m.role === 'user';
+    html += `<div class="chat-bubble ${isBuyer ? 'buyer' : 'seller'}">
+      <div class="sender">${isBuyer ? p.name.split(' ')[0] : 'Yaya Agent ' + conv.agentId}</div>
+      ${escapeHtml(m.content)}
+    </div>`;
+  });
+  html += '</div>';
+
+  if (review) {
+    html += renderReviewCard(review);
+  }
+  return html;
+}
+
+function renderReviewCard(r) {
+  const dims = [
+    { name: 'Empatia', val: r.empathy_score },
+    { name: 'Amplificación del dolor', val: r.pain_amplification },
+    { name: 'Manejo de objeciones', val: r.objection_handling },
+    { name: 'Matching de estilo', val: r.style_matching },
+    { name: 'Efectividad de demo', val: r.demo_effectiveness },
+    { name: 'Eficiencia de tiempo', val: r.time_efficiency },
+  ];
+  let html = `<div class="review-card"><h4>Reviewer Scorecard — Total: <span style="color:${scoreColor(r.total_score)}">${r.total_score}/100</span> &middot; ${outcomeLabel(r.conversion_result)}</h4>`;
+  dims.forEach(d => {
+    html += `<div class="review-dim">
+      <span class="dim-name">${d.name}</span>
+      <div class="dim-bar"><div class="dim-fill" style="width:${d.val}%;background:${scoreColor(d.val)}"></div></div>
+      <span class="dim-score" style="color:${scoreColor(d.val)}">${d.val}</span>
+    </div>`;
+  });
+
+  if (r.strengths && r.strengths.length) {
+    html += `<div style="margin-top:16px"><strong style="color:var(--green);font-size:.78rem">STRENGTHS</strong><ul style="margin-top:6px;padding-left:20px;font-size:.82rem;color:var(--text-dim)">`;
+    r.strengths.forEach(s => html += `<li style="margin-bottom:4px">${escapeHtml(s)}</li>`);
+    html += '</ul></div>';
+  }
+  if (r.failures && r.failures.length) {
+    html += `<div style="margin-top:12px"><strong style="color:var(--red);font-size:.78rem">FAILURES</strong><ul style="margin-top:6px;padding-left:20px;font-size:.82rem;color:var(--text-dim)">`;
+    r.failures.forEach(s => html += `<li style="margin-bottom:4px">${escapeHtml(s)}</li>`);
+    html += '</ul></div>';
+  }
+  if (r.missed_opportunities && r.missed_opportunities.length) {
+    html += `<div style="margin-top:12px"><strong style="color:var(--yellow);font-size:.78rem">MISSED OPPORTUNITIES</strong><ul style="margin-top:6px;padding-left:20px;font-size:.82rem;color:var(--text-dim)">`;
+    r.missed_opportunities.forEach(s => html += `<li style="margin-bottom:4px">${escapeHtml(s)}</li>`);
+    html += '</ul></div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function escapeHtml(t) {
+  const d = document.createElement('div');
+  d.textContent = t;
+  return d.innerHTML;
+}
+
+// All Transcripts section
+function renderAllTranscripts() {
+  const container = document.getElementById('allTranscripts');
+  CONVERSATIONS.forEach((conv, i) => {
+    const p = getPersona(conv.personaId);
+    const r = getReview(conv.id);
+    const score = r ? r.total_score : 0;
+    const div = document.createElement('div');
+    div.style.cssText = 'background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden;box-shadow:var(--shadow)';
+    div.innerHTML = `
+      <div class="transcript-header" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between" data-target="full-${i}">
+        <div>
+          <strong>${p.name}</strong> <span style="color:var(--text-dim)">(${p.business})</span>
+          &nbsp;<span class="agent-tag ${conv.agentId.toLowerCase()}">Agent ${conv.agentId}</span>
+          &nbsp;<span class="outcome ${outcomeClass(conv.outcome)}">${outcomeLabel(conv.outcome)}</span>
+        </div>
+        <div>
+          <strong style="color:${scoreColor(score)}">${score}/100</strong>
+          <span style="color:var(--text-dim);margin-left:8px;font-size:1.2rem" id="arrow-full-${i}">\u25B8</span>
+        </div>
+      </div>
+      <div class="transcript-panel" id="full-${i}" style="border-top:1px solid var(--border)">${renderChat(conv, r)}</div>`;
+    container.appendChild(div);
+
+    div.querySelector('.transcript-header').addEventListener('click', () => {
+      const panel = document.getElementById(`full-${i}`);
+      const arrow = document.getElementById(`arrow-full-${i}`);
+      panel.classList.toggle('open');
+      arrow.textContent = panel.classList.contains('open') ? '\u25BE' : '\u25B8';
+    });
+  });
+}
+
+// Charts
+function renderCharts() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const textColor = isDark ? '#e0e0e0' : '#1a1a2e';
+  const dimColor = isDark ? '#888' : '#6b7280';
+  const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
+
+  const agentAScores = CONVERSATIONS.filter(c => c.agentId === 'A').map(c => {
+    const r = getReview(c.id);
+    return { persona: getPersona(c.personaId).name.split(' ')[0], score: r ? r.total_score : 0 };
+  });
+  const agentBScores = CONVERSATIONS.filter(c => c.agentId === 'B').map(c => {
+    const r = getReview(c.id);
+    return { persona: getPersona(c.personaId).name.split(' ')[0], score: r ? r.total_score : 0 };
+  });
+
+  if (window._scoreChart) window._scoreChart.destroy();
+  if (window._outcomeChart) window._outcomeChart.destroy();
+
+  window._scoreChart = new Chart(document.getElementById('scoreChart'), {
+    type: 'bar',
+    data: {
+      labels: agentAScores.map(s => s.persona),
+      datasets: [
+        { label: 'Agent A (Evolved)', data: agentAScores.map(s => s.score), backgroundColor: 'rgba(59,130,246,0.7)', borderRadius: 6 },
+        { label: 'Agent B (Baseline)', data: agentBScores.map(s => s.score), backgroundColor: 'rgba(239,68,68,0.45)', borderRadius: 6 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: textColor } }, title: { display: true, text: 'Score by Persona', color: textColor } },
+      scales: {
+        x: { ticks: { color: dimColor }, grid: { color: gridColor } },
+        y: { min: 0, max: 100, ticks: { color: dimColor }, grid: { color: gridColor } }
+      }
+    }
+  });
+
+  const outcomes = { A: { purchased: 0, interested: 0, rejected: 0, ghosted: 0 }, B: { purchased: 0, interested: 0, rejected: 0, ghosted: 0 } };
+  CONVERSATIONS.forEach(c => {
+    const cls = outcomeClass(c.outcome);
+    if (outcomes[c.agentId][cls] !== undefined) outcomes[c.agentId][cls]++;
+  });
+
+  window._outcomeChart = new Chart(document.getElementById('outcomeChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Compró (A)', 'Interesado (A)', 'Rechazó (A)', 'Ghosted (A)', 'Compró (B)', 'Interesado (B)', 'Rechazó (B)', 'Ghosted (B)'],
+      datasets: [{
+        data: [outcomes.A.purchased, outcomes.A.interested, outcomes.A.rejected, outcomes.A.ghosted, outcomes.B.purchased, outcomes.B.interested, outcomes.B.rejected, outcomes.B.ghosted],
+        backgroundColor: [
+          'rgba(22,163,74,0.8)', 'rgba(202,138,4,0.8)', 'rgba(220,38,38,0.8)', 'rgba(107,114,128,0.5)',
+          'rgba(22,163,74,0.35)', 'rgba(202,138,4,0.35)', 'rgba(220,38,38,0.35)', 'rgba(107,114,128,0.2)'
+        ],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'right', labels: { color: textColor, font: { size: 11 }, padding: 8 } },
+        title: { display: true, text: 'Outcome Distribution', color: textColor }
+      }
+    }
+  });
+}
+
+// Theme Toggle
+function setupTheme() {
+  const toggle = document.getElementById('themeToggle');
+  const icon = document.getElementById('themeIcon');
+  const saved = localStorage.getItem('darwin-theme');
+
+  // Default to light
+  if (saved === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    icon.innerHTML = '&#9788;'; // sun
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    icon.innerHTML = '&#9789;'; // moon
+  }
+
+  toggle.addEventListener('click', () => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (isDark) {
+      document.documentElement.removeAttribute('data-theme');
+      icon.innerHTML = '&#9789;';
+      localStorage.setItem('darwin-theme', 'light');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      icon.innerHTML = '&#9788;';
+      localStorage.setItem('darwin-theme', 'dark');
+    }
+    // Re-render charts with new colors
+    renderCharts();
+  });
+}
+
+// Navigation
+function setupNav() {
+  const links = document.querySelectorAll('nav .nav-links a');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const match = document.querySelector(`nav a[href="#${e.target.id}"]`);
+        if (match) match.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  document.querySelectorAll('section[id]').forEach(s => observer.observe(s));
+
+  links.forEach(l => l.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelector(l.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+  }));
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  setupTheme();
+  renderTable();
+  renderAllTranscripts();
+  renderCharts();
+  setupNav();
+});
+</script>
+</body>
+</html>

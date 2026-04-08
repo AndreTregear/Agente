@@ -1,5 +1,9 @@
 packages:
-  - "apps/*"
+  - "apps/web"
+  - "apps/business"
+  - "apps/health"
   - "packages/*"
   - "workers/*"
   - "mcp-servers/*"
+  - "services/yape-listener"
+  - "tools/hpc-dashboard"

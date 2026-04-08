@@ -54,13 +54,13 @@ export function createVoicePipeline(config: VoicePipelineConfig) {
   const {
     whisperUrl,
     whisperApiKey,
-    whisperModel = 'large-v3-turbo',
+    whisperModel = 'large-v3',
     vllmUrl,
     vllmApiKey,
-    vllmModel = 'qwen3.5-27b',
+    vllmModel = 'qwen3.5-35b-a3b',
     ttsUrl,
     ttsApiKey = '',
-    ttsVoice = 'af_heart',
+    ttsVoice = 'ef_dora',
     systemPrompt = DEFAULT_SYSTEM_PROMPT,
     maxTokens = 150,
   } = config;
@@ -184,6 +184,7 @@ export function createVoicePipeline(config: VoicePipelineConfig) {
         model: 'kokoro',
         input: truncated,
         voice: ttsVoice,
+        lang_code: 'e',
         response_format: 'mp3',
       }),
     });

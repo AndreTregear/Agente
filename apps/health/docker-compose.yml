@@ -1,0 +1,154 @@
+# ═══════════════════════════════════════════════════════════════
+# Yaya Salud — Docker Compose
+# ═══════════════════════════════════════════════════════════════
+# Usage:
+#   ./start.sh              # Start everything
+#   ./start.sh --status     # Show service health
+#   ./start.sh --stop       # Stop everything
+#   ./start.sh --dev        # Start in dev mode (foreground)
+#   docker compose logs -f  # Watch logs
+
+services:
+  # ── Core Infrastructure ──────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-yaya_health}
+      POSTGRES_USER: ${POSTGRES_USER:-yaya}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-yaya_health_secret}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./schema-health.sql:/docker-entrypoint-initdb.d/01-schema-health.sql:ro
+      - ./schema-rls.sql:/docker-entrypoint-initdb.d/02-schema-rls.sql:ro
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - yaya-health-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-yaya} -d ${POSTGRES_DB:-yaya_health}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redisdata:/data
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    networks:
+      - yaya-health-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  minio:
+    image: minio/minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    networks:
+      - yaya-health-net
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ── Application ──────────────────────────────────────────────
+
+  yaya-health:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      NODE_ENV: ${NODE_ENV:-production}
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-yaya}:${POSTGRES_PASSWORD:-yaya_health_secret}@postgres:5432/${POSTGRES_DB:-yaya_health}
+      # Redis
+      REDIS_URL: redis://redis:6379
+      # AI — external GPU host
+      AI_API_KEY: ${AI_API_KEY:?AI_API_KEY required}
+      AI_BASE_URL: ${AI_BASE_URL:-http://host.docker.internal:8000/v1}
+      AI_MODEL: ${AI_MODEL:-qwen3.5-27b}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-1024}
+      # Voice — external GPU host
+      WHISPER_BASE_URL: ${WHISPER_BASE_URL:-http://host.docker.internal:9300}
+      # Auth
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-changeme}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      # Object Storage
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-http://localhost:9000}
+      # OpenClaw integration
+      OPENCLAW_BIN: ${OPENCLAW_BIN:-}
+      OPENCLAW_AGENT: ${OPENCLAW_AGENT:-yaya-health}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/v1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - yaya-health-net
+
+  # ── Daily Backup ─────────────────────────────────────────────
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-yaya}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-yaya_health_secret}
+      PGDATABASE: ${POSTGRES_DB:-yaya_health}
+    volumes:
+      - ./data/backups:/backups
+    entrypoint: >
+      sh -c '
+        apk add --no-cache dcron &&
+        echo "0 3 * * * pg_dump -Fc > /backups/yaya_health_$$(date +\%Y\%m\%d_\%H\%M\%S).dump && find /backups -name \"*.dump\" -mtime +7 -delete 2>&1" | crontab - &&
+        echo "[backup] Daily at 3am UTC" &&
+        crond -f -l 2
+      '
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - yaya-health-net
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+
+networks:
+  yaya-health-net:
+    driver: bridge

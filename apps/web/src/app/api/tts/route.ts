@@ -16,7 +16,8 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: 'kokoro',
         input: body.text,
-        voice: body.voice || 'af_heart',
+        voice: body.voice || 'ef_dora',
+        lang_code: 'e',
         response_format: 'mp3',
       }),
     })

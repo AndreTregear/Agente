@@ -11,3 +11,17 @@ coverage/
 .DS_Store
 .venv/
 __pycache__/
+*.pyc
+build/
+.gradle/
+.idea/
+*.apk
+*.aab
+data/
+backups/
+*.bak
+*.backup
+pnpm-lock.yaml
+*.wasm
+package-lock.json
+infra/sso/sso-credentials.json

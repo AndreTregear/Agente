@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>agente.fit — Panel de Administración</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      /* agente.fit Brand Colors */
+      --bg-primary: #0a0a0b;
+      --bg-secondary: #0f1419;
+      --bg-surface: rgba(255, 255, 255, 0.03);
+      --bg-card: rgba(255, 255, 255, 0.05);
+      --bg-card-hover: rgba(255, 255, 255, 0.08);
+      --text: #ffffff;
+      --text-muted: #9ca3af;
+      --text-soft: #71717a;
+      
+      /* Health-themed gradients */
+      --gradient-primary: linear-gradient(135deg, #8B5CF6 0%, #06B6D4 50%, #10B981 100%);
+      --gradient-health: linear-gradient(135deg, #10B981 0%, #14B8A6 50%, #06B6D4 100%);
+      --gradient-emerald: linear-gradient(135deg, #10B981 0%, #059669 100%);
+      --gradient-purple: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+      
+      /* Status colors */
+      --success: #10b981;
+      --success-dim: rgba(16, 185, 129, 0.15);
+      --warning: #f59e0b;
+      --warning-dim: rgba(245, 158, 11, 0.15);
+      --danger: #ef4444;
+      --danger-dim: rgba(239, 68, 68, 0.15);
+      --info: #06b6d4;
+      --info-dim: rgba(6, 182, 212, 0.15);
+      
+      /* Glass morphism */
+      --glass-bg: rgba(255, 255, 255, 0.05);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --glass-blur: blur(20px);
+      
+      --border: rgba(255, 255, 255, 0.1);
+      --radius: 12px;
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* Background effect */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        radial-gradient(circle at 20% 20%, rgba(16, 185, 129, 0.06) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
+      z-index: -1;
+    }
+
+    /* Header */
+    .header {
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border-bottom: 1px solid var(--border);
+      padding: 24px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .header h1 { 
+      font-size: 1.75rem; 
+      font-weight: 800; 
+    }
+
+    .header h1 a { 
+      background: var(--gradient-health);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header h1 a:hover { 
+      opacity: 0.8;
+      transition: opacity 0.3s ease;
+    }
+
+    .header-subtitle {
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 0.95rem;
+    }
+
+    /* Navigation */
+    .nav { 
+      display: flex; 
+      gap: 8px; 
+      flex-wrap: wrap;
+    }
+
+    .nav button {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 12px 24px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      backdrop-filter: var(--glass-blur);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .nav button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: var(--gradient-health);
+      transition: left 0.3s ease;
+      z-index: -1;
+    }
+
+    .nav button:hover { 
+      background: var(--bg-card-hover);
+      color: var(--text);
+      border-color: var(--glass-border);
+      transform: translateY(-1px);
+    }
+
+    .nav button.active { 
+      background: var(--gradient-health);
+      color: var(--bg-primary);
+      border-color: transparent;
+      box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+    }
+
+    .nav button.active::before {
+      left: 0;
+    }
+
+    /* Main content */
+    .main { 
+      max-width: 1400px; 
+      margin: 0 auto; 
+      padding: 32px; 
+    }
+
+    .tab { 
+      display: none; 
+      animation: fadeInUp 0.5s ease-out;
+    }
+
+    .tab.active { 
+      display: block; 
+    }
+
+    @keyframes fadeInUp {
+      from { 
+        opacity: 0; 
+        transform: translateY(20px); 
+      }
+      to { 
+        opacity: 1; 
+        transform: translateY(0); 
+      }
+    }
+
+    /* Glass cards */
+    .glass-card {
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      transition: all 0.3s ease;
+    }
+
+    .glass-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(16, 185, 129, 0.2);
+    }
+
+    /* Dashboard cards */
+    .cards { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+      gap: 24px; 
+      margin-bottom: 40px; 
+    }
+
+    .card {
+      padding: 32px;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--gradient-health);
+      transform: scaleX(0);
+      transition: transform 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(16, 185, 129, 0.3);
+      background: var(--bg-card-hover);
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
+    }
+
+    .card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .card-label { 
+      font-size: 0.8rem; 
+      color: var(--text-muted); 
+      text-transform: uppercase; 
+      letter-spacing: 0.1em; 
+      margin-bottom: 12px; 
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-value { 
+      font-size: 2.25rem; 
+      font-weight: 800; 
+      margin-bottom: 8px;
+    }
+
+    .card-value.ok { 
+      background: var(--gradient-emerald);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .card-value.err { 
+      color: var(--danger); 
+    }
+
+    .card-description {
+      font-size: 0.9rem;
+      color: var(--text-soft);
+      line-height: 1.5;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      backdrop-filter: var(--glass-blur);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .btn:hover::before {
+      left: 100%;
+    }
+
+    .btn-primary { 
+      background: var(--gradient-health);
+      color: var(--bg-primary);
+      box-shadow: 0 4px 16px rgba(16, 185, 129, 0.2);
+    }
+
+    .btn-primary:hover { 
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-danger { 
+      background: var(--danger-dim); 
+      color: var(--danger); 
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-danger:hover { 
+      background: rgba(239, 68, 68, 0.25); 
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary { 
+      background: var(--bg-card); 
+      color: var(--text); 
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover { 
+      background: var(--bg-card-hover);
+      transform: translateY(-2px);
+    }
+
+    .btn-info { 
+      background: var(--info-dim); 
+      color: var(--info); 
+      border: 1px solid rgba(6, 182, 212, 0.3);
+    }
+
+    .btn-info:hover { 
+      background: rgba(6, 182, 212, 0.25); 
+      transform: translateY(-2px);
+    }
+
+    .btn-sm { 
+      padding: 10px 16px; 
+      font-size: 0.8rem; 
+    }
+
+    /* Section headers */
+    .section-header { 
+      margin-bottom: 32px; 
+    }
+
+    .section-header h2 { 
+      font-size: 2rem; 
+      font-weight: 800;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+
+    .section-header p {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+
+    /* Tenant management */
+    .tenant-header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      margin-bottom: 32px; 
+      flex-wrap: wrap; 
+      gap: 20px; 
+    }
+
+    .tenant-list { 
+      display: flex; 
+      flex-direction: column; 
+      gap: 20px; 
+    }
+
+    .tenant-item {
+      padding: 32px;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tenant-item::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--gradient-health);
+      transform: scaleX(0);
+      transition: transform 0.3s ease;
+    }
+
+    .tenant-item:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(16, 185, 129, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .tenant-item:hover::before {
+      transform: scaleX(1);
+    }
+
+    .tenant-top { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: flex-start; 
+      flex-wrap: wrap; 
+      gap: 20px; 
+      margin-bottom: 20px; 
+    }
+
+    .tenant-info h3 { 
+      font-size: 1.375rem; 
+      margin-bottom: 12px; 
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tenant-info p { 
+      color: var(--text-muted); 
+      font-size: 0.9rem; 
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      backdrop-filter: var(--glass-blur);
+    }
+
+    .badge-active { 
+      background: var(--success-dim); 
+      color: var(--success); 
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-inactive { 
+      background: var(--danger-dim); 
+      color: var(--danger); 
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .badge-connected { 
+      background: var(--info-dim); 
+      color: var(--info); 
+      border: 1px solid rgba(6, 182, 212, 0.3);
+    }
+
+    .badge-disconnected { 
+      background: rgba(156, 163, 175, 0.15); 
+      color: #9ca3af; 
+      border: 1px solid rgba(156, 163, 175, 0.3);
+    }
+
+    .tenant-actions { 
+      display: flex; 
+      gap: 12px; 
+      flex-wrap: wrap; 
+    }
+
+    /* QR Code display */
+    .qr-container {
+      margin-top: 24px;
+      padding: 32px;
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      text-align: center;
+      border: 1px solid var(--border);
+      backdrop-filter: var(--glass-blur);
+    }
+
+    .qr-container img { 
+      max-width: 300px; 
+      border-radius: var(--radius); 
+      background: #fff; 
+      padding: 20px; 
+      box-shadow: var(--shadow);
+    }
+
+    .qr-container p { 
+      margin-top: 16px; 
+      color: var(--text-muted); 
+      font-size: 0.9rem; 
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    /* Modal styles */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .modal-overlay.show { 
+      display: flex; 
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal {
+      background: var(--bg-surface);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: var(--shadow);
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .modal h3 { 
+      margin-bottom: 32px; 
+      font-size: 1.375rem; 
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-group { 
+      margin-bottom: 24px; 
+    }
+
+    .form-group label { 
+      display: block; 
+      font-size: 0.875rem; 
+      color: var(--text-muted); 
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 16px 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+      transition: all 0.3s ease;
+      backdrop-filter: var(--glass-blur);
+    }
+
+    .form-group input:focus { 
+      border-color: rgba(16, 185, 129, 0.5);
+      background: var(--bg-card-hover);
+      transform: translateY(-2px);
+    }
+
+    .form-group input::placeholder {
+      color: var(--text-soft);
+    }
+
+    .modal-actions { 
+      display: flex; 
+      gap: 16px; 
+      justify-content: flex-end; 
+      margin-top: 32px; 
+    }
+
+    /* Toast notifications */
+    .toast-container { 
+      position: fixed; 
+      top: 24px; 
+      right: 24px; 
+      z-index: 200; 
+      display: flex; 
+      flex-direction: column; 
+      gap: 12px; 
+    }
+
+    .toast {
+      padding: 20px 28px;
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      font-weight: 600;
+      animation: slideIn 0.4s ease;
+      max-width: 400px;
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .toast-success { 
+      background: var(--success-dim); 
+      color: var(--success); 
+      border-color: rgba(16, 185, 129, 0.3); 
+    }
+
+    .toast-error { 
+      background: var(--danger-dim); 
+      color: var(--danger); 
+      border-color: rgba(239, 68, 68, 0.3); 
+    }
+
+    @keyframes slideIn { 
+      from { opacity: 0; transform: translateX(100%); } 
+      to { opacity: 1; transform: translateX(0); } 
+    }
+
+    /* Settings section */
+    .settings-section { 
+      margin-bottom: 40px; 
+    }
+
+    .settings-section h3 { 
+      margin-bottom: 24px; 
+      font-size: 1.375rem;
+      font-weight: 700;
+      background: var(--gradient-health);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .settings-item {
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 24px 28px;
+      margin-bottom: 16px;
+      transition: all 0.3s ease;
+    }
+
+    .settings-item:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(16, 185, 129, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .settings-item label { 
+      color: var(--text-muted); 
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .settings-item .val { 
+      font-weight: 600; 
+      margin-top: 8px; 
+      color: var(--text);
+      font-size: 1rem;
+    }
+
+    .settings-item .val a {
+      color: var(--info);
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    .settings-item .val a:hover {
+      text-decoration: underline;
+      color: #0891b2;
+    }
+
+    /* Empty state */
+    .empty-state { 
+      text-align: center; 
+      padding: 80px 20px; 
+      color: var(--text-muted); 
+    }
+
+    .empty-state .icon { 
+      font-size: 4rem; 
+      margin-bottom: 20px; 
+      display: block; 
+      opacity: 0.6;
+    }
+
+    .empty-state p {
+      font-size: 1.125rem;
+      margin-bottom: 8px;
+    }
+
+    .empty-state .sub {
+      font-size: 0.9rem;
+      color: var(--text-soft);
+    }
+
+    /* Status indicators */
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .status-indicator.healthy {
+      background: var(--success-dim);
+      color: var(--success);
+    }
+
+    .status-indicator.error {
+      background: var(--danger-dim);
+      color: var(--danger);
+    }
+
+    .status-indicator.warning {
+      background: var(--warning-dim);
+      color: var(--warning);
+    }
+
+    /* Responsive design */
+    @media (max-width: 1024px) {
+      .main {
+        padding: 24px 20px;
+      }
+
+      .tenant-actions {
+        width: 100%;
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .header { 
+        padding: 20px 24px; 
+        text-align: center;
+      }
+      
+      .header-left {
+        align-items: center;
+      }
+
+      .nav {
+        justify-content: center;
+        width: 100%;
+      }
+
+      .tenant-header {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+      }
+
+      .tenant-top {
+        flex-direction: column;
+        gap: 16px;
+      }
+      
+      .tenant-actions .btn { 
+        flex: 1; 
+        justify-content: center; 
+      }
+
+      .cards {
+        grid-template-columns: 1fr;
+      }
+
+      .modal {
+        margin: 20px;
+        padding: 32px 24px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .card {
+        padding: 24px;
+      }
+
+      .tenant-item {
+        padding: 24px;
+      }
+
+      .btn {
+        padding: 12px 20px;
+        font-size: 0.85rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-left">
+      <h1><a href="/"><span>🏥</span> agente.fit</a></h1>
+      <span class="header-subtitle">Panel de Administración — Conecta tu WhatsApp</span>
+    </div>
+    <div class="nav">
+      <button class="active" onclick="switchTab('dashboard')">
+        <span>📊</span> Dashboard
+      </button>
+      <button onclick="switchTab('tenants')">
+        <span>📱</span> Tenants
+      </button>
+      <button onclick="switchTab('settings')">
+        <span>⚙️</span> Settings
+      </button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- Dashboard Tab -->
+    <div id="tab-dashboard" class="tab active">
+      <div class="section-header">
+        <h2>Estado del Sistema</h2>
+        <p>Monitoreo en tiempo real de la plataforma agente.fit</p>
+      </div>
+      
+      <div class="cards">
+        <div class="card">
+          <div class="card-label">
+            <span>🏥</span>
+            <span>Estado del Sistema</span>
+          </div>
+          <div class="card-value" id="health-status">—</div>
+          <div class="card-description">Verificación de servicios principales</div>
+        </div>
+        <div class="card">
+          <div class="card-label">
+            <span>📱</span>
+            <span>Tenants Activos</span>
+          </div>
+          <div class="card-value" id="active-tenants">—</div>
+          <div class="card-description">Instancias WhatsApp conectadas</div>
+        </div>
+        <div class="card">
+          <div class="card-label">
+            <span>🗄️</span>
+            <span>Base de Datos</span>
+          </div>
+          <div class="card-value" id="pg-status">—</div>
+          <div class="card-description">PostgreSQL principal</div>
+        </div>
+        <div class="card">
+          <div class="card-label">
+            <span>⏰</span>
+            <span>Última Verificación</span>
+          </div>
+          <div class="card-value" id="last-check" style="font-size:1.25rem;">—</div>
+          <div class="card-description">Monitoreo automático cada 10s</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tenants Tab -->
+    <div id="tab-tenants" class="tab">
+      <div class="tenant-header">
+        <div class="section-header">
+          <h2>Gestión de Tenants</h2>
+          <p>Administra instancias de WhatsApp para agente.fit</p>
+        </div>
+        <button class="btn btn-primary" onclick="showNewTenantModal()">
+          <span>✨</span>
+          <span>Nuevo Tenant</span>
+        </button>
+      </div>
+      <div id="tenant-list" class="tenant-list">
+        <div class="empty-state">
+          <span class="icon">📱</span>
+          <p>Cargando tenants...</p>
+          <p class="sub">Verificando conexiones WhatsApp</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="tab-settings" class="tab">
+      <div class="section-header">
+        <h2>Configuración</h2>
+        <p>Información técnica de la plataforma</p>
+      </div>
+      
+      <div class="settings-section">
+        <h3>Información del Sistema</h3>
+        <div class="settings-item">
+          <label>Servicio</label>
+          <div class="val">agente.fit (yaya-health) — AI Health Companion</div>
+        </div>
+        <div class="settings-item">
+          <label>API Base URL</label>
+          <div class="val" id="api-url">—</div>
+        </div>
+        <div class="settings-item">
+          <label>Documentación</label>
+          <div class="val"><a href="https://yaya.sh" target="_blank">yaya.sh — Ecosistema completo</a></div>
+        </div>
+        <div class="settings-item">
+          <label>Código Fuente</label>
+          <div class="val"><a href="https://github.com/yaraai" target="_blank">GitHub — yaraai</a></div>
+        </div>
+      </div>
+      
+      <div class="settings-section">
+        <h3>Endpoints de API</h3>
+        <div class="settings-item">
+          <label>Health Check</label>
+          <div class="val"><code>GET /api/v1/health</code></div>
+        </div>
+        <div class="settings-item">
+          <label>Tenants CRUD</label>
+          <div class="val"><code>GET|POST /api/v1/tenants</code></div>
+        </div>
+        <div class="settings-item">
+          <label>Control WhatsApp</label>
+          <div class="val"><code>POST /api/v1/tenants/:id/start|stop|reset</code></div>
+        </div>
+        <div class="settings-item">
+          <label>QR Code</label>
+          <div class="val"><code>GET /api/v1/tenants/:id/qr</code></div>
+        </div>
+        <div class="settings-item">
+          <label>Enviar Mensaje</label>
+          <div class="val"><code>POST /api/v1/tenants/:id/send</code></div>
+        </div>
+        <div class="settings-item">
+          <label>Estado de Conexión</label>
+          <div class="val"><code>GET /api/v1/tenants/:id/status</code></div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Características</h3>
+        <div class="settings-item">
+          <label>Funcionalidades</label>
+          <div class="val">Control de crecimiento WHO, nutrición peruana, salud materna, triaje emergencia</div>
+        </div>
+        <div class="settings-item">
+          <label>Idiomas</label>
+          <div class="val">Español y Quechua — 85 términos médicos traducidos</div>
+        </div>
+        <div class="settings-item">
+          <label>Modelo Iguaín</label>
+          <div class="val">Basado en reducción de anemia 65% → 12% (Premio Sasakawa OMS 2019)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Tenant Modal -->
+  <div class="modal-overlay" id="modal-new-tenant">
+    <div class="modal">
+      <h3>
+        <span>✨</span>
+        <span>Crear Nuevo Tenant</span>
+      </h3>
+      <div class="form-group">
+        <label>Nombre del Tenant</label>
+        <input type="text" id="new-tenant-name" placeholder="Ej: Clínica San José">
+      </div>
+      <div class="form-group">
+        <label>Teléfono (opcional)</label>
+        <input type="text" id="new-tenant-phone" placeholder="Ej: +51999888777">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('modal-new-tenant')">
+          <span>❌</span>
+          <span>Cancelar</span>
+        </button>
+        <button class="btn btn-primary" onclick="createTenant()">
+          <span>🚀</span>
+          <span>Crear Tenant</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Send Message Modal -->
+  <div class="modal-overlay" id="modal-send-msg">
+    <div class="modal">
+      <h3>
+        <span>💬</span>
+        <span>Enviar Mensaje de Prueba</span>
+      </h3>
+      <div class="form-group">
+        <label>JID (número@s.whatsapp.net)</label>
+        <input type="text" id="send-jid" placeholder="51999888777@s.whatsapp.net">
+      </div>
+      <div class="form-group">
+        <label>Mensaje</label>
+        <input type="text" id="send-text" placeholder="Hola, mensaje de prueba desde agente.fit">
+      </div>
+      <input type="hidden" id="send-tenant-id">
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('modal-send-msg')">
+          <span>❌</span>
+          <span>Cancelar</span>
+        </button>
+        <button class="btn btn-primary" onclick="sendMessage()">
+          <span>📤</span>
+          <span>Enviar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toasts"></div>
+
+  <script>
+    const API = '/api/v1';
+    let qrIntervals = {};
+    let statusInterval = null;
+
+    // Navigation
+    function switchTab(name) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('active');
+      document.querySelector(`.nav button[onclick="switchTab('${name}')"]`).classList.add('active');
+      if (name === 'tenants') loadTenants();
+      if (name === 'dashboard') loadDashboard();
+      if (name === 'settings') document.getElementById('api-url').textContent = window.location.origin + API;
+    }
+
+    // Toast notifications
+    function toast(msg, type = 'success') {
+      const el = document.createElement('div');
+      el.className = 'toast toast-' + type;
+      
+      const icon = type === 'success' ? '✅' : '❌';
+      el.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+      
+      document.getElementById('toasts').appendChild(el);
+      setTimeout(() => el.remove(), 5000);
+    }
+
+    // Modal management
+    function showModal(id) { document.getElementById(id).classList.add('show'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+    function showNewTenantModal() {
+      document.getElementById('new-tenant-name').value = '';
+      document.getElementById('new-tenant-phone').value = '';
+      showModal('modal-new-tenant');
+    }
+    function showSendModal(tenantId) {
+      document.getElementById('send-jid').value = '';
+      document.getElementById('send-text').value = '';
+      document.getElementById('send-tenant-id').value = tenantId;
+      showModal('modal-send-msg');
+    }
+
+    // Close modals on overlay click
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+      overlay.addEventListener('click', e => {
+        if (e.target === overlay) overlay.classList.remove('show');
+      });
+    });
+
+    // API helpers
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...opts,
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    }
+
+    // Dashboard
+    async function loadDashboard() {
+      try {
+        const health = await api('/health');
+        const hs = document.getElementById('health-status');
+        hs.textContent = health.status === 'healthy' ? '✅ Healthy' : '❌ Error';
+        hs.className = 'card-value ' + (health.status === 'healthy' ? 'ok' : 'err');
+
+        const pg = document.getElementById('pg-status');
+        const pgCheck = health.checks?.postgres;
+        if (pgCheck) {
+          pg.textContent = pgCheck.status === 'ok' ? `✅ ${pgCheck.latencyMs}ms` : '❌ Error';
+          pg.className = 'card-value ' + (pgCheck.status === 'ok' ? 'ok' : 'err');
+        }
+
+        document.getElementById('last-check').textContent = new Date().toLocaleTimeString('es-PE');
+      } catch (e) {
+        document.getElementById('health-status').textContent = '❌ Error';
+        document.getElementById('health-status').className = 'card-value err';
+        console.error('Health check failed:', e);
+      }
+
+      try {
+        const { tenants } = await api('/tenants');
+        const active = tenants.filter(t => t.status === 'active').length;
+        document.getElementById('active-tenants').textContent = active;
+        document.getElementById('active-tenants').className = 'card-value ok';
+      } catch (e) {
+        document.getElementById('active-tenants').textContent = '❌';
+        document.getElementById('active-tenants').className = 'card-value err';
+      }
+    }
+
+    // Tenants
+    async function loadTenants() {
+      const container = document.getElementById('tenant-list');
+      try {
+        const { tenants } = await api('/tenants');
+        if (!tenants.length) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <span class="icon">📱</span>
+              <p>No hay tenants configurados</p>
+              <p class="sub">Crea uno nuevo para empezar a usar agente.fit por WhatsApp</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Fetch connection status for all tenants
+        const statuses = {};
+        await Promise.all(tenants.map(async t => {
+          try {
+            const s = await api(`/tenants/${t.id}/status`);
+            statuses[t.id] = s.connected;
+          } catch { statuses[t.id] = false; }
+        }));
+
+        container.innerHTML = tenants.map(t => {
+          const connected = statuses[t.id];
+          return `
+            <div class="tenant-item" id="tenant-${t.id}">
+              <div class="tenant-top">
+                <div class="tenant-info">
+                  <h3>
+                    <span>🏥</span>
+                    <span>${esc(t.name)}</span>
+                  </h3>
+                  <p>
+                    <span><strong>Teléfono:</strong> ${esc(t.phone || 'Sin teléfono')}</span>
+                    <span class="badge ${t.status === 'active' ? 'badge-active' : 'badge-inactive'}">${t.status}</span>
+                    <span class="badge ${connected ? 'badge-connected' : 'badge-disconnected'}">${connected ? '🟢 Conectado' : '🔴 Desconectado'}</span>
+                  </p>
+                </div>
+                <div class="tenant-actions">
+                  ${!connected ? `<button class="btn btn-primary btn-sm" onclick="startTenant('${t.id}')"><span>▶️</span> Conectar</button>` : ''}
+                  ${connected ? `<button class="btn btn-danger btn-sm" onclick="stopTenant('${t.id}')"><span>⏹️</span> Desconectar</button>` : ''}
+                  <button class="btn btn-secondary btn-sm" onclick="resetTenant('${t.id}')"><span>🔄</span> Reset</button>
+                  ${connected ? `<button class="btn btn-info btn-sm" onclick="showSendModal('${t.id}')"><span>💬</span> Prueba</button>` : ''}
+                </div>
+              </div>
+              <div id="qr-${t.id}"></div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <span class="icon">⚠️</span>
+            <p>Error cargando tenants</p>
+            <p class="sub">${esc(e.message)}</p>
+          </div>
+        `;
+      }
+    }
+
+    async function createTenant() {
+      const name = document.getElementById('new-tenant-name').value.trim();
+      const phone = document.getElementById('new-tenant-phone').value.trim();
+      if (!name) { toast('Nombre requerido', 'error'); return; }
+      try {
+        await api('/tenants', { method: 'POST', body: { name, phone: phone || null } });
+        closeModal('modal-new-tenant');
+        toast('Tenant creado exitosamente');
+        loadTenants();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function startTenant(id) {
+      try {
+        await api(`/tenants/${id}/start`, { method: 'POST' });
+        toast('Iniciando conexión WhatsApp...');
+        showQr(id);
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function stopTenant(id) {
+      try {
+        clearQrInterval(id);
+        await api(`/tenants/${id}/stop`, { method: 'POST' });
+        toast('Desconectado exitosamente');
+        loadTenants();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function resetTenant(id) {
+      if (!confirm('¿Resetear autenticación de este tenant? Esto desconectará WhatsApp y borrará la sesión.')) return;
+      try {
+        clearQrInterval(id);
+        await api(`/tenants/${id}/reset`, { method: 'POST' });
+        toast('Autenticación reseteada');
+        loadTenants();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    // QR Code management
+    function showQr(id) {
+      const container = document.getElementById('qr-' + id);
+      if (!container) return;
+      container.innerHTML = `
+        <div class="qr-container">
+          <p><span>⏳</span> Generando código QR...</p>
+        </div>
+      `;
+
+      clearQrInterval(id);
+      fetchQr(id);
+      qrIntervals[id] = setInterval(() => fetchQr(id), 15000);
+    }
+
+    async function fetchQr(id) {
+      const container = document.getElementById('qr-' + id);
+      if (!container) { clearQrInterval(id); return; }
+
+      try {
+        // Check if already connected
+        const status = await api(`/tenants/${id}/status`);
+        if (status.connected) {
+          clearQrInterval(id);
+          container.innerHTML = `
+            <div class="qr-container">
+              <p><span>✅</span> ¡Conectado exitosamente a WhatsApp!</p>
+            </div>
+          `;
+          setTimeout(() => loadTenants(), 2000);
+          return;
+        }
+
+        const data = await api(`/tenants/${id}/qr`);
+        if (data.qr) {
+          container.innerHTML = `
+            <div class="qr-container">
+              <img src="${data.qr}" alt="QR Code">
+              <p><span>📱</span> Escanea con WhatsApp • Se actualiza automáticamente cada 15s</p>
+            </div>
+          `;
+        }
+      } catch (e) {
+        // QR not ready yet, keep waiting
+        if (container.querySelector('.qr-container')) {
+          const p = container.querySelector('.qr-container p');
+          if (p) p.innerHTML = '<span>⏳</span> Esperando código QR...';
+        }
+      }
+    }
+
+    function clearQrInterval(id) {
+      if (qrIntervals[id]) { 
+        clearInterval(qrIntervals[id]); 
+        delete qrIntervals[id]; 
+      }
+    }
+
+    // Send Message
+    async function sendMessage() {
+      const tenantId = document.getElementById('send-tenant-id').value;
+      const jid = document.getElementById('send-jid').value.trim();
+      const text = document.getElementById('send-text').value.trim();
+      if (!jid || !text) { toast('JID y mensaje requeridos', 'error'); return; }
+      try {
+        await api(`/tenants/${tenantId}/send`, { method: 'POST', body: { jid, text } });
+        closeModal('modal-send-msg');
+        toast('Mensaje enviado exitosamente');
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    // Helpers
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s || '';
+      return d.innerHTML;
+    }
+
+    // Auto-refresh tenants list
+    setInterval(() => {
+      const tenantsTab = document.getElementById('tab-tenants');
+      if (tenantsTab.classList.contains('active')) loadTenants();
+    }, 30000);
+
+    // Auto-refresh dashboard
+    setInterval(() => {
+      const dashboardTab = document.getElementById('tab-dashboard');
+      if (dashboardTab.classList.contains('active')) loadDashboard();
+    }, 10000);
+
+    // Initialize
+    loadDashboard();
+    
+    // Set API URL on settings tab
+    document.getElementById('api-url').textContent = window.location.origin + API;
+  </script>
+</body>
+</html>

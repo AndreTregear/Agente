@@ -26,9 +26,44 @@ When a user calls the agent:
    - Send back as voice note
    - Total round-trip target: < 3 seconds
 
-## Future: Real-Time Voice Options
+## Live Voice Calls: @yaya/wa-voice
 
-1. **Meta Cloud API** — WhatsApp Business API may add call support. Monitor https://developers.facebook.com/docs/whatsapp/
-2. **Telephony Bridge** — SIP trunk (Twilio/Vonage) + WhatsApp number. User calls a phone number → SIP → our pipeline → TTS back. Not native WhatsApp but works.
-3. **Web-based voice** — Add a "Call Agent" button in the agente-ceo web UI that uses WebRTC directly to our server, bypassing WhatsApp entirely.
-4. **Baileys v7+** — Monitor for call acceptance support in future versions.
+The `@yaya/wa-voice` package implements live WhatsApp voice calls using a
+completely different approach — **WhatsApp Web + Playwright + WebRTC interception**.
+
+Since Feb 2026, WhatsApp Web supports browser-based voice/video calls using
+standard WebRTC APIs. We run WhatsApp Web in a Playwright-controlled Chromium
+instance and:
+
+1. Auto-detect incoming calls via DOM observation
+2. Auto-answer by clicking the accept button
+3. Capture caller's audio via RTCPeerConnection monkey-patching
+4. VAD detects end of speech → flush to Whisper STT
+5. STT → LLM (vLLM) → TTS (Kokoro) response
+6. Inject TTS audio back via `sender.replaceTrack()` with Web Audio API
+
+This bypasses the Baileys limitation entirely — we operate at the browser
+endpoint level where audio is already decrypted.
+
+See `packages/wa-voice/` for the full implementation.
+
+### Running the voice agent
+
+```bash
+# Set up environment
+export WHISPER_URL=http://localhost:9300/v1
+export VLLM_URL=http://localhost:8000/v1
+export TTS_URL=http://localhost:9400
+
+# First run — will show QR code to scan
+npx tsx packages/wa-voice/src/run.ts
+
+# On servers without display, use Xvfb:
+xvfb-run npx tsx packages/wa-voice/src/run.ts
+```
+
+## Fallback: Voice Message Conversation
+
+The Baileys-based approach (this module) remains as the fallback for when
+live calls aren't available — it rejects the call and prompts for a voice
+message, then processes with the fast-voice-pipeline.
