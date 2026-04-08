@@ -17,6 +17,9 @@ interface TokenBucket {
 const buckets = new Map<string, TokenBucket>();
 const domainConfigs = new Map<string, number>(); // domain -> requests per second
 
+let lastEviction = 0;
+const EVICTION_INTERVAL_MS = 30_000;
+
 /** Evict oldest bucket entries when at capacity, or entries older than 1 hour. */
 function evictStaleBuckets(): void {
   const now = Date.now();
@@ -43,10 +46,17 @@ function getDomain(url: string): string {
   return parsed.hostname;
 }
 
+function maybeEvict(): void {
+  const now = Date.now();
+  if (now - lastEviction < EVICTION_INTERVAL_MS) return;
+  lastEviction = now;
+  evictStaleBuckets();
+}
+
 function getBucket(domain: string): TokenBucket {
   let bucket = buckets.get(domain);
   if (!bucket) {
-    evictStaleBuckets();
+    maybeEvict();
     const rate = domainConfigs.get(domain) ?? DEFAULT_REQUESTS_PER_SECOND;
     bucket = {
       tokens: rate,

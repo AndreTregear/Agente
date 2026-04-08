@@ -104,9 +104,9 @@ app.post('/api/v1/auth/login', async (req, res) => {
 });
 
 app.post('/api/v1/auth/refresh-token', (req: AuthRequest, res) => {
-  const { refreshToken } = req.body;
-  if (!refreshToken) {
-    return res.status(400).json({ error: 'refreshToken is required' });
+  const { refreshToken } = req.body ?? {};
+  if (!refreshToken || typeof refreshToken !== 'string') {
+    return res.status(400).json({ error: 'refreshToken must be a non-empty string' });
   }
   try {
     const payload = jwt.verify(refreshToken, JWT_SECRET) as { userId: string; type?: string };

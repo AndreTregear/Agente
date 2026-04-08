@@ -51,7 +51,11 @@ router.get('/token-usage', async (req, res) => {
   const tenantId = req.query.tenantId as string | undefined;
   const from = req.query.from as string | undefined;
   const to = req.query.to as string | undefined;
-  const usage = await tokenUsageRepo.getTokenUsage({ tenantId, from, to });
+  const parsedLimit = parseInt(req.query.limit as string);
+  const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 1000) : 100;
+  const parsedOffset = parseInt(req.query.offset as string);
+  const offset = Number.isFinite(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0;
+  const usage = await tokenUsageRepo.getTokenUsage({ tenantId, from, to, limit, offset });
   res.json(usage);
 });
 

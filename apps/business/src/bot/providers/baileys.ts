@@ -295,15 +295,15 @@ export class BaileysProvider implements MessagingProvider {
       const locAddress = ('address' in locMsg ? locMsg.address : null) || null;
       location = { lat, lng, name: locName, address: locAddress };
     } else if (raw.message.imageMessage) {
+      const caption = raw.message.imageMessage.caption || null;
       try {
         const buffer = await downloadMediaMessage(raw as WAMessage, 'buffer', {}) as Buffer;
         const mimetype = raw.message.imageMessage.mimetype || 'image/jpeg';
-        const caption = raw.message.imageMessage.caption || null;
         image = { buffer, mimetype, caption };
         text = caption;
       } catch (err) {
         logger.warn({ tenantId: this.options.tenantId, err }, 'Failed to download image');
-        text = '[Image could not be downloaded]';
+        text = caption || '[Image could not be downloaded]';
       }
     } else if (raw.message.audioMessage) {
       try {

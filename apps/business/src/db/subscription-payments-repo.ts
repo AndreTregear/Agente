@@ -52,12 +52,13 @@ export async function getPaymentById(tenantId: string, id: number): Promise<Subs
 }
 
 export async function getPendingPayments(
+  tenantId: string,
   subscriptionType?: string,
   subscriptionId?: number,
 ): Promise<SubscriptionPayment[]> {
-  const conditions = ["status = 'pending'"];
-  const params: unknown[] = [];
-  let idx = 1;
+  const conditions = ["tenant_id = $1", "status = 'pending'"];
+  const params: unknown[] = [tenantId];
+  let idx = 2;
 
   if (subscriptionType) {
     conditions.push(`subscription_type = $${idx++}`);

@@ -14,7 +14,7 @@ function requireEnv(key: string, fallback?: string): string {
 export const DATA_DIR = path.resolve(__dirname, '..', 'data');
 
 // ── Server ──
-export const WEB_PORT = Number(process.env.PORT) || 3000;
+export const WEB_PORT = Number(process.env.PORT) || 3100;
 
 // ── Database ──
 export const DATABASE_URL = requireEnv('DATABASE_URL', 'postgresql://yaya:yaya_health_secret@localhost:5432/yaya_health');
@@ -23,14 +23,19 @@ export const DATABASE_URL = requireEnv('DATABASE_URL', 'postgresql://yaya:yaya_h
 export const REDIS_URL = requireEnv('REDIS_URL', 'redis://localhost:6379');
 
 // ── Auth ──
-export const BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET || 'dev-secret-change-in-production-32chars!';
+export const BETTER_AUTH_SECRET = (() => {
+  const secret = process.env.BETTER_AUTH_SECRET;
+  if (!secret) throw new Error('BETTER_AUTH_SECRET is required');
+  if (secret.length < 32) throw new Error('BETTER_AUTH_SECRET must be at least 32 characters');
+  return secret;
+})();
 
 // ── OpenClaw ──
 export const OPENCLAW_API_URL = process.env.OPENCLAW_API_URL || 'http://localhost:3100/api/v1';
 export const OPENCLAW_API_KEY = process.env.OPENCLAW_API_KEY || '';
 
 // ── AI ──
-export const AI_API_KEY = requireEnv('AI_API_KEY', 'dummy-key');
+export const AI_API_KEY = requireEnv('AI_API_KEY');
 export const AI_BASE_URL = process.env.AI_BASE_URL || 'http://c.yaya.sh:8000/v1';
 export const AI_MODEL = process.env.AI_MODEL || 'Qwen/Qwen3-32B';
 export const AI_MAX_TOKENS = Number(process.env.AI_MAX_TOKENS) || 1024;

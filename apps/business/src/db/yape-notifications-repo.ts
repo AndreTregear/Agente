@@ -36,23 +36,25 @@ export async function createNotification(
   return rowToNotification(decrypted as YapeNotificationRow);
 }
 
-export async function getByHash(hash: string): Promise<YapeNotification | undefined> {
-  const row = await queryOne<YapeNotificationRow>('SELECT * FROM yape_notifications WHERE notification_hash = $1', [hash]);
+export async function getByHash(tenantId: string, hash: string): Promise<YapeNotification | undefined> {
+  const row = await queryOne<YapeNotificationRow>(
+    'SELECT * FROM yape_notifications WHERE tenant_id = $1 AND notification_hash = $2',
+    [tenantId, hash],
+  );
   if (!row) return undefined;
-  const tenantId = (row as unknown as Record<string, unknown>).tenant_id as string;
   const decrypted = await decryptRecord(tenantId, 'yape_notifications', row as unknown as Record<string, unknown>);
   return rowToNotification(decrypted as YapeNotificationRow);
 }
 
-export async function markMatched(id: number, paymentId: number): Promise<void> {
+export async function markMatched(tenantId: string, id: number, paymentId: number): Promise<void> {
   await query(
-    "UPDATE yape_notifications SET status = 'matched', matched_payment_id = $1 WHERE id = $2",
-    [paymentId, id],
+    "UPDATE yape_notifications SET status = 'matched', matched_payment_id = $1 WHERE tenant_id = $2 AND id = $3",
+    [paymentId, tenantId, id],
   );
 }
 
-export async function markUnmatched(id: number): Promise<void> {
-  await query("UPDATE yape_notifications SET status = 'unmatched' WHERE id = $1", [id]);
+export async function markUnmatched(tenantId: string, id: number): Promise<void> {
+  await query("UPDATE yape_notifications SET status = 'unmatched' WHERE tenant_id = $1 AND id = $2", [tenantId, id]);
 }
 
 export async function getUnmatchedByTenant(tenantId: string): Promise<YapeNotification[]> {

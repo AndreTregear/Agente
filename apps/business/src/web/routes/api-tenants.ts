@@ -37,6 +37,11 @@ router.get('/', async (_req, res) => {
 });
 
 router.get('/:id', async (req, res) => {
+  // Verify the requesting user owns this tenant
+  if (req.params.id !== req.sessionUser?.tenantId) {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
   const tenant = await tenantsRepo.getTenantById(req.params.id);
   if (!tenant) {
     res.status(404).json({ error: 'Tenant not found' });
@@ -46,6 +51,11 @@ router.get('/:id', async (req, res) => {
 });
 
 router.patch('/:id', validateBody(updateTenantSchema), async (req, res) => {
+  // Verify the requesting user owns this tenant
+  if (req.params.id !== req.sessionUser?.tenantId) {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
   const { name, settings } = req.body;
   const tenant = await tenantsRepo.updateTenant(req.params['id'] as string, { name, settings });
   if (!tenant) {
@@ -56,6 +66,11 @@ router.patch('/:id', validateBody(updateTenantSchema), async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
+  // Verify the requesting user owns this tenant
+  if (req.params.id !== req.sessionUser?.tenantId) {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
   // Stop session first
   try {
     await tenantManager.stopTenant(req.params.id);

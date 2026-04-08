@@ -1,3 +1,4 @@
+import http from 'node:http';
 import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
@@ -11,7 +12,7 @@ import { pool } from '../db/pool.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export function createWebServer(port: number): void {
+export function createWebServer(port: number): http.Server {
   const app = express();
   app.use(cors());
   app.use(express.json());
@@ -233,7 +234,8 @@ export function createWebServer(port: number): void {
     res.status(500).json({ error: 'Internal server error' });
   });
 
-  app.listen(port, () => {
+  const server = app.listen(port, () => {
     logger.info({ port }, 'Web server listening');
   });
+  return server;
 }

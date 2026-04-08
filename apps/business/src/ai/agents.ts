@@ -345,7 +345,11 @@ export const createOrder = createTool({
            VALUES ($1, $2, 'pending', $3, $4, $5, $6) RETURNING id`,
           [tenantId, customer.id, total, delivery_address ? 'delivery' : 'none', delivery_address || null, notes || null],
         );
-        const orderId = (orderResult.rows[0] as any).id;
+        const orderRow = orderResult.rows[0] as any;
+        if (!orderRow?.id) {
+          throw new Error('Failed to create order — INSERT returned no rows');
+        }
+        const orderId = orderRow.id;
 
         // Batch INSERT order items (multi-row insert instead of N sequential inserts)
         if (resolvedItems.length > 0) {

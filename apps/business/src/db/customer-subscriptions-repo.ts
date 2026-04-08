@@ -72,8 +72,15 @@ function periodEnd(billingCycle: string, start: Date = new Date()): Date {
     case 'weekly':
       end.setDate(end.getDate() + 7);
       break;
+    case 'quarterly':
+      end.setMonth(end.getMonth() + 3);
+      break;
     case 'yearly':
       end.setFullYear(end.getFullYear() + 1);
+      break;
+    case 'one_time':
+    case 'free':
+      end.setFullYear(end.getFullYear() + 100);
       break;
     case 'monthly':
     default:

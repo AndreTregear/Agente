@@ -131,6 +131,7 @@ export async function POST(req: NextRequest) {
           stream: false,
           chat_template_kwargs: { enable_thinking: false },
         }),
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!llmRes.ok) {

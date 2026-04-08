@@ -58,7 +58,13 @@ export async function POST(req: NextRequest) {
             // Find JSON in output
             const jsonStart = fullOutput.indexOf('{')
             if (jsonStart >= 0) {
-              const data = JSON.parse(fullOutput.slice(jsonStart))
+              let data;
+              try {
+                data = JSON.parse(fullOutput.slice(jsonStart));
+              } catch (parseErr) {
+                console.warn('Failed to parse agent JSON output:', parseErr, fullOutput.slice(0, 200));
+                data = { result: { payloads: [] } };
+              }
               const payloads = data?.result?.payloads || []
               const text = payloads.map((p: { text?: string }) => p.text || '').join('\n')
 

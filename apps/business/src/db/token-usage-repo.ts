@@ -38,6 +38,8 @@ export async function getTokenUsage(opts: {
   tenantId?: string;
   from?: string;
   to?: string;
+  limit?: number;
+  offset?: number;
 }): Promise<TokenUsageRecord[]> {
   let sql = `SELECT tu.id, tu.tenant_id, tu.model, tu.prompt_tokens, tu.completion_tokens,
              tu.total_tokens, tu.created_at, t.name as tenant_name
@@ -55,7 +57,10 @@ export async function getTokenUsage(opts: {
     params.push(opts.to);
     sql += ` AND tu.created_at <= $${params.length}`;
   }
-  sql += ' ORDER BY tu.created_at DESC LIMIT 500';
+  const limit = opts.limit ?? 500;
+  const offset = opts.offset ?? 0;
+  params.push(limit, offset);
+  sql += ` ORDER BY tu.created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
   const result = await query(sql, params);
   return result.rows.map((r) => ({
     id: Number(r.id),

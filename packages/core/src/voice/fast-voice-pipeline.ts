@@ -148,24 +148,39 @@ export function createVoicePipeline(config: VoicePipelineConfig) {
       { role: 'user', content: userMessage },
     ];
 
-    const res = await fetch(`${vllmUrl}/chat/completions`, {
+    const url = `${vllmUrl}/chat/completions`;
+    const reqBody = {
+      model: vllmModel,
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.7,
+      stream: false,
+    };
+    const reqInit = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(vllmApiKey ? { Authorization: `Bearer ${vllmApiKey}` } : {}),
       },
-      body: JSON.stringify({
-        model: vllmModel,
-        messages,
-        max_tokens: maxTokens,
-        temperature: 0.7,
-        stream: false,
-      }),
-    });
+    };
+
+    const res = await fetch(url, { ...reqInit, body: JSON.stringify(reqBody) });
 
     if (!res.ok) throw new Error(`LLM failed: ${res.status} ${await res.text()}`);
     const data = await res.json() as { choices: Array<{ message: { content: string } }> };
-    return data.choices[0]?.message?.content?.trim() ?? 'No response';
+
+    let content = data.choices[0]?.message?.content?.trim();
+    if (!content) {
+      logger.warn('LLM returned empty content, retrying once');
+      // Retry with higher temperature
+      const retryRes = await fetch(url, { ...reqInit, body: JSON.stringify({ ...reqBody, temperature: 0.9 }) });
+      const retryData = await retryRes.json() as { choices: Array<{ message: { content: string } }> };
+      content = retryData.choices?.[0]?.message?.content?.trim();
+    }
+    if (!content) {
+      throw new Error('LLM returned empty response after retry');
+    }
+    return content;
   }
 
   async function synthesize(text: string): Promise<Buffer> {

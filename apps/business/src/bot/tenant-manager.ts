@@ -18,13 +18,17 @@ import { handleFlowResponse } from './flows/confirmation-flow.js';
 import type { TenantSession, WACallEvent } from '../shared/types.js';
 
 function mimetypeToExtension(mimetype: string): string {
-  if (mimetype.includes('jpeg')) return '.jpg';
-  if (mimetype.includes('png')) return '.png';
-  if (mimetype.includes('gif')) return '.gif';
-  if (mimetype.includes('webp')) return '.webp';
-  if (mimetype.includes('ogg')) return '.ogg';
-  if (mimetype.includes('mp4')) return '.m4a';
-  if (mimetype.includes('mpeg')) return '.mp3';
+  const m = mimetype.toLowerCase();
+  if (m.includes('jpeg') || m.includes('jpg')) return '.jpg';
+  if (m.includes('png')) return '.png';
+  if (m.includes('gif')) return '.gif';
+  if (m.includes('webp')) return '.webp';
+  if (m.startsWith('audio/ogg') || m.includes('opus')) return '.ogg';
+  if (m.startsWith('audio/mp4') || m.startsWith('audio/m4a') || m.startsWith('audio/aac')) return '.m4a';
+  if (m.startsWith('audio/mpeg') || m.startsWith('audio/mp3')) return '.mp3';
+  if (m.startsWith('audio/wav') || m.startsWith('audio/x-wav')) return '.wav';
+  if (m.startsWith('video/mp4')) return '.mp4';
+  if (m.startsWith('video/')) return '.mp4';
   return '.bin';
 }
 
@@ -89,6 +93,8 @@ class TenantManagerImpl {
 
         // Ley 29733 compliance: transcribe audio, then immediately destroy.
         // Voice = biometric data — NO persistent audio storage.
+        // Capture audio flag BEFORE finalize zeroes the buffer
+        const hadAudio = !!msg.audio?.buffer;
         if (msg.audio?.buffer) {
           const audit = prepareAudioAudit(msg.audio.buffer, msg.audio.mimetype);
           try {
@@ -147,7 +153,7 @@ class TenantManagerImpl {
           text: combinedText,
           timestamp: Date.now(),
           imageMediaPath,
-          isVoiceMessage: !!msg.audio?.buffer,
+          isVoiceMessage: hadAudio,
           fromMe: msg.fromMe,
         });
       })().catch(err => logger.error({ tenantId: tid, err }, 'Failed to process incoming message'));

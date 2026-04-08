@@ -27,6 +27,7 @@ type RobotParser = Robot;
 interface CachedRobots {
   parser: RobotParser;
   fetchedAt: number;
+  ttl: number;
 }
 
 const robotsCache = new Map<string, CachedRobots>();
@@ -36,7 +37,7 @@ function getDomain(url: string): string {
   return parsed.origin;
 }
 
-async function fetchRobotsTxt(origin: string): Promise<string> {
+async function fetchRobotsTxt(origin: string): Promise<string | null> {
   const robotsUrl = `${origin}/robots.txt`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -47,15 +48,12 @@ async function fetchRobotsTxt(origin: string): Promise<string> {
       headers: { 'User-Agent': USER_AGENT },
     });
 
-    if (!res.ok) {
-      // No robots.txt or error — allow everything
-      return '';
-    }
+    if (res.status === 404) return ''; // No robots.txt — allow everything
+    if (!res.ok) return null; // Server error — don't cache as "allow all"
 
     return await res.text();
   } catch {
-    // Network error — allow everything (be permissive on failure)
-    return '';
+    return null; // Network error — don't cache
   } finally {
     clearTimeout(timeout);
   }
@@ -67,16 +65,17 @@ async function getRobotsParser(
   const origin = getDomain(url);
   const cached = robotsCache.get(origin);
 
-  if (cached && Date.now() - cached.fetchedAt < ROBOTS_CACHE_TTL_MS) {
+  if (cached && Date.now() - cached.fetchedAt < cached.ttl) {
     return cached.parser;
   }
 
   const robotsTxt = await fetchRobotsTxt(origin);
-  const parser = robotsParser(`${origin}/robots.txt`, robotsTxt);
+  const parser = robotsParser(`${origin}/robots.txt`, robotsTxt ?? '');
 
   robotsCache.set(origin, {
     parser,
     fetchedAt: Date.now(),
+    ttl: robotsTxt === null ? 5 * 60 * 1000 : ROBOTS_CACHE_TTL_MS, // Short TTL on errors
   });
 
   return parser;

@@ -23,7 +23,7 @@ export async function startPlatform(port: number): Promise<() => Promise<void>> 
   }
 
   // Start web server
-  createWebServer(port);
+  const server = createWebServer(port);
 
   // Start background workers
   try {
@@ -45,6 +45,7 @@ export async function startPlatform(port: number): Promise<() => Promise<void>> 
 
   return async () => {
     logger.info('Shutting down Yaya Health...');
+    server.close();
     stopHealthCheck();
     await tenantManager.shutdownAll();
     await stopReminderScheduler();

@@ -39,7 +39,7 @@ export async function matchOrderPayment(
       return { matched: true, paymentId: payment.id, status: 'CONFIRMED' };
     }
 
-    await yapeNotifRepo.markMatched(notificationId, payment.id);
+    await yapeNotifRepo.markMatched(tenantId, notificationId, payment.id);
 
     appBus.emit('yape-payment-matched', tenantId, payment.id, payment.orderId, payment.customerJid);
     logger.info({ tenantId, paymentId: payment.id, orderId: payment.orderId, amount, senderName },
@@ -49,7 +49,7 @@ export async function matchOrderPayment(
   }
 
   if (candidates.length === 0) {
-    await yapeNotifRepo.markUnmatched(notificationId);
+    await yapeNotifRepo.markUnmatched(tenantId, notificationId);
     logger.info({ tenantId, amount, senderName }, 'Yape notification: no matching pending payment');
     return { matched: false, status: 'UNMATCHED' };
   }
@@ -77,7 +77,7 @@ export async function matchSubscriptionPayment(
     const reference = `yape:${senderName}:notif:${notificationId}`;
 
     await subPaymentsRepo.confirmPayment(tenantId, payment.id, reference, notificationId);
-    await yapeNotifRepo.markMatched(notificationId, payment.id);
+    await yapeNotifRepo.markMatched(tenantId, notificationId, payment.id);
 
     if (payment.subscriptionType === 'platform') {
       await tenantSubsRepo.renewSubscription(tenantId, payment.subscriptionId, 'monthly');
@@ -112,7 +112,7 @@ export async function syncYapeNotification(
   notificationHash: string,
 ): Promise<{ notificationId: number; status: 'CONFIRMED' | 'UNMATCHED' | 'PENDING' }> {
   // Dedup
-  const existing = await yapeNotifRepo.getByHash(notificationHash);
+  const existing = await yapeNotifRepo.getByHash(tenantId, notificationHash);
   if (existing) {
     return { notificationId: existing.id, status: existing.status.toUpperCase() as 'CONFIRMED' | 'UNMATCHED' | 'PENDING' };
   }

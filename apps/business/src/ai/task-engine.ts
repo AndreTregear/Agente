@@ -315,8 +315,11 @@ function executeTask(taskId: string, prompt: string): void {
         },
       });
 
+      if (task.status === 'cancelled') {
+        abortControllers.delete(taskId);
+        return; // Don't update status or emit events
+      }
       abortControllers.delete(taskId);
-      if (task.status === 'cancelled') return;
 
       task.completedAt = Date.now();
       task.result = result.text || 'Tarea completada.';
@@ -324,8 +327,11 @@ function executeTask(taskId: string, prompt: string): void {
       emit({ type: 'task-complete', task });
       logger.info({ taskId, elapsed: task.completedAt - task.startedAt }, 'Task completed');
     } catch (err) {
+      if (task.status === 'cancelled') {
+        abortControllers.delete(taskId);
+        return; // Don't update status or emit events
+      }
       abortControllers.delete(taskId);
-      if (task.status === 'cancelled') return;
 
       task.completedAt = Date.now();
       task.status = 'failed';

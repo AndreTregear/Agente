@@ -172,9 +172,8 @@ export async function processVoiceMessage(
   try {
     transcription = await transcribeSpeech(audioBuffer, mimetype);
   } catch (sttErr) {
-    // Ley 29733: still delete audio even on STT failure
-    finalizeAudioDeletion(audioBuffer, audit, 'voice-pipeline', 'voice-pipeline');
-    throw new Error(`STT fatal: both HPC ASR and Whisper failed — no transcription possible. Cause: ${sttErr instanceof Error ? sttErr.message : String(sttErr)}`);
+    // Don't call finalizeAudioDeletion here — finally will handle it
+    throw new Error(`STT fatal: ${sttErr instanceof Error ? sttErr.message : String(sttErr)}`);
   } finally {
     // Ley 29733: zero audio buffer immediately after transcription — voice is biometric data
     finalizeAudioDeletion(audioBuffer, audit, 'voice-pipeline', 'voice-pipeline');

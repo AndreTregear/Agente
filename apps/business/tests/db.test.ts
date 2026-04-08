@@ -344,7 +344,7 @@ describe('db/yape-notifications-repo', () => {
       tenantA, device.id, 'Juan', 25.50, new Date(), 'hash-abc-123',
     );
     expect(notif.senderName).toBe('Juan');
-    const found = await yapeNotifRepo.getByHash('hash-abc-123');
+    const found = await yapeNotifRepo.getByHash(tenantA, 'hash-abc-123');
     expect(found).toBeDefined();
     expect(found!.amount).toBeCloseTo(25.50);
   });

@@ -101,12 +101,20 @@ export async function processWithOpenClaw(
         maxSteps: 6,
         instructions,
       });
-    } catch (retryErr) {
-      logger.warn({ retryErr, tenantId, jid }, 'Agent failed, retrying without history');
-      result = await agent.generate(`${customerContext}\n${prompt}`, {
-        maxSteps: 6,
-        instructions,
-      });
+    } catch (primaryErr) {
+      logger.warn({ primaryErr, tenantId, jid }, 'Agent failed, retrying without history');
+      try {
+        result = await agent.generate(`${customerContext}\n${prompt}`, {
+          maxSteps: 6,
+          instructions,
+        });
+      } catch (retryErr) {
+        logger.error({ retryErr, tenantId, jid }, 'Agent retry also failed');
+        return {
+          reply: 'Lo siento, tuve un problema técnico. ¿Podrías repetirme?',
+          imagesToSend: [],
+        };
+      }
     }
 
     const latencyMs = Date.now() - startTime;
@@ -119,7 +127,12 @@ export async function processWithOpenClaw(
       durationMs: latencyMs, backend: target,
     }, 'Mastra agent replied');
 
-    await onChunk(reply);
+    try {
+      await onChunk(reply);
+    } catch (sendErr) {
+      logger.warn({ sendErr, tenantId, jid }, 'Failed to send chunk to WhatsApp — response generated but delivery failed');
+      // Don't throw — the agent completed successfully, delivery is a separate concern
+    }
     return { reply, imagesToSend: [], routedTo: target };
   } catch (err) {
     logger.error({ err, tenantId, jid, durationMs: Date.now() - startTime }, 'Mastra agent failed');
@@ -175,12 +188,19 @@ export async function processOwnerWithOpenClaw(
         maxSteps: 6,
         instructions,
       });
-    } catch (retryErr) {
-      logger.warn({ retryErr, tenantId, jid }, 'Owner agent failed, retrying without history');
-      result = await agent.generate(text, {
-        maxSteps: 6,
-        instructions,
-      });
+    } catch (primaryErr) {
+      logger.warn({ primaryErr, tenantId, jid }, 'Owner agent failed, retrying without history');
+      try {
+        result = await agent.generate(text, {
+          maxSteps: 6,
+          instructions,
+        });
+      } catch (retryErr) {
+        logger.error({ retryErr, tenantId, jid }, 'Owner agent retry also failed');
+        return {
+          reply: 'Lo siento, tuve un problema técnico. ¿Podrías repetirme?',
+        };
+      }
     }
 
     const latencyMs = Date.now() - startTime;
