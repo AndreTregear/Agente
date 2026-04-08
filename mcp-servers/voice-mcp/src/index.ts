@@ -11,12 +11,7 @@
  *  - get_available_voices: List available TTS voices
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { createMCPServer, formatJSON } from '@yaya/mcp-base';
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
@@ -521,39 +516,14 @@ function getLanguageName(code: string): string {
   return languages[code] || code;
 }
 
-// ── MCP Server Setup ─────────────────────────────────
+// ── MCP Server ──────────────────────────────────────
 
-const server = new Server(
-  { name: "voice-mcp", version: "0.1.0" },
-  { capabilities: { tools: {} } }
-);
-
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
+const mcp = createMCPServer({
+  name: 'voice-mcp',
+  version: '0.1.0',
   tools: TOOLS,
-}));
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  try {
-    const result = await handleTool(name, args || {});
-    return { content: [{ type: "text", text: result }] };
-  } catch (error: any) {
-    return {
-      content: [{ type: "text", text: `Error: ${error.message}` }],
-      isError: true,
-    };
-  }
+  onStartup: ensureOutputDir,
+  handler: async (name, args) => handleTool(name, args),
 });
 
-// ── Start ────────────────────────────────────────────
-
-async function main() {
-  await ensureOutputDir();
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error(
-    `Voice MCP server running on stdio (whisper: ${WHISPER_URL}, tts: ${TTS_URL}, output: ${VOICE_OUTPUT_DIR})`
-  );
-}
-
-main().catch(console.error);
+mcp.start();

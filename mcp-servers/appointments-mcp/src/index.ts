@@ -15,12 +15,7 @@
  *  DEPOSITS:  set_deposit_required, verify_deposit, process_no_show
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { createMCPServer, formatJSON } from '@yaya/mcp-base';
 import pg from "pg";
 import {
   generateBookingLink,
@@ -1803,37 +1798,14 @@ async function handleTool(name: string, args: Record<string, any>): Promise<stri
   }
 }
 
-// ── MCP Server Setup ─────────────────────────────────
+// ── MCP Server ──────────────────────────────────────
 
-const server = new Server(
-  { name: "appointments-mcp", version: "0.1.0" },
-  { capabilities: { tools: {} } }
-);
-
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
+const mcp = createMCPServer({
+  name: 'appointments-mcp',
+  version: '0.1.0',
   tools: TOOLS,
-}));
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  try {
-    const result = await handleTool(name, args || {});
-    return { content: [{ type: "text", text: result }] };
-  } catch (error: any) {
-    return {
-      content: [{ type: "text", text: `Error: ${error.message}` }],
-      isError: true,
-    };
-  }
+  onStartup: ensureSchema,
+  handler: async (name, args) => handleTool(name, args),
 });
 
-// ── Start ────────────────────────────────────────────
-
-async function main() {
-  await ensureSchema();
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Appointments MCP server running on stdio");
-}
-
-main().catch(console.error);
+mcp.start();

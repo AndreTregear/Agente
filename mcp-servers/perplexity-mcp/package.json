@@ -9,7 +9,8 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "@yaya/mcp-base": "workspace:*",
+    "@yaya/http-client": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.0",

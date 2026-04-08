@@ -204,6 +204,29 @@ export async function updateOrderStatus(tenantId: string, id: number, status: Or
   return rowToOrder(d as OrderRow);
 }
 
+/**
+ * Atomically update order status only if current status is in the allowed list.
+ * Returns the updated order if the transition happened, undefined if the order
+ * was already in a different state (prevents double-payment race conditions).
+ */
+export async function updateOrderStatusAtomic(
+  tenantId: string,
+  id: number,
+  targetStatus: OrderStatus,
+  fromStatuses: OrderStatus[],
+): Promise<Order | undefined> {
+  const placeholders = fromStatuses.map((_, i) => `$${i + 4}`).join(', ');
+  const row = await queryOne<OrderRow>(
+    `UPDATE orders SET status = $1, updated_at = now()
+     WHERE tenant_id = $2 AND id = $3 AND status IN (${placeholders})
+     RETURNING *`,
+    [targetStatus, tenantId, id, ...fromStatuses],
+  );
+  if (!row) return undefined;
+  const d = await decOrderRow(tenantId, row as unknown as Record<string, unknown>);
+  return rowToOrder(d as OrderRow);
+}
+
 export async function getOrderCount(tenantId: string, status?: string): Promise<number> {
   const conditions = ['tenant_id = $1'];
   const params: unknown[] = [tenantId];

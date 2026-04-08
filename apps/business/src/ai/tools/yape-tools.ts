@@ -151,11 +151,16 @@ export const confirmYapePayment = createTool({
         paymentId = result.rows[0]?.id;
       }
 
-      // Update order status
-      await query(
-        `UPDATE orders SET status = 'paid', updated_at = NOW() WHERE tenant_id = $1 AND id = $2`,
+      // Atomically update order status only if not already paid (prevents double-payment race)
+      const statusUpdate = await query<any>(
+        `UPDATE orders SET status = 'paid', updated_at = NOW()
+         WHERE tenant_id = $1 AND id = $2 AND status != 'paid'
+         RETURNING id`,
         [tenantId, order_id],
       );
+      if (statusUpdate.rows.length === 0) {
+        return { confirmed: true, already_paid: true, order_id, message: `Pedido #${order_id} ya estaba marcado como pagado.` };
+      }
 
       // Mark notification as matched
       await query(

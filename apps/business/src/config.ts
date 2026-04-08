@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { cpus } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -104,7 +105,7 @@ export const S3_PRESIGN_TTL = Number(process.env.S3_PRESIGN_TTL) || 300; // 5 mi
 
 export const FFMPEG_PATH = process.env.FFMPEG_PATH || 'ffmpeg';
 export const FFPROBE_PATH = process.env.FFPROBE_PATH || 'ffprobe';
-export const MEDIA_QUEUE_CONCURRENCY = Number(process.env.MEDIA_QUEUE_CONCURRENCY) || 3;
+export const MEDIA_QUEUE_CONCURRENCY = Number(process.env.MEDIA_QUEUE_CONCURRENCY) || Math.max(1, Math.floor(cpus().length / 2));
 
 // ── TTS (Kokoro / OpenAI-compatible) ──
 

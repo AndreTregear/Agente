@@ -2,61 +2,41 @@
 /**
  * Forex MCP Server
  * Provides exchange rates, currency conversion, and Peru import cost tools.
- *
- * Tools:
- *  - get_exchange_rate: Get current rate between two currencies
- *  - convert_amount: Convert an amount between currencies
- *  - get_rate_history: Get historical exchange rates for a currency pair
- *  - calculate_igv: Calculate Peru IGV (18%) for a given amount
- *  - calculate_landed_cost: Calculate total landed cost for imports to Peru
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { createMCPServer, formatJSON } from '@yaya/mcp-base';
+import { createHttpClient, createResponseCache } from '@yaya/http-client';
 
 const FOREX_API_URL =
   process.env.FOREX_API_URL || "https://open.er-api.com/v6/latest";
 
 const IGV_RATE = 0.18;
 
-// ── Rate cache (5-minute TTL) ────────────────────────────
+// ── Rate cache (5-minute TTL) ────────────────────────
 
-interface RateCache {
-  rates: Record<string, number>;
-  timestamp: number;
-}
+const rateCache = createResponseCache<Record<string, number>>(5 * 60 * 1000);
 
-const cache: Record<string, RateCache> = {};
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const forexClient = createHttpClient({
+  baseUrl: FOREX_API_URL,
+  timeout: 10_000,
+});
 
 async function getRates(base: string): Promise<Record<string, number>> {
   const key = base.toUpperCase();
-  const now = Date.now();
 
-  if (cache[key] && now - cache[key].timestamp < CACHE_TTL_MS) {
-    return cache[key].rates;
-  }
+  const cached = rateCache.get(key);
+  if (cached) return cached;
 
-  const url = `${FOREX_API_URL}/${key}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Forex API ${res.status}: ${text}`);
-  }
-
-  const data = await res.json() as {
+  const data = await forexClient.get<{
     result?: string;
     rates?: Record<string, number>;
-  };
+  }>(`/${key}`);
+
   if (data.result === "error" || !data.rates) {
     throw new Error(`Forex API returned no rates for ${key}`);
   }
 
-  cache[key] = { rates: data.rates, timestamp: now };
+  rateCache.set(key, data.rates);
   return data.rates;
 }
 
@@ -74,7 +54,7 @@ async function getRate(from: string, to: string): Promise<number> {
   return rate;
 }
 
-// ── Tool Definitions ─────────────────────────────────────
+// ── Tool Definitions ─────────────────────────────────
 
 const TOOLS = [
   {
@@ -191,76 +171,63 @@ const TOOLS = [
   },
 ];
 
-// ── Tool Handlers ────────────────────────────────────────
+// ── MCP Server ──────────────────────────────────────
 
-async function handleTool(
-  name: string,
-  args: Record<string, any>
-): Promise<string> {
-  switch (name) {
-    case "get_exchange_rate": {
-      const rate = await getRate(args.from, args.to);
-      return JSON.stringify(
-        {
-          from: args.from.toUpperCase(),
-          to: args.to.toUpperCase(),
+// Frankfurter client for historical data
+const frankfurter = createHttpClient({
+  baseUrl: "https://api.frankfurter.dev",
+  timeout: 10_000,
+});
+
+const mcp = createMCPServer({
+  name: 'forex-mcp',
+  version: '0.1.0',
+  tools: TOOLS,
+  handler: async (name, args) => {
+    switch (name) {
+      case "get_exchange_rate": {
+        const rate = await getRate(args.from as string, args.to as string);
+        return formatJSON({
+          from: (args.from as string).toUpperCase(),
+          to: (args.to as string).toUpperCase(),
           rate,
           inverse_rate: 1 / rate,
-        },
-        null,
-        2
-      );
-    }
-
-    case "convert_amount": {
-      const rate = await getRate(args.from, args.to);
-      const converted = args.amount * rate;
-      return JSON.stringify(
-        {
-          from_amount: args.amount,
-          from_currency: args.from.toUpperCase(),
-          to_amount: Math.round(converted * 100) / 100,
-          to_currency: args.to.toUpperCase(),
-          rate,
-        },
-        null,
-        2
-      );
-    }
-
-    case "get_rate_history": {
-      // Use Frankfurter API for historical data (free, no key needed)
-      const fromCurrency = args.from.toUpperCase();
-      const toCurrency = args.to.toUpperCase();
-      const url = `https://api.frankfurter.dev/${args.start_date}..${args.end_date}?from=${fromCurrency}&to=${toCurrency}`;
-
-      const res = await fetch(url);
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Frankfurter API ${res.status}: ${text}`);
+        });
       }
 
-      const data = (await res.json()) as {
-        base?: string;
-        start_date?: string;
-        end_date?: string;
-        rates?: Record<string, Record<string, number>>;
-      };
-      const rates = data.rates || {};
+      case "convert_amount": {
+        const rate = await getRate(args.from as string, args.to as string);
+        const converted = (args.amount as number) * rate;
+        return formatJSON({
+          from_amount: args.amount,
+          from_currency: (args.from as string).toUpperCase(),
+          to_amount: Math.round(converted * 100) / 100,
+          to_currency: (args.to as string).toUpperCase(),
+          rate,
+        });
+      }
 
-      // Compute summary stats
-      const values = Object.values(rates).map(
-        (r) => r[toCurrency]
-      );
-      const min = Math.min(...values);
-      const max = Math.max(...values);
-      const avg =
-        values.length > 0
-          ? values.reduce((s, v) => s + v, 0) / values.length
-          : 0;
+      case "get_rate_history": {
+        const fromCurrency = (args.from as string).toUpperCase();
+        const toCurrency = (args.to as string).toUpperCase();
 
-      return JSON.stringify(
-        {
+        const data = await frankfurter.get<{
+          base?: string;
+          start_date?: string;
+          end_date?: string;
+          rates?: Record<string, Record<string, number>>;
+        }>(`/${args.start_date}..${args.end_date}?from=${fromCurrency}&to=${toCurrency}`);
+
+        const rates = data.rates || {};
+        const values = Object.values(rates).map((r) => r[toCurrency]);
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const avg =
+          values.length > 0
+            ? values.reduce((s, v) => s + v, 0) / values.length
+            : 0;
+
+        return formatJSON({
           from: fromCurrency,
           to: toCurrency,
           start_date: args.start_date,
@@ -279,74 +246,54 @@ async function handleTool(
                 : 0,
           },
           rates,
-        },
-        null,
-        2
-      );
-    }
+        });
+      }
 
-    case "calculate_igv": {
-      const base = args.amount;
-      const igv = Math.round(base * IGV_RATE * 100) / 100;
-      const total = Math.round((base + igv) * 100) / 100;
-      const currency = args.currency || "PEN";
+      case "calculate_igv": {
+        const base = args.amount as number;
+        const igv = Math.round(base * IGV_RATE * 100) / 100;
+        const total = Math.round((base + igv) * 100) / 100;
+        const currency = (args.currency as string) || "PEN";
 
-      return JSON.stringify(
-        {
+        return formatJSON({
           base_amount: base,
           igv_rate: `${IGV_RATE * 100}%`,
           igv_amount: igv,
           total: total,
           currency,
-        },
-        null,
-        2
-      );
-    }
-
-    case "calculate_landed_cost": {
-      const fobCurrency = (args.fob_currency || "USD").toUpperCase();
-      const qty = args.qty || 1;
-      const freightUSD = args.freight_cost || 0;
-      const insuranceUSD = args.insurance_cost || 0;
-      const dutyRate = args.customs_duty_rate || 0;
-      const includeIGV = args.include_igv !== false;
-
-      // Convert FOB to USD if needed
-      let fobPerUnitUSD: number;
-      if (fobCurrency === "USD") {
-        fobPerUnitUSD = args.fob_price;
-      } else {
-        const rateToUSD = await getRate(fobCurrency, "USD");
-        fobPerUnitUSD = args.fob_price * rateToUSD;
+        });
       }
 
-      const totalFobUSD = fobPerUnitUSD * qty;
+      case "calculate_landed_cost": {
+        const fobCurrency = ((args.fob_currency as string) || "USD").toUpperCase();
+        const qty = (args.qty as number) || 1;
+        const freightUSD = (args.freight_cost as number) || 0;
+        const insuranceUSD = (args.insurance_cost as number) || 0;
+        const dutyRate = (args.customs_duty_rate as number) || 0;
+        const includeIGV = args.include_igv !== false;
 
-      // CIF = FOB + Freight + Insurance
-      const cifUSD = totalFobUSD + freightUSD + insuranceUSD;
+        let fobPerUnitUSD: number;
+        if (fobCurrency === "USD") {
+          fobPerUnitUSD = args.fob_price as number;
+        } else {
+          const rateToUSD = await getRate(fobCurrency, "USD");
+          fobPerUnitUSD = (args.fob_price as number) * rateToUSD;
+        }
 
-      // Customs duty
-      const customsDutyUSD = cifUSD * dutyRate;
+        const totalFobUSD = fobPerUnitUSD * qty;
+        const cifUSD = totalFobUSD + freightUSD + insuranceUSD;
+        const customsDutyUSD = cifUSD * dutyRate;
+        const subtotalUSD = cifUSD + customsDutyUSD;
+        const igvUSD = includeIGV ? subtotalUSD * IGV_RATE : 0;
+        const totalUSD = subtotalUSD + igvUSD;
 
-      // Subtotal before IGV
-      const subtotalUSD = cifUSD + customsDutyUSD;
+        const usdToPen = await getRate("USD", "PEN");
+        const round2 = (n: number) => Math.round(n * 100) / 100;
 
-      // IGV
-      const igvUSD = includeIGV ? subtotalUSD * IGV_RATE : 0;
+        const totalPEN = totalUSD * usdToPen;
+        const perUnitPEN = totalPEN / qty;
 
-      // Total landed cost in USD
-      const totalUSD = subtotalUSD + igvUSD;
-
-      // Convert everything to PEN
-      const usdToPen = await getRate("USD", "PEN");
-      const round2 = (n: number) => Math.round(n * 100) / 100;
-
-      const totalPEN = totalUSD * usdToPen;
-      const perUnitPEN = totalPEN / qty;
-
-      return JSON.stringify(
-        {
+        return formatJSON({
           breakdown: {
             fob_per_unit: { usd: round2(fobPerUnitUSD), pen: round2(fobPerUnitUSD * usdToPen) },
             fob_total: { usd: round2(totalFobUSD), pen: round2(totalFobUSD * usdToPen) },
@@ -372,47 +319,13 @@ async function handleTool(
           },
           qty,
           exchange_rate: { usd_pen: round2(usdToPen) },
-        },
-        null,
-        2
-      );
+        });
+      }
+
+      default:
+        throw new Error(`Unknown tool: ${name}`);
     }
-
-    default:
-      throw new Error(`Unknown tool: ${name}`);
-  }
-}
-
-// ── MCP Server Setup ─────────────────────────────────────
-
-const server = new Server(
-  { name: "forex-mcp", version: "0.1.0" },
-  { capabilities: { tools: {} } }
-);
-
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: TOOLS,
-}));
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  try {
-    const result = await handleTool(name, args || {});
-    return { content: [{ type: "text", text: result }] };
-  } catch (error: any) {
-    return {
-      content: [{ type: "text", text: `Error: ${error.message}` }],
-      isError: true,
-    };
-  }
+  },
 });
 
-// ── Start ────────────────────────────────────────────────
-
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Forex MCP server running on stdio");
-}
-
-main().catch(console.error);
+mcp.start();

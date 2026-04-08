@@ -2,103 +2,26 @@
 /**
  * ERPNext MCP Server
  * Exposes ERPNext REST API as MCP tools for OpenClaw agents.
- *
- * Tools:
- *  - search_products: Search product catalog
- *  - get_product: Get product details + stock
- *  - check_stock: Check inventory for an item
- *  - create_order: Create a sales order
- *  - get_order: Get order status
- *  - list_orders: List recent orders with filters
- *  - update_order: Update an existing sales order
- *  - cancel_order: Cancel a sales order
- *  - list_customers: Search customers
- *  - create_customer: Create a new customer
- *  - get_item_price: Get pricing for an item including discounts
- *  - create_quotation: Create a price quotation
- *  - create_payment_entry: Record a payment against a sales order
- *  - create_purchase_order: Create a purchase order to a supplier
- *  - create_item: Add a new product to the catalog
- *  - update_item: Update item details (price, description, etc.)
- *  - get_sales_summary: Aggregate sales data for a date range
- *  - get_customer_balance: Get outstanding balance for a customer
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { createMCPServer, formatJSON } from '@yaya/mcp-base';
+import { createHttpClient } from '@yaya/http-client';
 
 const ERPNEXT_URL = process.env.ERPNEXT_URL || "http://localhost:8080";
 const ERPNEXT_API_KEY = process.env.ERPNEXT_API_KEY || "";
 const ERPNEXT_API_SECRET = process.env.ERPNEXT_API_SECRET || "";
 
-// ── ERPNext API Client ────────────────────────────────
+// ── ERPNext HTTP Client ──────────────────────────────
 
-const ERP_TIMEOUT_MS = 10_000;
-const ERP_MAX_RETRIES = 3;
-
-async function erpFetch(endpoint: string, options: RequestInit = {}): Promise<any> {
-  const url = `${ERPNEXT_URL}/api${endpoint}`;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(ERPNEXT_API_KEY
-      ? { Authorization: `token ${ERPNEXT_API_KEY}:${ERPNEXT_API_SECRET}` }
-      : {}),
-    ...(options.headers as Record<string, string> || {}),
-  };
-
-  let lastError: Error | null = null;
-
-  for (let attempt = 1; attempt <= ERP_MAX_RETRIES; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), ERP_TIMEOUT_MS);
-
-      const res = await fetch(url, {
-        ...options,
-        headers,
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-
-      if (!res.ok) {
-        const text = await res.text();
-        // Parse ERPNext error detail if JSON
-        let detail = text;
-        try {
-          const parsed = JSON.parse(text);
-          detail = parsed.exc_type
-            ? `${parsed.exc_type}: ${parsed._server_messages || parsed.message || text}`
-            : parsed.message || parsed._error_message || text;
-        } catch {
-          // raw text is fine
-        }
-        throw new Error(
-          `ERPNext API ${options.method || "GET"} ${endpoint} → ${res.status}: ${detail}`
-        );
-      }
-      return res.json();
-    } catch (err: any) {
-      lastError = err;
-
-      // Don't retry client errors (4xx) — only retry on network/timeout/5xx
-      if (err.message?.includes("→ 4")) {
-        throw err;
-      }
-
-      if (attempt < ERP_MAX_RETRIES) {
-        const delay = Math.min(1000 * 2 ** (attempt - 1), 4000);
-        await new Promise((r) => setTimeout(r, delay));
-        continue;
-      }
-    }
-  }
-
-  throw lastError || new Error(`ERPNext API request failed after ${ERP_MAX_RETRIES} retries`);
-}
+const erp = createHttpClient({
+  baseUrl: `${ERPNEXT_URL}/api`,
+  auth: ERPNEXT_API_KEY
+    ? { type: 'token', value: `token ${ERPNEXT_API_KEY}:${ERPNEXT_API_SECRET}` }
+    : undefined,
+  timeout: 10_000,
+  retries: 2,
+  retryDelay: 1_000,
+});
 
 // ── Tool Definitions ──────────────────────────────────
 
@@ -462,406 +385,360 @@ const TOOLS = [
   },
 ];
 
-// ── Tool Handlers ─────────────────────────────────────
+// ── MCP Server ───────────────────────────────────────
 
-async function handleTool(name: string, args: Record<string, any>): Promise<string> {
-  switch (name) {
-    case "search_products": {
-      const limit = args.limit || 10;
-      const data = await erpFetch(
-        `/resource/Item?filters=[["item_name","like","%${args.query}%"]]&fields=["item_code","item_name","standard_rate","stock_uom","item_group"]&limit_page_length=${limit}`
-      );
-      return JSON.stringify(data.data, null, 2);
-    }
-
-    case "get_product": {
-      const data = await erpFetch(`/resource/Item/${args.item_code}`);
-      return JSON.stringify(data.data, null, 2);
-    }
-
-    case "check_stock": {
-      const filters = args.warehouse
-        ? `[["item_code","=","${args.item_code}"],["warehouse","=","${args.warehouse}"]]`
-        : `[["item_code","=","${args.item_code}"]]`;
-      const data = await erpFetch(
-        `/resource/Bin?filters=${filters}&fields=["warehouse","actual_qty","projected_qty"]`
-      );
-      return JSON.stringify(data.data, null, 2);
-    }
-
-    case "create_order": {
-      const order = {
-        doctype: "Sales Order",
-        customer: args.customer,
-        items: args.items.map((item: any) => ({
-          item_code: item.item_code,
-          qty: item.qty,
-          ...(item.rate ? { rate: item.rate } : {}),
-        })),
-        ...(args.notes ? { notes: args.notes } : {}),
-      };
-      const data = await erpFetch("/resource/Sales Order", {
-        method: "POST",
-        body: JSON.stringify({ data: order }),
-      });
-      return JSON.stringify(data.data, null, 2);
-    }
-
-    case "get_order": {
-      const data = await erpFetch(`/resource/Sales Order/${args.order_id}`);
-      return JSON.stringify(data.data, null, 2);
-    }
-
-    case "list_customers": {
-      const limit = args.limit || 10;
-      const data = await erpFetch(
-        `/resource/Customer?filters=[["customer_name","like","%${args.query}%"]]&fields=["name","customer_name","mobile_no","email_id"]&limit_page_length=${limit}`
-      );
-      return JSON.stringify(data.data, null, 2);
-    }
-
-    case "create_customer": {
-      const customer: Record<string, any> = {
-        doctype: "Customer",
-        customer_name: args.customer_name,
-        customer_type: args.customer_type || "Individual",
-      };
-      if (args.mobile_no) customer.mobile_no = args.mobile_no;
-      if (args.email_id) customer.email_id = args.email_id;
-      if (args.customer_group) customer.customer_group = args.customer_group;
-      if (args.territory) customer.territory = args.territory;
-
-      const data = await erpFetch("/resource/Customer", {
-        method: "POST",
-        body: JSON.stringify({ data: customer }),
-      });
-      return JSON.stringify(data.data, null, 2);
-    }
-
-    case "update_order": {
-      const updates: Record<string, any> = {};
-      if (args.items) {
-        updates.items = args.items.map((item: any) => ({
-          item_code: item.item_code,
-          qty: item.qty,
-          ...(item.rate ? { rate: item.rate } : {}),
-        }));
-      }
-      if (args.delivery_date) updates.delivery_date = args.delivery_date;
-      if (args.notes) updates.notes = args.notes;
-
-      if (Object.keys(updates).length === 0) {
-        throw new Error("No fields to update. Provide items, delivery_date, or notes.");
-      }
-
-      const data = await erpFetch(`/resource/Sales Order/${args.order_id}`, {
-        method: "PUT",
-        body: JSON.stringify({ data: updates }),
-      });
-      return JSON.stringify(data.data, null, 2);
-    }
-
-    case "cancel_order": {
-      // ERPNext cancel uses the method endpoint to amend docstatus
-      const data = await erpFetch(
-        `/method/frappe.client.cancel`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            doctype: "Sales Order",
-            name: args.order_id,
-          }),
-        }
-      );
-      const result: Record<string, any> = {
-        order_id: args.order_id,
-        status: "Cancelled",
-      };
-      if (args.reason) result.reason = args.reason;
-      return JSON.stringify(result, null, 2);
-    }
-
-    case "list_orders": {
-      const limit = args.limit || 20;
-      const filters: string[][] = [];
-      if (args.customer) {
-        filters.push(["customer", "like", `%${args.customer}%`]);
-      }
-      if (args.status) {
-        filters.push(["status", "=", args.status]);
-      }
-      if (args.from_date) {
-        filters.push(["transaction_date", ">=", args.from_date]);
-      }
-      if (args.to_date) {
-        filters.push(["transaction_date", "<=", args.to_date]);
-      }
-
-      const filtersParam = filters.length > 0
-        ? `&filters=${encodeURIComponent(JSON.stringify(filters))}`
-        : "";
-      const data = await erpFetch(
-        `/resource/Sales Order?fields=${encodeURIComponent(JSON.stringify(["name", "customer", "grand_total", "status", "transaction_date", "delivery_date", "currency"]))}&limit_page_length=${limit}&order_by=transaction_date desc${filtersParam}`
-      );
-      return JSON.stringify(data.data, null, 2);
-    }
-
-    case "get_item_price": {
-      const priceList = args.price_list || "Standard Selling";
-      // Get item standard rate
-      const item = await erpFetch(
-        `/resource/Item/${encodeURIComponent(args.item_code)}?fields=["item_code","item_name","standard_rate","stock_uom"]`
-      );
-
-      // Get price list rate
-      const priceFilters = [
-        ["item_code", "=", args.item_code],
-        ["price_list", "=", priceList],
-      ];
-      const prices = await erpFetch(
-        `/resource/Item Price?filters=${encodeURIComponent(JSON.stringify(priceFilters))}&fields=["price_list_rate","currency","min_qty","valid_from","valid_upto"]&limit_page_length=10`
-      );
-
-      // Check for pricing rules / discounts
-      const pricingRuleFilters = [
-        ["apply_on", "=", "Item Code"],
-        ["items", "like", `%${args.item_code}%`],
-        ["disable", "=", 0],
-      ];
-      let pricingRules: any[] = [];
-      try {
-        const rules = await erpFetch(
-          `/resource/Pricing Rule?filters=${encodeURIComponent(JSON.stringify(pricingRuleFilters))}&fields=["name","title","discount_percentage","discount_amount","min_qty","valid_from","valid_upto"]&limit_page_length=10`
+const mcp = createMCPServer({
+  name: 'erpnext-mcp',
+  version: '0.1.0',
+  tools: TOOLS,
+  handler: async (name, args) => {
+    switch (name) {
+      case "search_products": {
+        const limit = args.limit || 10;
+        const data = await erp.get<any>(
+          `/resource/Item?filters=[["item_name","like","%${args.query}%"]]&fields=["item_code","item_name","standard_rate","stock_uom","item_group"]&limit_page_length=${limit}`
         );
-        pricingRules = rules.data || [];
-      } catch {
-        // Pricing rules may not be accessible; continue without them
+        return formatJSON(data.data);
       }
 
-      return JSON.stringify(
-        {
+      case "get_product": {
+        const data = await erp.get<any>(`/resource/Item/${args.item_code}`);
+        return formatJSON(data.data);
+      }
+
+      case "check_stock": {
+        const filters = args.warehouse
+          ? `[["item_code","=","${args.item_code}"],["warehouse","=","${args.warehouse}"]]`
+          : `[["item_code","=","${args.item_code}"]]`;
+        const data = await erp.get<any>(
+          `/resource/Bin?filters=${filters}&fields=["warehouse","actual_qty","projected_qty"]`
+        );
+        return formatJSON(data.data);
+      }
+
+      case "create_order": {
+        const order = {
+          doctype: "Sales Order",
+          customer: args.customer,
+          items: (args.items as any[]).map((item: any) => ({
+            item_code: item.item_code,
+            qty: item.qty,
+            ...(item.rate ? { rate: item.rate } : {}),
+          })),
+          ...(args.notes ? { notes: args.notes } : {}),
+        };
+        const data = await erp.post<any>("/resource/Sales Order", { data: order });
+        return formatJSON(data.data);
+      }
+
+      case "get_order": {
+        const data = await erp.get<any>(`/resource/Sales Order/${args.order_id}`);
+        return formatJSON(data.data);
+      }
+
+      case "list_customers": {
+        const limit = args.limit || 10;
+        const data = await erp.get<any>(
+          `/resource/Customer?filters=[["customer_name","like","%${args.query}%"]]&fields=["name","customer_name","mobile_no","email_id"]&limit_page_length=${limit}`
+        );
+        return formatJSON(data.data);
+      }
+
+      case "create_customer": {
+        const customer: Record<string, any> = {
+          doctype: "Customer",
+          customer_name: args.customer_name,
+          customer_type: args.customer_type || "Individual",
+        };
+        if (args.mobile_no) customer.mobile_no = args.mobile_no;
+        if (args.email_id) customer.email_id = args.email_id;
+        if (args.customer_group) customer.customer_group = args.customer_group;
+        if (args.territory) customer.territory = args.territory;
+
+        const data = await erp.post<any>("/resource/Customer", { data: customer });
+        return formatJSON(data.data);
+      }
+
+      case "update_order": {
+        const updates: Record<string, any> = {};
+        if (args.items) {
+          updates.items = (args.items as any[]).map((item: any) => ({
+            item_code: item.item_code,
+            qty: item.qty,
+            ...(item.rate ? { rate: item.rate } : {}),
+          }));
+        }
+        if (args.delivery_date) updates.delivery_date = args.delivery_date;
+        if (args.notes) updates.notes = args.notes;
+
+        if (Object.keys(updates).length === 0) {
+          throw new Error("No fields to update. Provide items, delivery_date, or notes.");
+        }
+
+        const data = await erp.put<any>(`/resource/Sales Order/${args.order_id}`, { data: updates });
+        return formatJSON(data.data);
+      }
+
+      case "cancel_order": {
+        await erp.post<any>("/method/frappe.client.cancel", {
+          doctype: "Sales Order",
+          name: args.order_id,
+        });
+        const result: Record<string, any> = {
+          order_id: args.order_id,
+          status: "Cancelled",
+        };
+        if (args.reason) result.reason = args.reason;
+        return formatJSON(result);
+      }
+
+      case "list_orders": {
+        const limit = args.limit || 20;
+        const filters: string[][] = [];
+        if (args.customer) {
+          filters.push(["customer", "like", `%${args.customer}%`]);
+        }
+        if (args.status) {
+          filters.push(["status", "=", args.status as string]);
+        }
+        if (args.from_date) {
+          filters.push(["transaction_date", ">=", args.from_date as string]);
+        }
+        if (args.to_date) {
+          filters.push(["transaction_date", "<=", args.to_date as string]);
+        }
+
+        const filtersParam = filters.length > 0
+          ? `&filters=${encodeURIComponent(JSON.stringify(filters))}`
+          : "";
+        const data = await erp.get<any>(
+          `/resource/Sales Order?fields=${encodeURIComponent(JSON.stringify(["name", "customer", "grand_total", "status", "transaction_date", "delivery_date", "currency"]))}&limit_page_length=${limit}&order_by=transaction_date desc${filtersParam}`
+        );
+        return formatJSON(data.data);
+      }
+
+      case "get_item_price": {
+        const priceList = args.price_list || "Standard Selling";
+        const item = await erp.get<any>(
+          `/resource/Item/${encodeURIComponent(args.item_code as string)}?fields=["item_code","item_name","standard_rate","stock_uom"]`
+        );
+
+        const priceFilters = [
+          ["item_code", "=", args.item_code],
+          ["price_list", "=", priceList],
+        ];
+        const prices = await erp.get<any>(
+          `/resource/Item Price?filters=${encodeURIComponent(JSON.stringify(priceFilters))}&fields=["price_list_rate","currency","min_qty","valid_from","valid_upto"]&limit_page_length=10`
+        );
+
+        const pricingRuleFilters = [
+          ["apply_on", "=", "Item Code"],
+          ["items", "like", `%${args.item_code}%`],
+          ["disable", "=", 0],
+        ];
+        let pricingRules: any[] = [];
+        try {
+          const rules = await erp.get<any>(
+            `/resource/Pricing Rule?filters=${encodeURIComponent(JSON.stringify(pricingRuleFilters))}&fields=["name","title","discount_percentage","discount_amount","min_qty","valid_from","valid_upto"]&limit_page_length=10`
+          );
+          pricingRules = rules.data || [];
+        } catch {
+          // Pricing rules may not be accessible
+        }
+
+        return formatJSON({
           item: item.data,
           price_list_rates: prices.data || [],
           pricing_rules: pricingRules,
-        },
-        null,
-        2
-      );
-    }
-
-    case "create_quotation": {
-      const quotation: Record<string, any> = {
-        doctype: "Quotation",
-        quotation_to: "Customer",
-        party_name: args.customer,
-        items: args.items.map((item: any) => ({
-          item_code: item.item_code,
-          qty: item.qty,
-          ...(item.rate ? { rate: item.rate } : {}),
-        })),
-      };
-      if (args.valid_till) quotation.valid_till = args.valid_till;
-      if (args.notes) quotation.notes = args.notes;
-
-      const data = await erpFetch("/resource/Quotation", {
-        method: "POST",
-        body: JSON.stringify({ data: quotation }),
-      });
-      return JSON.stringify(data.data, null, 2);
-    }
-
-    case "create_payment_entry": {
-      // Get sales order to resolve customer and currency
-      const so = await erpFetch(`/resource/Sales Order/${args.sales_order}`);
-      const soData = so.data;
-      const paymentDate = args.date || new Date().toISOString().split("T")[0];
-
-      const payment: Record<string, any> = {
-        doctype: "Payment Entry",
-        payment_type: "Receive",
-        party_type: "Customer",
-        party: soData.customer,
-        paid_amount: args.amount,
-        received_amount: args.amount,
-        target_exchange_rate: 1,
-        paid_to_account_currency: soData.currency || "PEN",
-        mode_of_payment: args.payment_method,
-        reference_no: args.reference_number || "",
-        reference_date: paymentDate,
-        posting_date: paymentDate,
-        references: [
-          {
-            reference_doctype: "Sales Order",
-            reference_name: args.sales_order,
-            allocated_amount: args.amount,
-          },
-        ],
-      };
-
-      const data = await erpFetch("/resource/Payment Entry", {
-        method: "POST",
-        body: JSON.stringify({ data: payment }),
-      });
-      return JSON.stringify(data.data, null, 2);
-    }
-
-    case "create_purchase_order": {
-      const scheduleDate =
-        args.schedule_date || new Date().toISOString().split("T")[0];
-      const po: Record<string, any> = {
-        doctype: "Purchase Order",
-        supplier: args.supplier,
-        items: args.items.map((item: any) => ({
-          item_code: item.item_code,
-          qty: item.qty,
-          rate: item.rate,
-          schedule_date: scheduleDate,
-        })),
-      };
-      if (args.notes) po.notes = args.notes;
-
-      const data = await erpFetch("/resource/Purchase Order", {
-        method: "POST",
-        body: JSON.stringify({ data: po }),
-      });
-      return JSON.stringify(data.data, null, 2);
-    }
-
-    case "create_item": {
-      const item: Record<string, any> = {
-        doctype: "Item",
-        item_name: args.item_name,
-        item_group: args.item_group,
-        standard_rate: args.standard_rate,
-        stock_uom: args.stock_uom || "Nos",
-        is_stock_item: args.is_stock_item !== false ? 1 : 0,
-      };
-      if (args.item_code) item.item_code = args.item_code;
-      if (args.description) item.description = args.description;
-
-      const data = await erpFetch("/resource/Item", {
-        method: "POST",
-        body: JSON.stringify({ data: item }),
-      });
-      return JSON.stringify(data.data, null, 2);
-    }
-
-    case "update_item": {
-      const updates: Record<string, any> = {};
-      if (args.standard_rate !== undefined) updates.standard_rate = args.standard_rate;
-      if (args.description !== undefined) updates.description = args.description;
-      if (args.item_name !== undefined) updates.item_name = args.item_name;
-      if (args.disabled !== undefined) updates.disabled = args.disabled ? 1 : 0;
-
-      if (Object.keys(updates).length === 0) {
-        throw new Error(
-          "No fields to update. Provide standard_rate, description, item_name, or disabled."
-        );
+        });
       }
 
-      const data = await erpFetch(
-        `/resource/Item/${encodeURIComponent(args.item_code)}`,
-        {
-          method: "PUT",
-          body: JSON.stringify({ data: updates }),
-        }
-      );
-      return JSON.stringify(data.data, null, 2);
-    }
+      case "create_quotation": {
+        const quotation: Record<string, any> = {
+          doctype: "Quotation",
+          quotation_to: "Customer",
+          party_name: args.customer,
+          items: (args.items as any[]).map((item: any) => ({
+            item_code: item.item_code,
+            qty: item.qty,
+            ...(item.rate ? { rate: item.rate } : {}),
+          })),
+        };
+        if (args.valid_till) quotation.valid_till = args.valid_till;
+        if (args.notes) quotation.notes = args.notes;
 
-    case "get_sales_summary": {
-      // Fetch submitted sales orders in the date range
-      const soFilters: any[][] = [
-        ["transaction_date", ">=", args.from_date],
-        ["transaction_date", "<=", args.to_date],
-        ["docstatus", "=", 1],
-      ];
-      if (args.customer) {
-        soFilters.push(["customer", "like", `%${args.customer}%`]);
+        const data = await erp.post<any>("/resource/Quotation", { data: quotation });
+        return formatJSON(data.data);
       }
 
-      const orders = await erpFetch(
-        `/resource/Sales Order?filters=${encodeURIComponent(JSON.stringify(soFilters))}&fields=${encodeURIComponent(JSON.stringify(["name", "customer", "grand_total", "status", "transaction_date", "currency"]))}&limit_page_length=0`
-      );
+      case "create_payment_entry": {
+        const so = await erp.get<any>(`/resource/Sales Order/${args.sales_order}`);
+        const soData = so.data;
+        const paymentDate = (args.date as string) || new Date().toISOString().split("T")[0];
 
-      const orderList: any[] = orders.data || [];
-      const totalRevenue = orderList.reduce(
-        (sum: number, o: any) => sum + (o.grand_total || 0),
-        0
-      );
+        const payment: Record<string, any> = {
+          doctype: "Payment Entry",
+          payment_type: "Receive",
+          party_type: "Customer",
+          party: soData.customer,
+          paid_amount: args.amount,
+          received_amount: args.amount,
+          target_exchange_rate: 1,
+          paid_to_account_currency: soData.currency || "PEN",
+          mode_of_payment: args.payment_method,
+          reference_no: (args.reference_number as string) || "",
+          reference_date: paymentDate,
+          posting_date: paymentDate,
+          references: [
+            {
+              reference_doctype: "Sales Order",
+              reference_name: args.sales_order,
+              allocated_amount: args.amount,
+            },
+          ],
+        };
 
-      // Fetch order items to compute top products
-      const productCounts: Record<string, { qty: number; revenue: number }> = {};
-      for (const order of orderList) {
-        try {
-          const detail = await erpFetch(
-            `/resource/Sales Order/${order.name}`
+        const data = await erp.post<any>("/resource/Payment Entry", { data: payment });
+        return formatJSON(data.data);
+      }
+
+      case "create_purchase_order": {
+        const scheduleDate =
+          (args.schedule_date as string) || new Date().toISOString().split("T")[0];
+        const po: Record<string, any> = {
+          doctype: "Purchase Order",
+          supplier: args.supplier,
+          items: (args.items as any[]).map((item: any) => ({
+            item_code: item.item_code,
+            qty: item.qty,
+            rate: item.rate,
+            schedule_date: scheduleDate,
+          })),
+        };
+        if (args.notes) po.notes = args.notes;
+
+        const data = await erp.post<any>("/resource/Purchase Order", { data: po });
+        return formatJSON(data.data);
+      }
+
+      case "create_item": {
+        const item: Record<string, any> = {
+          doctype: "Item",
+          item_name: args.item_name,
+          item_group: args.item_group,
+          standard_rate: args.standard_rate,
+          stock_uom: args.stock_uom || "Nos",
+          is_stock_item: args.is_stock_item !== false ? 1 : 0,
+        };
+        if (args.item_code) item.item_code = args.item_code;
+        if (args.description) item.description = args.description;
+
+        const data = await erp.post<any>("/resource/Item", { data: item });
+        return formatJSON(data.data);
+      }
+
+      case "update_item": {
+        const updates: Record<string, any> = {};
+        if (args.standard_rate !== undefined) updates.standard_rate = args.standard_rate;
+        if (args.description !== undefined) updates.description = args.description;
+        if (args.item_name !== undefined) updates.item_name = args.item_name;
+        if (args.disabled !== undefined) updates.disabled = args.disabled ? 1 : 0;
+
+        if (Object.keys(updates).length === 0) {
+          throw new Error(
+            "No fields to update. Provide standard_rate, description, item_name, or disabled."
           );
-          const items: any[] = detail.data?.items || [];
-          for (const it of items) {
-            if (!productCounts[it.item_code]) {
-              productCounts[it.item_code] = { qty: 0, revenue: 0 };
-            }
-            productCounts[it.item_code].qty += it.qty || 0;
-            productCounts[it.item_code].revenue += it.amount || 0;
-          }
-        } catch {
-          // Skip orders whose details we can't fetch
         }
+
+        const data = await erp.put<any>(
+          `/resource/Item/${encodeURIComponent(args.item_code as string)}`,
+          { data: updates }
+        );
+        return formatJSON(data.data);
       }
 
-      const topProducts = Object.entries(productCounts)
-        .sort(([, a], [, b]) => b.revenue - a.revenue)
-        .slice(0, 10)
-        .map(([item_code, stats]) => ({ item_code, ...stats }));
+      case "get_sales_summary": {
+        const soFilters: any[][] = [
+          ["transaction_date", ">=", args.from_date],
+          ["transaction_date", "<=", args.to_date],
+          ["docstatus", "=", 1],
+        ];
+        if (args.customer) {
+          soFilters.push(["customer", "like", `%${args.customer}%`]);
+        }
 
-      return JSON.stringify(
-        {
+        const orders = await erp.get<any>(
+          `/resource/Sales Order?filters=${encodeURIComponent(JSON.stringify(soFilters))}&fields=${encodeURIComponent(JSON.stringify(["name", "customer", "grand_total", "status", "transaction_date", "currency"]))}&limit_page_length=0`
+        );
+
+        const orderList: any[] = orders.data || [];
+        const totalRevenue = orderList.reduce(
+          (sum: number, o: any) => sum + (o.grand_total || 0),
+          0
+        );
+
+        const productCounts: Record<string, { qty: number; revenue: number }> = {};
+        for (const order of orderList) {
+          try {
+            const detail = await erp.get<any>(`/resource/Sales Order/${order.name}`);
+            const items: any[] = detail.data?.items || [];
+            for (const it of items) {
+              if (!productCounts[it.item_code]) {
+                productCounts[it.item_code] = { qty: 0, revenue: 0 };
+              }
+              productCounts[it.item_code].qty += it.qty || 0;
+              productCounts[it.item_code].revenue += it.amount || 0;
+            }
+          } catch {
+            // Skip orders whose details we can't fetch
+          }
+        }
+
+        const topProducts = Object.entries(productCounts)
+          .sort(([, a], [, b]) => b.revenue - a.revenue)
+          .slice(0, 10)
+          .map(([item_code, stats]) => ({ item_code, ...stats }));
+
+        return formatJSON({
           from_date: args.from_date,
           to_date: args.to_date,
           total_revenue: totalRevenue,
           order_count: orderList.length,
           currency: orderList[0]?.currency || "PEN",
           top_products: topProducts,
-        },
-        null,
-        2
-      );
-    }
+        });
+      }
 
-    case "get_customer_balance": {
-      // Unpaid sales invoices
-      const invFilters = [
-        ["customer", "=", args.customer],
-        ["docstatus", "=", 1],
-        ["outstanding_amount", ">", 0],
-      ];
-      const invoices = await erpFetch(
-        `/resource/Sales Invoice?filters=${encodeURIComponent(JSON.stringify(invFilters))}&fields=${encodeURIComponent(JSON.stringify(["name", "grand_total", "outstanding_amount", "posting_date", "currency"]))}&limit_page_length=0`
-      );
-      const invoiceList: any[] = invoices.data || [];
-      const totalOutstanding = invoiceList.reduce(
-        (sum: number, inv: any) => sum + (inv.outstanding_amount || 0),
-        0
-      );
+      case "get_customer_balance": {
+        const invFilters = [
+          ["customer", "=", args.customer],
+          ["docstatus", "=", 1],
+          ["outstanding_amount", ">", 0],
+        ];
+        const invoices = await erp.get<any>(
+          `/resource/Sales Invoice?filters=${encodeURIComponent(JSON.stringify(invFilters))}&fields=${encodeURIComponent(JSON.stringify(["name", "grand_total", "outstanding_amount", "posting_date", "currency"]))}&limit_page_length=0`
+        );
+        const invoiceList: any[] = invoices.data || [];
+        const totalOutstanding = invoiceList.reduce(
+          (sum: number, inv: any) => sum + (inv.outstanding_amount || 0),
+          0
+        );
 
-      // Unpaid sales orders (billed but not fully paid)
-      const soFilters = [
-        ["customer", "=", args.customer],
-        ["docstatus", "=", 1],
-        ["status", "in", ["To Deliver and Bill", "To Bill"]],
-      ];
-      const salesOrders = await erpFetch(
-        `/resource/Sales Order?filters=${encodeURIComponent(JSON.stringify(soFilters))}&fields=${encodeURIComponent(JSON.stringify(["name", "grand_total", "advance_paid", "status", "transaction_date", "currency"]))}&limit_page_length=0`
-      );
-      const soList: any[] = salesOrders.data || [];
-      const unbilledTotal = soList.reduce(
-        (sum: number, s: any) => sum + ((s.grand_total || 0) - (s.advance_paid || 0)),
-        0
-      );
+        const soFilters = [
+          ["customer", "=", args.customer],
+          ["docstatus", "=", 1],
+          ["status", "in", ["To Deliver and Bill", "To Bill"]],
+        ];
+        const salesOrders = await erp.get<any>(
+          `/resource/Sales Order?filters=${encodeURIComponent(JSON.stringify(soFilters))}&fields=${encodeURIComponent(JSON.stringify(["name", "grand_total", "advance_paid", "status", "transaction_date", "currency"]))}&limit_page_length=0`
+        );
+        const soList: any[] = salesOrders.data || [];
+        const unbilledTotal = soList.reduce(
+          (sum: number, s: any) => sum + ((s.grand_total || 0) - (s.advance_paid || 0)),
+          0
+        );
 
-      return JSON.stringify(
-        {
+        return formatJSON({
           customer: args.customer,
           outstanding_invoices: totalOutstanding,
           unbilled_orders: unbilledTotal,
@@ -871,79 +748,37 @@ async function handleTool(name: string, args: Record<string, any>): Promise<stri
           unpaid_order_count: soList.length,
           invoices: invoiceList,
           orders: soList,
-        },
-        null,
-        2
-      );
-    }
+        });
+      }
 
-    case "health_check": {
-      const start = Date.now();
-      try {
-        const data = await erpFetch("/method/frappe.handler.version");
-        const latency = Date.now() - start;
-        return JSON.stringify(
-          {
+      case "health_check": {
+        const start = Date.now();
+        try {
+          const data = await erp.get<any>("/method/frappe.handler.version");
+          const latency = Date.now() - start;
+          return formatJSON({
             status: "connected",
             url: ERPNEXT_URL,
             version: data.message || "unknown",
             latency_ms: latency,
             auth_configured: !!ERPNEXT_API_KEY,
-          },
-          null,
-          2
-        );
-      } catch (err: any) {
-        const latency = Date.now() - start;
-        return JSON.stringify(
-          {
+          });
+        } catch (err: any) {
+          const latency = Date.now() - start;
+          return formatJSON({
             status: "error",
             url: ERPNEXT_URL,
             error: err.message,
             latency_ms: latency,
             auth_configured: !!ERPNEXT_API_KEY,
-          },
-          null,
-          2
-        );
+          });
+        }
       }
+
+      default:
+        throw new Error(`Unknown tool: ${name}`);
     }
-
-    default:
-      throw new Error(`Unknown tool: ${name}`);
-  }
-}
-
-// ── MCP Server Setup ──────────────────────────────────
-
-const server = new Server(
-  { name: "erpnext-mcp", version: "0.1.0" },
-  { capabilities: { tools: {} } }
-);
-
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: TOOLS,
-}));
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  try {
-    const result = await handleTool(name, args || {});
-    return { content: [{ type: "text", text: result }] };
-  } catch (error: any) {
-    return {
-      content: [{ type: "text", text: `Error: ${error.message}` }],
-      isError: true,
-    };
-  }
+  },
 });
 
-// ── Start ─────────────────────────────────────────────
-
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("ERPNext MCP server running on stdio");
-}
-
-main().catch(console.error);
+mcp.start();

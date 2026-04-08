@@ -12,7 +12,7 @@
 import { Agent } from '@mastra/core/agent';
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { query as dbQuery, queryOne as dbQueryOne } from '../db/pool.js';
+import { query as dbQuery, queryOne as dbQueryOne, transaction as dbTransaction } from '../db/pool.js';
 import { logger } from '../shared/logger.js';
 import { checkYapePayment, confirmYapePayment, setCurrentTenantId as setYapeTenantId } from './tools/yape-tools.js';
 import { getModel, backends } from './model-router.js';
@@ -105,23 +105,25 @@ export const customerLookup = createTool({
     if (!tenantId) return { customers: [], error: 'No tenant configured' };
 
     const result = await dbQuery<any>(
-      `SELECT id, name, phone, jid, tags, created_at FROM customers WHERE tenant_id=$1 AND (name ILIKE $2 OR phone LIKE $3 OR jid LIKE $3) ORDER BY updated_at DESC LIMIT 5`,
+      `SELECT c.id, c.name, c.phone, c.jid, c.tags, c.created_at,
+              COALESCE(json_agg(json_build_object(
+                'id', o.id, 'status', o.status, 'total', o.total, 'created_at', o.created_at
+              ) ORDER BY o.created_at DESC) FILTER (WHERE o.id IS NOT NULL), '[]') as recent_orders
+       FROM customers c
+       LEFT JOIN LATERAL (
+         SELECT * FROM orders WHERE tenant_id = c.tenant_id AND customer_id = c.id
+         ORDER BY created_at DESC LIMIT 3
+       ) o ON true
+       WHERE c.tenant_id=$1 AND (c.name ILIKE $2 OR c.phone LIKE $3 OR c.jid LIKE $3)
+       GROUP BY c.id
+       ORDER BY c.updated_at DESC
+       LIMIT 5`,
       [tenantId, `%${q}%`, `%${q}%`],
     );
 
     if (result.rows.length === 0) return { customers: [], message: `No customer found matching "${q}".` };
 
-    const enriched = await Promise.all(
-      result.rows.map(async (c: any) => {
-        const orders = await dbQuery<any>(
-          `SELECT id, status, total, created_at FROM orders WHERE tenant_id=$1 AND customer_id=$2 ORDER BY created_at DESC LIMIT 3`,
-          [tenantId, c.id],
-        );
-        return { ...c, recent_orders: orders.rows };
-      }),
-    );
-
-    return { customers: enriched };
+    return { customers: result.rows };
   },
 });
 
@@ -284,75 +286,108 @@ export const createOrder = createTool({
     const tenantId = getTenantId();
     if (!tenantId) return { error: 'No tenant configured' };
 
-    // Find or create customer
+    // Find or create customer (atomic upsert to prevent duplicate race condition)
     const phoneClean = customer_phone.replace(/\D/g, '');
     let customer = await dbQueryOne<any>(
       `SELECT id, name FROM customers WHERE tenant_id=$1 AND (jid LIKE $2 OR phone LIKE $3) LIMIT 1`,
       [tenantId, `%${phoneClean}%`, `%${phoneClean}%`],
     );
     if (!customer) {
-      // Auto-create customer from JID
       const jid = phoneClean.includes('@') ? phoneClean : `${phoneClean}@s.whatsapp.net`;
-      const insertResult = await dbQuery<any>(
-        `INSERT INTO customers (tenant_id, channel, jid, name, phone) VALUES ($1, 'whatsapp', $2, $3, $4) RETURNING id, name`,
+      // ON CONFLICT prevents duplicate customer creation from concurrent orders.
+      // Schema has UNIQUE(tenant_id, channel, jid).
+      customer = await dbQueryOne<any>(
+        `INSERT INTO customers (tenant_id, channel, jid, name, phone)
+         VALUES ($1, 'whatsapp', $2, $3, $4)
+         ON CONFLICT (tenant_id, channel, jid) DO UPDATE SET name = EXCLUDED.name
+         RETURNING id, name`,
         [tenantId, jid, `Cliente ${phoneClean.slice(-4)}`, customer_phone],
       );
-      customer = insertResult.rows[0];
     }
 
-    // Resolve products
-    let total = 0;
-    const resolvedItems: Array<{ productId: number; name: string; quantity: number; unitPrice: number }> = [];
-    for (const item of items) {
-      const product = await dbQueryOne<any>(
-        `SELECT id, name, price, stock FROM products WHERE tenant_id=$1 AND active=true AND name ILIKE $2 LIMIT 1`,
-        [tenantId, `%${item.product_name}%`],
-      );
-      if (!product) return { error: `Producto "${item.product_name}" no encontrado en el catálogo.` };
-      if (product.stock !== null && product.stock < item.quantity) {
-        return { error: `Solo quedan ${product.stock} unidades de "${product.name}".` };
-      }
-      resolvedItems.push({
-        productId: Number(product.id),
-        name: product.name,
-        quantity: item.quantity,
-        unitPrice: Number(product.price),
+    // Wrap product resolution + order creation + stock decrement in a transaction
+    // to prevent overselling via check-then-update race condition.
+    try {
+      const result = await dbTransaction(async (client) => {
+        // Resolve products with FOR UPDATE lock to prevent concurrent stock changes
+        let total = 0;
+        const resolvedItems: Array<{ productId: number; name: string; quantity: number; unitPrice: number }> = [];
+        for (const item of items) {
+          const productResult = await client.query(
+            `SELECT id, name, price, stock FROM products WHERE tenant_id=$1 AND active=true AND name ILIKE $2 LIMIT 1 FOR UPDATE`,
+            [tenantId, `%${item.product_name}%`],
+          );
+          const product = productResult.rows[0] as any;
+          if (!product) return { error: `Producto "${item.product_name}" no encontrado en el catálogo.` };
+          if (product.stock !== null && product.stock < item.quantity) {
+            return { error: `Solo quedan ${product.stock} unidades de "${product.name}".` };
+          }
+          resolvedItems.push({
+            productId: Number(product.id),
+            name: product.name,
+            quantity: item.quantity,
+            unitPrice: Number(product.price),
+          });
+          total += Number(product.price) * item.quantity;
+        }
+
+        // Create order
+        const orderResult = await client.query(
+          `INSERT INTO orders (tenant_id, customer_id, status, total, delivery_type, delivery_address, notes)
+           VALUES ($1, $2, 'pending', $3, $4, $5, $6) RETURNING id`,
+          [tenantId, customer.id, total, delivery_address ? 'delivery' : 'none', delivery_address || null, notes || null],
+        );
+        const orderId = (orderResult.rows[0] as any).id;
+
+        // Batch INSERT order items (multi-row insert instead of N sequential inserts)
+        if (resolvedItems.length > 0) {
+          const valueClauses: string[] = [];
+          const insertParams: unknown[] = [];
+          for (let i = 0; i < resolvedItems.length; i++) {
+            const offset = i * 4;
+            valueClauses.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`);
+            insertParams.push(orderId, resolvedItems[i].productId, resolvedItems[i].quantity, resolvedItems[i].unitPrice);
+          }
+          await client.query(
+            `INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES ${valueClauses.join(', ')}`,
+            insertParams,
+          );
+        }
+
+        // Batch UPDATE stock (single UPDATE with CASE/WHEN instead of N sequential updates)
+        const stockItems = resolvedItems.filter(item => true); // update all; the WHERE clause handles NULL stock
+        if (stockItems.length > 0) {
+          const whenClauses: string[] = [];
+          const ids: number[] = [];
+          const updateParams: unknown[] = [];
+          for (let i = 0; i < stockItems.length; i++) {
+            whenClauses.push(`WHEN id = $${i * 2 + 1} THEN stock - $${i * 2 + 2}`);
+            updateParams.push(stockItems[i].productId, stockItems[i].quantity);
+            ids.push(stockItems[i].productId);
+          }
+          const idsParamIdx = updateParams.length + 1;
+          updateParams.push(ids);
+          await client.query(
+            `UPDATE products SET stock = CASE ${whenClauses.join(' ')} ELSE stock END
+             WHERE id = ANY($${idsParamIdx}) AND stock IS NOT NULL`,
+            updateParams,
+          );
+        }
+
+        return {
+          order_id: orderId,
+          total: `S/${total.toFixed(2)}`,
+          items: resolvedItems.map(i => `${i.quantity}x ${i.name} (S/${i.unitPrice.toFixed(2)})`),
+          customer: customer.name,
+          status: 'pending',
+          message: `Pedido #${orderId} creado por S/${total.toFixed(2)}. Pendiente de pago.`,
+        };
       });
-      total += Number(product.price) * item.quantity;
+      return result;
+    } catch (err: any) {
+      logger.error({ err: err.message, tenantId }, 'createOrder transaction failed');
+      return { error: `Error creando pedido: ${err.message}` };
     }
-
-    // Create order
-    const orderResult = await dbQueryOne<any>(
-      `INSERT INTO orders (tenant_id, customer_id, status, total, delivery_type, delivery_address, notes)
-       VALUES ($1, $2, 'pending', $3, $4, $5, $6) RETURNING id`,
-      [tenantId, customer.id, total, delivery_address ? 'delivery' : 'none', delivery_address || null, notes || null],
-    );
-    const orderId = orderResult!.id;
-
-    // Insert order items
-    for (const item of resolvedItems) {
-      await dbQuery(
-        `INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES ($1, $2, $3, $4)`,
-        [orderId, item.productId, item.quantity, item.unitPrice],
-      );
-    }
-
-    // Update stock
-    for (const item of resolvedItems) {
-      await dbQuery(
-        `UPDATE products SET stock = stock - $1 WHERE id = $2 AND stock IS NOT NULL`,
-        [item.quantity, item.productId],
-      );
-    }
-
-    return {
-      order_id: orderId,
-      total: `S/${total.toFixed(2)}`,
-      items: resolvedItems.map(i => `${i.quantity}x ${i.name} (S/${i.unitPrice.toFixed(2)})`),
-      customer: customer.name,
-      status: 'pending',
-      message: `Pedido #${orderId} creado por S/${total.toFixed(2)}. Pendiente de pago.`,
-    };
   },
 });
 

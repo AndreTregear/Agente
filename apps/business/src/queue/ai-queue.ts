@@ -11,7 +11,7 @@ import { logger } from '../shared/logger.js';
 import { splitMessage } from '../shared/message-utils.js';
 import { QUEUE_CONCURRENCY } from '../config.js';
 import { isContactPaused } from '../db/ai-paused-repo.js';
-import { synthesizeSpeech } from '../voice/voice-pipeline.js';
+import { enqueueVoiceJob } from './voice-queue.js';
 import { AI_QUEUE_NAME, type AIJobData, type AIJobResult } from './types.js';
 
 const MAX_OFFLINE_DELAYS = 3;
@@ -165,15 +165,12 @@ async function processAIJob(job: Job<AIJobData, AIJobResult>): Promise<AIJobResu
       appBus.emit('message-logged', { tenantId, channel, jid, pushName: null, direction: 'outgoing', body: result.reply, timestamp: new Date().toISOString() });
       appBus.emit('ai-job-completed', tenantId, jid);
 
-      // Voice reply: if the original message was a voice note, also send the response as audio
+      // Voice reply: if the original message was a voice note, enqueue TTS asynchronously
+      // (frees this AI worker thread immediately — TTS runs on the dedicated voice queue)
       if (isVoiceMessage && result.reply) {
-        try {
-          const voiceAudio = await synthesizeSpeech(result.reply);
-          await tenantManager.sendAudio(tenantId, jid, voiceAudio, 'audio/mpeg', true);
-          logger.info({ tenantId, jid, jobId: job.id, audioSize: voiceAudio.length }, 'Voice reply sent');
-        } catch (voiceErr) {
-          logger.warn({ err: voiceErr, tenantId, jid, jobId: job.id }, 'Voice reply TTS failed (text reply already sent)');
-        }
+        enqueueVoiceJob({ tenantId, jid, text: result.reply }).catch((voiceErr) => {
+          logger.warn({ err: voiceErr, tenantId, jid, jobId: job.id }, 'Failed to enqueue voice TTS job');
+        });
       }
 
       logger.info({ tenantId, jid, jobId: job.id, images: result.imagesToSend.length, chunksSent, hasVision: !!imageMediaPath, isVoice: !!isVoiceMessage, latencyMs: Date.now() - jobStartTime }, `AI replied to ${pushName || jid}`);

@@ -10,13 +10,16 @@
  */
 
 import { execFile } from 'node:child_process';
+import type { Job } from 'bullmq';
 import { query, queryOne } from '../db/pool.js';
+import { QueueFactory, registerQueue } from '../queue/queue-factory.js';
 import { logger } from '../shared/logger.js';
 import type { RolloutCollector } from './rollout-collector.js';
 
 // ── Configuration ──
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+export const RL_TRAINING_QUEUE_NAME = 'yaya:rl-training';
 const MIN_SCORED_TURNS = 50;
 const OFF_PEAK_START_HOUR = 0; // 00:00 Lima
 const OFF_PEAK_END_HOUR = 6;   // 06:00 Lima
@@ -42,29 +45,66 @@ export interface TrainingRun {
 // ── Scheduler ──
 
 export class TrainingScheduler {
-  private timer: ReturnType<typeof setInterval> | null = null;
+  private queueFactory: QueueFactory | null = null;
   private running = false;
   private trainingInProgress = false;
 
   constructor(private rolloutCollector: RolloutCollector) {}
 
-  start(): void {
+  async start(): Promise<void> {
     if (this.running) return;
     this.running = true;
 
-    // Check immediately on start, then every hour
-    this.check();
-    this.timer = setInterval(() => this.check(), CHECK_INTERVAL_MS);
-    this.timer.unref();
+    // Create the BullMQ queue for RL training checks
+    this.queueFactory = new QueueFactory({
+      name: RL_TRAINING_QUEUE_NAME,
+      processor: async (_job: Job) => {
+        await this.check();
+      },
+      concurrency: 1,
+      defaultJobOptions: {
+        attempts: 1,
+        removeOnComplete: { count: 50 },
+        removeOnFail: { count: 100 },
+      },
+    });
+    registerQueue(RL_TRAINING_QUEUE_NAME, this.queueFactory);
 
-    logger.info({ checkIntervalMs: CHECK_INTERVAL_MS, minScoredTurns: MIN_SCORED_TURNS }, 'Training scheduler started');
+    const queue = this.queueFactory.getQueue();
+
+    // Remove stale repeatable jobs from previous deploys
+    const existing = await queue.getRepeatableJobs();
+    for (const rj of existing) {
+      await queue.removeRepeatableByKey(rj.key);
+    }
+
+    // Schedule repeating job (every hour)
+    await queue.add('rl-training-check', {}, {
+      repeat: { every: CHECK_INTERVAL_MS },
+      jobId: 'rl-training-repeatable',
+    });
+
+    const worker = this.queueFactory.getWorker();
+    if (worker) {
+      worker.on('completed', (job) => {
+        if (job) logger.debug({ jobId: job.id }, 'RL training check completed');
+      });
+      worker.on('failed', (job, err) => {
+        if (job) logger.error({ jobId: job.id, err }, 'RL training check failed');
+      });
+      worker.on('error', (err) => {
+        logger.error({ err }, 'RL training queue worker error');
+      });
+    }
+
+    logger.info({ checkIntervalMs: CHECK_INTERVAL_MS, minScoredTurns: MIN_SCORED_TURNS }, 'Training scheduler started (BullMQ repeatable)');
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this.running = false;
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
+    if (this.queueFactory) {
+      await this.queueFactory.close();
+      this.queueFactory = null;
     }
     logger.info('Training scheduler stopped');
   }

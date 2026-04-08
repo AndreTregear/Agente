@@ -4,6 +4,7 @@ import { migrateAuthTables, seedAdminIfNeeded } from './auth/auth.js';
 import { tenantManager } from './bot/tenant-manager.js';
 import { startHealthCheck, stopHealthCheck } from './bot/health-check.js';
 import { startAIWorker, closeAIQueue } from './queue/ai-queue.js';
+import { startVoiceWorker, closeVoiceQueue } from './queue/voice-queue.js';
 import { closeRedis } from './queue/redis.js';
 import { startReminderScheduler, stopReminderScheduler } from './queue/reminder-scheduler.js';
 import { startPaymentFollowupScheduler, stopPaymentFollowupScheduler } from './queue/payment-followup-scheduler.js';
@@ -12,8 +13,8 @@ import { initializeDailySummaryScheduler, closeDailySummaryScheduler } from './q
 import { initializeFollowupScheduler, closeFollowupScheduler } from './queue/followup-scheduler.js';
 import { ensureBuckets } from './media/s3-client.js';
 import { startMediaWorker, closeMediaQueue } from './media/media-queue.js';
-import { startPartitionManager, stopPartitionManager } from './warehouse/partitions.js';
-import { startETLRunner, stopETLRunner } from './warehouse/etl-runner.js';
+import { startPartitionScheduler, stopPartitionScheduler } from './warehouse/partitions.js';
+import { startETLScheduler, stopETLScheduler } from './warehouse/etl-runner.js';
 import { registerEventListeners } from './services/notification-service.js';
 import { initializeRLPipeline, stopRLPipeline } from './rl/index.js';
 import { handleCallEvents } from './voice/call-handler.js';
@@ -53,9 +54,10 @@ export async function startPlatform(port: number): Promise<() => Promise<void>> 
   logger.debug({ latencyMs: Date.now() - stepStart }, 'Web server created');
 
   startAIWorker();
+  startVoiceWorker();
   startMediaWorker();
-  startPartitionManager();
-  startETLRunner();
+  await startPartitionScheduler();
+  await startETLScheduler();
 
   // Register call handler before tenants start so all workers get it
   tenantManager.setCallHandler(handleCallEvents);
@@ -75,23 +77,24 @@ export async function startPlatform(port: number): Promise<() => Promise<void>> 
   registerEventListeners();
 
   // Start RL pipeline (rollout collector + training scheduler + A/B tests)
-  initializeRLPipeline();
+  await initializeRLPipeline();
 
   logger.info({ totalStartupMs: Date.now() - platformStart }, 'Autobot multi-tenant platform is running');
 
   return async () => {
     logger.info('Shutting down...');
     stopHealthCheck();
-    stopPartitionManager();
-    stopETLRunner();
+    await stopPartitionScheduler();
+    await stopETLScheduler();
     await stopReminderScheduler();
     await stopPaymentFollowupScheduler();
     await stopPaymentExpirationScheduler();
     await closeDailySummaryScheduler();
     await closeFollowupScheduler();
     await closeMediaQueue();
+    await closeVoiceQueue();
     await closeAIQueue();
-    stopRLPipeline();
+    await stopRLPipeline();
     await tenantManager.shutdownAll();
     await closeRedis();
   };

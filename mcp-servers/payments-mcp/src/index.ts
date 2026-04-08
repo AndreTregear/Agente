@@ -16,12 +16,8 @@
  *  - create_return_authorization: Create a return/exchange authorization in ERPNext
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { createMCPServer, formatJSON } from '@yaya/mcp-base';
+import { createHttpClient } from '@yaya/http-client';
 import pg from "pg";
 
 // ── Configuration ────────────────────────────────────
@@ -138,27 +134,25 @@ async function initSchema(): Promise<void> {
   }
 }
 
-// ── ERPNext API Client ───────────────────────────────
+// ── ERPNext HTTP Client ──────────────────────────────
 
-async function erpFetch(endpoint: string, options: RequestInit = {}): Promise<any> {
-  const url = `${ERPNEXT_URL}/api${endpoint}`;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(ERPNEXT_API_KEY
-      ? { Authorization: `token ${ERPNEXT_API_KEY}:${ERPNEXT_API_SECRET}` }
-      : {}),
-    ...(options.headers as Record<string, string>) || {},
-  };
+const erp = createHttpClient({
+  baseUrl: `${ERPNEXT_URL}/api`,
+  auth: ERPNEXT_API_KEY
+    ? { type: 'token', value: `token ${ERPNEXT_API_KEY}:${ERPNEXT_API_SECRET}` }
+    : undefined,
+  timeout: 10_000,
+});
 
-  const res = await fetch(url, { ...options, headers });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`ERPNext API ${res.status}: ${text}`);
-  }
-  return res.json();
-}
+// ── Payments REST Client (fallback when no DB) ──────
 
-// ── Payments DB Client (Postgres direct or REST fallback) ──
+const paymentsApi = PAYMENTS_API_URL
+  ? createHttpClient({
+      baseUrl: PAYMENTS_API_URL,
+      auth: PAYMENTS_API_KEY ? { type: 'bearer', token: PAYMENTS_API_KEY } : undefined,
+      timeout: 10_000,
+    })
+  : null;
 
 async function paymentsFetch(
   endpoint: string,
@@ -170,29 +164,26 @@ async function paymentsFetch(
   }
 
   // Fallback to REST API
-  if (!PAYMENTS_API_URL) {
+  if (!paymentsApi) {
     throw new Error(
       "Neither PAYMENTS_DB_URL nor PAYMENTS_API_URL is configured."
     );
   }
-  const url = `${PAYMENTS_API_URL}${endpoint}`;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(PAYMENTS_API_KEY ? { Authorization: `Bearer ${PAYMENTS_API_KEY}` } : {}),
-    ...(options.headers as Record<string, string>) || {},
-  };
+  const method = (options.method || "GET").toUpperCase();
+  const body = options.body ? JSON.parse(options.body as string) : undefined;
 
-  const res = await fetch(url, { ...options, headers });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Payments API ${res.status}: ${text}`);
+  if (method === "GET") {
+    return paymentsApi.get(endpoint);
+  } else if (method === "POST") {
+    return paymentsApi.post(endpoint, body);
+  } else if (method === "PUT") {
+    return paymentsApi.put(endpoint, body);
+  } else if (method === "PATCH") {
+    return paymentsApi.patch(endpoint, body);
+  } else if (method === "DELETE") {
+    return paymentsApi.delete(endpoint);
   }
-
-  const contentType = res.headers.get("content-type") || "";
-  if (contentType.includes("json")) {
-    return res.json();
-  }
-  return {};
+  throw new Error(`Unsupported method: ${method}`);
 }
 
 // ── Direct Postgres routing for paymentsFetch ────────
@@ -658,7 +649,7 @@ async function handleTool(name: string, args: Record<string, any>): Promise<stri
         filters.push(["transaction_date", "<=", args.to_date]);
       }
 
-      const data = await erpFetch(
+      const data = await erp.get<any>(
         `/resource/Sales Order?filters=${encodeURIComponent(JSON.stringify(filters))}&fields=${encodeURIComponent(JSON.stringify(["name", "customer", "grand_total", "transaction_date", "status", "currency"]))}&limit_page_length=${limit}&order_by=transaction_date desc`
       );
       return JSON.stringify(data.data, null, 2);
@@ -674,7 +665,7 @@ async function handleTool(name: string, args: Record<string, any>): Promise<stri
         filters.push(["customer", "like", `%${args.customer}%`]);
       }
 
-      const data = await erpFetch(
+      const data = await erp.get<any>(
         `/resource/Sales Order?filters=${encodeURIComponent(JSON.stringify(filters))}&fields=${encodeURIComponent(JSON.stringify(["name", "customer", "grand_total", "transaction_date", "currency"]))}&limit_page_length=50&order_by=transaction_date desc`
       );
 
@@ -767,13 +758,10 @@ async function handleTool(name: string, args: Record<string, any>): Promise<stri
       };
 
       // Fetch the order to get customer name
-      const order = await erpFetch(`/resource/Sales Order/${args.order_id}`);
+      const order = await erp.get<any>(`/resource/Sales Order/${args.order_id}`);
       (paymentEntry as any).party = order.data.customer;
 
-      const erpPayment = await erpFetch("/resource/Payment Entry", {
-        method: "POST",
-        body: JSON.stringify({ data: paymentEntry }),
-      });
+      const erpPayment = await erp.post<any>("/resource/Payment Entry", { data: paymentEntry });
 
       return JSON.stringify(
         {
@@ -824,7 +812,7 @@ async function handleTool(name: string, args: Record<string, any>): Promise<stri
 
     case "process_refund": {
       // 1. Fetch original order to get customer and validate
-      const order = await erpFetch(`/resource/Sales Order/${args.order_id}`);
+      const order = await erp.get<any>(`/resource/Sales Order/${args.order_id}`);
       const customer = order.data.customer;
       const orderTotal = Number(order.data.grand_total);
 
@@ -878,10 +866,7 @@ async function handleTool(name: string, args: Record<string, any>): Promise<stri
           ],
         };
 
-        const erpResult = await erpFetch("/resource/Payment Entry", {
-          method: "POST",
-          body: JSON.stringify({ data: paymentEntry }),
-        });
+        const erpResult = await erp.post<any>("/resource/Payment Entry", { data: paymentEntry });
         erpPaymentEntry = erpResult.data?.name;
       }
 
@@ -995,7 +980,7 @@ async function handleTool(name: string, args: Record<string, any>): Promise<stri
         "party",
         "reference_no",
       ]);
-      const erpData = await erpFetch(
+      const erpData = await erp.get<any>(
         `/resource/Payment Entry?filters=${encodeURIComponent(erpFilters)}&fields=${encodeURIComponent(erpFields)}&limit_page_length=100&order_by=creation desc`
       );
 
@@ -1041,7 +1026,7 @@ async function handleTool(name: string, args: Record<string, any>): Promise<stri
 
     case "create_return_authorization": {
       // 1. Fetch original order for validation
-      const order = await erpFetch(
+      const order = await erp.get<any>(
         `/resource/Sales Order/${args.order_id}`
       );
       const customer = order.data.customer;
@@ -1125,10 +1110,7 @@ async function handleTool(name: string, args: Record<string, any>): Promise<stri
 
       let stockEntryResult = null;
       try {
-        const erpResult = await erpFetch("/resource/Stock Entry", {
-          method: "POST",
-          body: JSON.stringify({ data: stockEntry }),
-        });
+        const erpResult = await erp.post<any>("/resource/Stock Entry", { data: stockEntry });
         stockEntryResult = erpResult.data?.name;
       } catch {
         // Stock entry creation is non-critical — log but don't fail
@@ -1182,7 +1164,7 @@ async function handleTool(name: string, args: Record<string, any>): Promise<stri
       // Check ERPNext
       const erpStart = Date.now();
       try {
-        await erpFetch("/method/frappe.handler.version");
+        await erp.get<any>("/method/frappe.handler.version");
         result.erpnext = {
           status: "connected",
           url: ERPNEXT_URL,
@@ -1209,37 +1191,14 @@ async function handleTool(name: string, args: Record<string, any>): Promise<stri
   }
 }
 
-// ── MCP Server Setup ─────────────────────────────────
+// ── MCP Server ──────────────────────────────────────
 
-const server = new Server(
-  { name: "payments-mcp", version: "0.1.0" },
-  { capabilities: { tools: {} } }
-);
-
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
+const mcp = createMCPServer({
+  name: 'payments-mcp',
+  version: '0.1.0',
   tools: TOOLS,
-}));
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  try {
-    const result = await handleTool(name, args || {});
-    return { content: [{ type: "text", text: result }] };
-  } catch (error: any) {
-    return {
-      content: [{ type: "text", text: `Error: ${error.message}` }],
-      isError: true,
-    };
-  }
+  onStartup: initSchema,
+  handler: async (name, args) => handleTool(name, args),
 });
 
-// ── Start ────────────────────────────────────────────
-
-async function main() {
-  await initSchema();
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Payments MCP server running on stdio");
-}
-
-main().catch(console.error);
+mcp.start();

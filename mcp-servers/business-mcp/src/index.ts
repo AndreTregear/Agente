@@ -5,21 +5,9 @@
  * Exposes Tier 1 business tools to OpenClaw agents via direct PostgreSQL queries.
  * Same logic as the voice tools in agente-ceo — single source of truth for
  * business data access.
- *
- * Tools:
- *   business_metrics  — Revenue, orders, payments breakdown
- *   customer_lookup   — Find customer by name/phone + recent orders
- *   send_message      — Send WhatsApp message via gateway
- *   calendar_today    — Today's appointments
- *   payment_status    — Pending payments / order status
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+import { createMCPServer, formatJSON } from '@yaya/mcp-base';
 import pg from 'pg';
 
 // ── Database ──
@@ -44,117 +32,64 @@ async function queryOne<T extends pg.QueryResultRow>(sql: string, params?: unkno
 
 const TENANT_ID = process.env.DEFAULT_TENANT_ID ?? '';
 
-// ── MCP Server ──
-
-const server = new Server(
-  { name: 'business-mcp', version: '0.1.0' },
-  { capabilities: { tools: {} } },
-);
-
 // ── Tool Definitions ──
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: [
-    {
-      name: 'business_metrics',
-      description:
-        'Get business metrics: revenue, order count, payments by method, pending orders. Periods: today, week, month.',
-      inputSchema: {
-        type: 'object' as const,
-        properties: {
-          period: {
-            type: 'string',
-            enum: ['today', 'week', 'month'],
-            description: 'Time period. Default: today.',
-          },
+const TOOLS = [
+  {
+    name: 'business_metrics',
+    description:
+      'Get business metrics: revenue, order count, payments by method, pending orders. Periods: today, week, month.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        period: {
+          type: 'string',
+          enum: ['today', 'week', 'month'],
+          description: 'Time period. Default: today.',
         },
       },
     },
-    {
-      name: 'customer_lookup',
-      description: 'Search for a customer by name or phone number. Returns contact info and recent orders.',
-      inputSchema: {
-        type: 'object' as const,
-        properties: {
-          query: { type: 'string', description: 'Customer name or phone number' },
-        },
-        required: ['query'],
+  },
+  {
+    name: 'customer_lookup',
+    description: 'Search for a customer by name or phone number. Returns contact info and recent orders.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        query: { type: 'string', description: 'Customer name or phone number' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'send_message',
+    description: 'Send a WhatsApp message to a customer by name or phone number.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        phone: { type: 'string', description: 'Customer name or phone number' },
+        message: { type: 'string', description: 'Message text to send' },
+      },
+      required: ['phone', 'message'],
+    },
+  },
+  {
+    name: 'calendar_today',
+    description: "Get today's appointments and schedule.",
+    inputSchema: { type: 'object' as const, properties: {} },
+  },
+  {
+    name: 'payment_status',
+    description: 'Check pending payments or payment status for a specific order.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        order_id: { type: 'number', description: 'Specific order ID to check' },
+        customer_name: { type: 'string', description: 'Filter by customer name' },
       },
     },
-    {
-      name: 'send_message',
-      description: 'Send a WhatsApp message to a customer by name or phone number.',
-      inputSchema: {
-        type: 'object' as const,
-        properties: {
-          phone: { type: 'string', description: 'Customer name or phone number' },
-          message: { type: 'string', description: 'Message text to send' },
-        },
-        required: ['phone', 'message'],
-      },
-    },
-    {
-      name: 'calendar_today',
-      description: "Get today's appointments and schedule.",
-      inputSchema: { type: 'object' as const, properties: {} },
-    },
-    {
-      name: 'payment_status',
-      description: 'Check pending payments or payment status for a specific order.',
-      inputSchema: {
-        type: 'object' as const,
-        properties: {
-          order_id: { type: 'number', description: 'Specific order ID to check' },
-          customer_name: { type: 'string', description: 'Filter by customer name' },
-        },
-      },
-    },
-  ],
-}));
-
-// ── Tool Handlers ──
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args = {} } = request.params;
-
-  if (!TENANT_ID) {
-    return { content: [{ type: 'text', text: 'Error: DEFAULT_TENANT_ID not set.' }] };
-  }
-
-  try {
-    let result: string;
-
-    switch (name) {
-      case 'business_metrics':
-        result = await businessMetrics((args.period as string) ?? 'today');
-        break;
-      case 'customer_lookup':
-        result = await customerLookup(args.query as string);
-        break;
-      case 'send_message':
-        result = await sendMessage(args.phone as string, args.message as string);
-        break;
-      case 'calendar_today':
-        result = await calendarToday();
-        break;
-      case 'payment_status':
-        result = await paymentStatus(
-          args.order_id as number | undefined,
-          args.customer_name as string | undefined,
-        );
-        break;
-      default:
-        result = JSON.stringify({ error: `Unknown tool: ${name}` });
-    }
-
-    return { content: [{ type: 'text', text: result }] };
-  } catch (err) {
-    return {
-      content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : err}` }],
-      isError: true,
-    };
-  }
-});
+  },
+];
 
 // ── Business Logic (mirrors agente-ceo/src/lib/business-tools.ts) ──
 
@@ -372,15 +307,35 @@ async function paymentStatus(orderId?: number, customerName?: string): Promise<s
   return JSON.stringify({ pending_count: pending.length, total_pending: totalPending, orders: pending });
 }
 
-// ── Start ──
+// ── MCP Server ──
 
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error('business-mcp server running on stdio');
-}
+const mcp = createMCPServer({
+  name: 'business-mcp',
+  version: '0.1.0',
+  tools: TOOLS,
+  handler: async (name, args) => {
+    if (!TENANT_ID) {
+      return 'Error: DEFAULT_TENANT_ID not set.';
+    }
 
-main().catch((err) => {
-  console.error('business-mcp fatal:', err);
-  process.exit(1);
+    switch (name) {
+      case 'business_metrics':
+        return businessMetrics((args.period as string) ?? 'today');
+      case 'customer_lookup':
+        return customerLookup(args.query as string);
+      case 'send_message':
+        return sendMessage(args.phone as string, args.message as string);
+      case 'calendar_today':
+        return calendarToday();
+      case 'payment_status':
+        return paymentStatus(
+          args.order_id as number | undefined,
+          args.customer_name as string | undefined,
+        );
+      default:
+        throw new Error(`Unknown tool: ${name}`);
+    }
+  },
 });
+
+mcp.start();

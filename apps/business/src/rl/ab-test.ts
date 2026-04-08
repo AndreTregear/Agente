@@ -7,7 +7,9 @@
  * 3. After 48 hours or 100 interactions: promote or rollback
  */
 
+import type { Job } from 'bullmq';
 import { query, queryOne } from '../db/pool.js';
+import { QueueFactory, registerQueue } from '../queue/queue-factory.js';
 import { logger } from '../shared/logger.js';
 
 // ── Configuration ──
@@ -16,6 +18,8 @@ const DEFAULT_TRAFFIC_SPLIT = 0.10; // 10% to candidate
 const MIN_INTERACTIONS = 100;
 const MAX_DURATION_MS = 48 * 60 * 60 * 1000; // 48 hours
 const IMPROVEMENT_THRESHOLD = 0.05; // 5% improvement required to promote
+const AB_CHECK_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+export const AB_TEST_QUEUE_NAME = 'yaya:ab-test';
 
 // ── Types ──
 
@@ -45,25 +49,62 @@ function defaultMetrics(): ABTestMetrics {
 // ── Manager ──
 
 export class ABTestManager {
-  private checkTimer: ReturnType<typeof setInterval> | null = null;
+  private queueFactory: QueueFactory | null = null;
   private running = false;
 
-  start(): void {
+  async start(): Promise<void> {
     if (this.running) return;
     this.running = true;
 
-    // Check active tests every 15 minutes
-    this.checkTimer = setInterval(() => this.evaluateActiveTests(), 15 * 60 * 1000);
-    this.checkTimer.unref();
+    this.queueFactory = new QueueFactory({
+      name: AB_TEST_QUEUE_NAME,
+      processor: async (_job: Job) => {
+        await this.evaluateActiveTests();
+      },
+      concurrency: 1,
+      defaultJobOptions: {
+        attempts: 1,
+        removeOnComplete: { count: 50 },
+        removeOnFail: { count: 100 },
+      },
+    });
+    registerQueue(AB_TEST_QUEUE_NAME, this.queueFactory);
 
-    logger.info('A/B test manager started');
+    const queue = this.queueFactory.getQueue();
+
+    // Remove stale repeatable jobs from previous deploys
+    const existing = await queue.getRepeatableJobs();
+    for (const rj of existing) {
+      await queue.removeRepeatableByKey(rj.key);
+    }
+
+    // Schedule repeating job (every 15 minutes)
+    await queue.add('ab-test-evaluate', {}, {
+      repeat: { every: AB_CHECK_INTERVAL_MS },
+      jobId: 'ab-test-repeatable',
+    });
+
+    const worker = this.queueFactory.getWorker();
+    if (worker) {
+      worker.on('completed', (job) => {
+        if (job) logger.debug({ jobId: job.id }, 'A/B test evaluation completed');
+      });
+      worker.on('failed', (job, err) => {
+        if (job) logger.error({ jobId: job.id, err }, 'A/B test evaluation failed');
+      });
+      worker.on('error', (err) => {
+        logger.error({ err }, 'A/B test queue worker error');
+      });
+    }
+
+    logger.info('A/B test manager started (BullMQ repeatable)');
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this.running = false;
-    if (this.checkTimer) {
-      clearInterval(this.checkTimer);
-      this.checkTimer = null;
+    if (this.queueFactory) {
+      await this.queueFactory.close();
+      this.queueFactory = null;
     }
     logger.info('A/B test manager stopped');
   }

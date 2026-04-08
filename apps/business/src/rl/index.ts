@@ -23,23 +23,23 @@ let trainingScheduler: TrainingScheduler | null = null;
 let abTestManager: ABTestManager | null = null;
 
 /** Start all RL pipeline components. Call once during platform startup. */
-export function initializeRLPipeline(): void {
+export async function initializeRLPipeline(): Promise<void> {
   rolloutCollector = new RolloutCollector();
   rolloutCollector.start();
 
   trainingScheduler = new TrainingScheduler(rolloutCollector);
-  trainingScheduler.start();
+  await trainingScheduler.start();
 
   abTestManager = new ABTestManager();
-  abTestManager.start();
+  await abTestManager.start();
 
   logger.info('RL pipeline initialized (rollout collector + training scheduler + A/B test manager)');
 }
 
 /** Stop all RL pipeline components. Call during platform shutdown. */
-export function stopRLPipeline(): void {
-  abTestManager?.stop();
-  trainingScheduler?.stop();
+export async function stopRLPipeline(): Promise<void> {
+  await abTestManager?.stop();
+  await trainingScheduler?.stop();
   rolloutCollector?.stop();
 
   abTestManager = null;

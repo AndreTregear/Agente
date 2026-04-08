@@ -128,13 +128,19 @@ export async function markPaid(
   orderId: number,
   paymentId: number,
   reference?: string,
-): Promise<Order> {
-  const order = await getOrderOrThrow(tenantId, orderId);
-  assertTransition(order.status, 'paid');
+): Promise<Order | null> {
+  // Atomically flip status to 'paid' only if not already paid.
+  // This prevents double-payment when concurrent notifications (e.g. two Yape
+  // callbacks) race to confirm the same order. Only the winner gets a row back.
+  const updated = await ordersRepo.updateOrderStatusAtomic(tenantId, orderId, 'paid', ['payment_requested']);
+  if (!updated) {
+    // Already paid (or in a state that can't transition to paid) — no-op
+    return null;
+  }
   await paymentsRepo.confirmPayment(tenantId, paymentId, reference);
-  const updated = await ordersRepo.updateOrderStatus(tenantId, orderId, 'paid');
+  const order = await getOrderOrThrow(tenantId, orderId);
   appBus.emit('order-paid', tenantId, orderId, order.customerJid);
-  return updated!;
+  return updated;
 }
 
 export async function refundOrder(

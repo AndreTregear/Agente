@@ -30,7 +30,15 @@ export async function matchOrderPayment(
     const payment = candidates[0]!;
     const reference = `yape:${senderName}:notif:${notificationId}`;
 
-    await orderService.markPaid(tenantId, payment.orderId, payment.id, reference);
+    // markPaid is idempotent: returns null if order was already paid (concurrent race).
+    // Only proceed with side effects if we were the one who flipped the status.
+    const updated = await orderService.markPaid(tenantId, payment.orderId, payment.id, reference);
+    if (!updated) {
+      logger.info({ tenantId, paymentId: payment.id, orderId: payment.orderId, amount, senderName },
+        'Yape payment already confirmed by concurrent process — skipping');
+      return { matched: true, paymentId: payment.id, status: 'CONFIRMED' };
+    }
+
     await yapeNotifRepo.markMatched(notificationId, payment.id);
 
     appBus.emit('yape-payment-matched', tenantId, payment.id, payment.orderId, payment.customerJid);

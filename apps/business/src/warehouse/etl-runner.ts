@@ -1,11 +1,13 @@
+import type { Job } from 'bullmq';
 import { query, queryOne } from '../db/pool.js';
+import { QueueFactory, registerQueue } from '../queue/queue-factory.js';
 import { logger } from '../shared/logger.js';
 import crypto from 'node:crypto';
 
 const ETL_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 const BATCH_SIZE = 1000;
 
-let etlTimer: ReturnType<typeof setInterval> | null = null;
+export const ETL_QUEUE_NAME = 'yaya:etl';
 
 interface Checkpoint {
   lastId: number;
@@ -317,23 +319,62 @@ async function runETL(): Promise<void> {
   }
 }
 
-export function startETLRunner(): void {
-  // Run first ETL after a short delay (let DB settle)
-  setTimeout(() => {
-    runETL().catch(err => logger.error(err, 'Initial ETL run failed'));
-  }, 10_000);
+// ── BullMQ-based ETL Scheduler ──
 
-  etlTimer = setInterval(() => {
-    runETL().catch(err => logger.error(err, 'ETL run failed'));
-  }, ETL_INTERVAL_MS);
-
-  logger.info({ intervalMs: ETL_INTERVAL_MS }, 'ETL runner started');
+async function processETLJob(job: Job): Promise<void> {
+  logger.info({ jobId: job.id }, 'ETL job triggered');
+  await runETL();
 }
 
-export function stopETLRunner(): void {
-  if (etlTimer) {
-    clearInterval(etlTimer);
-    etlTimer = null;
-    logger.info('ETL runner stopped');
+const etlQueueFactory = new QueueFactory({
+  name: ETL_QUEUE_NAME,
+  processor: processETLJob,
+  concurrency: 1, // ETL must be serial to avoid transaction conflicts
+  defaultJobOptions: {
+    attempts: 1,                          // ETL is idempotent via checkpoints; no retry needed
+    removeOnComplete: { count: 50 },
+    removeOnFail: { count: 200 },
+  },
+});
+
+registerQueue(ETL_QUEUE_NAME, etlQueueFactory);
+
+export async function startETLScheduler(): Promise<void> {
+  const queue = etlQueueFactory.getQueue();
+
+  // Remove any stale repeatable jobs from previous deploys
+  const existing = await queue.getRepeatableJobs();
+  for (const rj of existing) {
+    await queue.removeRepeatableByKey(rj.key);
   }
+
+  // Schedule repeating job (every ETL_INTERVAL_MS)
+  await queue.add('etl-cycle', {}, {
+    repeat: { every: ETL_INTERVAL_MS },
+    jobId: 'etl-repeatable',
+  });
+
+  const worker = etlQueueFactory.getWorker();
+  if (worker) {
+    worker.on('completed', (job) => {
+      if (job) logger.debug({ jobId: job.id }, 'ETL job completed');
+    });
+    worker.on('failed', (job, err) => {
+      if (job) logger.error({ jobId: job.id, err }, 'ETL job failed');
+    });
+    worker.on('error', (err) => {
+      logger.error({ err }, 'ETL queue worker error');
+    });
+  }
+
+  logger.info({ intervalMs: ETL_INTERVAL_MS }, 'ETL scheduler started (BullMQ repeatable)');
 }
+
+export async function stopETLScheduler(): Promise<void> {
+  await etlQueueFactory.close();
+  logger.info('ETL scheduler stopped');
+}
+
+// ── Legacy aliases for backward compatibility ──
+export const startETLRunner = startETLScheduler;
+export const stopETLRunner = stopETLScheduler;

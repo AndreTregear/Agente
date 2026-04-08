@@ -11,12 +11,7 @@
  *  - get_prerequisites_tree: Get full prerequisite chain for a course
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { createMCPServer, formatJSON } from '@yaya/mcp-base';
 
 import {
   searchCourses,
@@ -255,42 +250,16 @@ async function handleTool(
   }
 }
 
-// ── MCP Server Setup ─────────────────────────────────
+// ── MCP Server ──────────────────────────────────────
 
-const server = new Server(
-  { name: "university-mcp", version: "0.1.0" },
-  { capabilities: { tools: {} } },
-);
-
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
+const mcp = createMCPServer({
+  name: 'university-mcp',
+  version: '0.1.0',
   tools: TOOLS,
-}));
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  try {
-    const result = await handleTool(name, (args as Record<string, unknown>) ?? {});
-    return {
-      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
-    };
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    return {
-      content: [{ type: "text" as const, text: `Error: ${message}` }],
-      isError: true,
-    };
-  }
+  handler: async (name, args) => {
+    const result = await handleTool(name, args);
+    return formatJSON(result);
+  },
 });
 
-// ── Main ─────────────────────────────────
-
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("University MCP server running on stdio");
-}
-
-main().catch((err) => {
-  console.error("Fatal error:", err);
-  process.exit(1);
-});
+mcp.start();

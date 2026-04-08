@@ -9,12 +9,7 @@
  *  - check_robots:    Check if a URL is allowed by robots.txt
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+import { createMCPServer, formatJSON } from '@yaya/mcp-base';
 import {
   scrapeUrl,
   searchCache,
@@ -175,46 +170,23 @@ async function handleTool(
   }
 }
 
-// ── MCP Server Setup ─────────────────────────────────
+// ── MCP Server ──────────────────────────────────────
 
-const server = new Server(
-  { name: 'scraper-mcp', version: '0.1.0' },
-  { capabilities: { tools: {} } },
-);
-
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
+const mcp = createMCPServer({
+  name: 'scraper-mcp',
+  version: '0.1.0',
   tools: TOOLS,
-}));
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  try {
-    const result = await handleTool(name, args || {});
-    return { content: [{ type: 'text', text: result }] };
-  } catch (error: any) {
-    return {
-      content: [{ type: 'text', text: `Error: ${error.message}` }],
-      isError: true,
-    };
-  }
+  onStartup: async () => {
+    try {
+      await ensureCacheTable();
+      console.error('Scraper MCP: Cache table ready');
+    } catch (err: any) {
+      console.error(
+        `WARNING: Could not ensure cache table: ${err.message}. search_cached may not work.`,
+      );
+    }
+  },
+  handler: async (name, args) => handleTool(name, args),
 });
 
-// ── Start ────────────────────────────────────────────
-
-async function main() {
-  // Try to ensure cache table exists (non-fatal if DB unavailable)
-  try {
-    await ensureCacheTable();
-    console.error('Scraper MCP: Cache table ready');
-  } catch (err: any) {
-    console.error(
-      `WARNING: Could not ensure cache table: ${err.message}. search_cached may not work.`,
-    );
-  }
-
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error('Scraper MCP server running on stdio');
-}
-
-main().catch(console.error);
+mcp.start();

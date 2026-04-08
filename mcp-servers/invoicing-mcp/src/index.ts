@@ -19,12 +19,7 @@
  * 11. health_check         — Check provider connectivity
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { createMCPServer, formatJSON } from '@yaya/mcp-base';
 
 import { getAdapter, listAdapters } from "./adapters/registry.js";
 import type { InvoiceData, LineItem } from "./types.js";
@@ -455,39 +450,19 @@ async function handleTool(name: string, args: Record<string, any>): Promise<stri
   }
 }
 
-// ── MCP Server Setup ─────────────────────────────────────
+// ── MCP Server ──────────────────────────────────────────
 
-const server = new Server(
-  { name: "invoicing-mcp", version: "1.0.0" },
-  { capabilities: { tools: {} } }
-);
-
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
+const mcp = createMCPServer({
+  name: 'invoicing-mcp',
+  version: '1.0.0',
   tools: TOOLS,
-}));
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  try {
-    const result = await handleTool(name, args || {});
-    return { content: [{ type: "text", text: result }] };
-  } catch (error: any) {
-    return {
-      content: [{ type: "text", text: `Error: ${error.message}` }],
-      isError: true,
-    };
-  }
+  onStartup: async () => {
+    const adapter = getAdapter(INVOICE_COUNTRY);
+    console.error(
+      `Invoicing MCP v1.0.0 | ${adapter.countryName} (${adapter.countryCode}) | Provider: ${adapter.providerName} | Country env: ${INVOICE_COUNTRY}`
+    );
+  },
+  handler: async (name, args) => handleTool(name, args),
 });
 
-// ── Start ────────────────────────────────────────────────
-
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  const adapter = getAdapter(INVOICE_COUNTRY);
-  console.error(
-    `Invoicing MCP v1.0.0 | ${adapter.countryName} (${adapter.countryCode}) | Provider: ${adapter.providerName} | Country env: ${INVOICE_COUNTRY}`
-  );
-}
-
-main().catch(console.error);
+mcp.start();

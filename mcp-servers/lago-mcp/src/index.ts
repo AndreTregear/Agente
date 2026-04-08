@@ -2,72 +2,31 @@
 /**
  * Lago Billing MCP Server
  * Exposes Lago REST API as MCP tools for OpenClaw agents.
- *
- * Tools:
- *  - list_subscriptions: List active subscriptions for a customer
- *  - get_subscription: Get subscription details
- *  - create_subscription: Subscribe a customer to a plan
- *  - cancel_subscription: Cancel a subscription
- *  - list_invoices: List invoices for a customer
- *  - create_invoice: Generate a one-off invoice
- *  - get_invoice: Get invoice details/PDF link
- *  - list_plans: List available subscription plans
- *  - record_usage: Record usage event for metered billing
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { createMCPServer, formatJSON } from '@yaya/mcp-base';
+import { createHttpClient } from '@yaya/http-client';
 
 // ── Configuration ────────────────────────────────────
 
 const LAGO_API_URL = process.env.LAGO_API_URL || "http://localhost:3000";
 const LAGO_API_KEY = process.env.LAGO_API_KEY || "";
 
-// ── Lago API Client ─────────────────────────────────
+// ── Lago HTTP Client ────────────────────────────────
 
-async function lagoFetch(endpoint: string, options: RequestInit = {}): Promise<any> {
-  const url = `${LAGO_API_URL}/api/v1${endpoint}`;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(LAGO_API_KEY ? { Authorization: `Bearer ${LAGO_API_KEY}` } : {}),
-    ...(options.headers as Record<string, string>) || {},
-  };
-
-  const res = await fetch(url, { ...options, headers });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Lago API ${res.status}: ${text}`);
-  }
-  return res.json();
-}
+const lago = createHttpClient({
+  baseUrl: `${LAGO_API_URL}/api/v1`,
+  auth: LAGO_API_KEY ? { type: 'bearer', token: LAGO_API_KEY } : undefined,
+  timeout: 10_000,
+});
 
 // ── Types ────────────────────────────────────────────
-
-interface SubscriptionParams {
-  external_customer_id: string;
-  plan_code: string;
-  external_id?: string;
-  name?: string;
-  billing_time?: "calendar" | "anniversary";
-}
 
 interface InvoiceItem {
   add_on_code: string;
   units: number;
   unit_amount_cents?: number;
   description?: string;
-}
-
-interface UsageEvent {
-  transaction_id: string;
-  external_subscription_id: string;
-  code: string;
-  timestamp?: number;
-  properties?: Record<string, string | number>;
 }
 
 // ── Tool Definitions ─────────────────────────────────
@@ -278,147 +237,108 @@ const TOOLS = [
   },
 ];
 
-// ── Tool Handlers ────────────────────────────────────
+// ── MCP Server ──────────────────────────────────────
 
-async function handleTool(name: string, args: Record<string, any>): Promise<string> {
-  switch (name) {
-    case "list_subscriptions": {
-      const params = new URLSearchParams();
-      params.set("external_customer_id", args.external_customer_id);
-      if (args.status) params.set("status[]", args.status);
-      if (args.page) params.set("page", String(args.page));
-      if (args.per_page) params.set("per_page", String(args.per_page));
-      const data = await lagoFetch(`/subscriptions?${params.toString()}`);
-      return JSON.stringify(data, null, 2);
-    }
+const mcp = createMCPServer({
+  name: 'lago-mcp',
+  version: '0.1.0',
+  tools: TOOLS,
+  handler: async (name, args) => {
+    switch (name) {
+      case "list_subscriptions": {
+        const params = new URLSearchParams();
+        params.set("external_customer_id", args.external_customer_id as string);
+        if (args.status) params.set("status[]", args.status as string);
+        if (args.page) params.set("page", String(args.page));
+        if (args.per_page) params.set("per_page", String(args.per_page));
+        const data = await lago.get(`/subscriptions?${params.toString()}`);
+        return formatJSON(data);
+      }
 
-    case "get_subscription": {
-      const data = await lagoFetch(`/subscriptions/${encodeURIComponent(args.external_id)}`);
-      return JSON.stringify(data, null, 2);
-    }
+      case "get_subscription": {
+        const data = await lago.get(`/subscriptions/${encodeURIComponent(args.external_id as string)}`);
+        return formatJSON(data);
+      }
 
-    case "create_subscription": {
-      const body: Record<string, any> = {
-        external_customer_id: args.external_customer_id,
-        plan_code: args.plan_code,
-      };
-      if (args.external_id) body.external_id = args.external_id;
-      if (args.name) body.name = args.name;
-      if (args.billing_time) body.billing_time = args.billing_time;
+      case "create_subscription": {
+        const body: Record<string, any> = {
+          external_customer_id: args.external_customer_id,
+          plan_code: args.plan_code,
+        };
+        if (args.external_id) body.external_id = args.external_id;
+        if (args.name) body.name = args.name;
+        if (args.billing_time) body.billing_time = args.billing_time;
 
-      const data = await lagoFetch("/subscriptions", {
-        method: "POST",
-        body: JSON.stringify({ subscription: body }),
-      });
-      return JSON.stringify(data, null, 2);
-    }
+        const data = await lago.post("/subscriptions", { subscription: body });
+        return formatJSON(data);
+      }
 
-    case "cancel_subscription": {
-      const data = await lagoFetch(
-        `/subscriptions/${encodeURIComponent(args.external_id)}`,
-        { method: "DELETE" }
-      );
-      return JSON.stringify(data, null, 2);
-    }
+      case "cancel_subscription": {
+        const data = await lago.delete(`/subscriptions/${encodeURIComponent(args.external_id as string)}`);
+        return formatJSON(data);
+      }
 
-    case "list_invoices": {
-      const params = new URLSearchParams();
-      params.set("external_customer_id", args.external_customer_id);
-      if (args.status) params.set("status", args.status);
-      if (args.page) params.set("page", String(args.page));
-      if (args.per_page) params.set("per_page", String(args.per_page));
-      const data = await lagoFetch(`/invoices?${params.toString()}`);
-      return JSON.stringify(data, null, 2);
-    }
+      case "list_invoices": {
+        const params = new URLSearchParams();
+        params.set("external_customer_id", args.external_customer_id as string);
+        if (args.status) params.set("status", args.status as string);
+        if (args.page) params.set("page", String(args.page));
+        if (args.per_page) params.set("per_page", String(args.per_page));
+        const data = await lago.get(`/invoices?${params.toString()}`);
+        return formatJSON(data);
+      }
 
-    case "create_invoice": {
-      const fees = (args.fees as InvoiceItem[]).map((fee) => ({
-        add_on_code: fee.add_on_code,
-        units: fee.units,
-        ...(fee.unit_amount_cents != null
-          ? { unit_amount_cents: fee.unit_amount_cents }
-          : {}),
-        ...(fee.description ? { description: fee.description } : {}),
-      }));
+      case "create_invoice": {
+        const fees = (args.fees as InvoiceItem[]).map((fee) => ({
+          add_on_code: fee.add_on_code,
+          units: fee.units,
+          ...(fee.unit_amount_cents != null
+            ? { unit_amount_cents: fee.unit_amount_cents }
+            : {}),
+          ...(fee.description ? { description: fee.description } : {}),
+        }));
 
-      const data = await lagoFetch("/invoices", {
-        method: "POST",
-        body: JSON.stringify({
+        const data = await lago.post("/invoices", {
           invoice: {
             external_customer_id: args.external_customer_id,
             currency: args.currency,
             fees,
           },
-        }),
-      });
-      return JSON.stringify(data, null, 2);
+        });
+        return formatJSON(data);
+      }
+
+      case "get_invoice": {
+        const data = await lago.get(`/invoices/${encodeURIComponent(args.lago_id as string)}`);
+        return formatJSON(data);
+      }
+
+      case "list_plans": {
+        const params = new URLSearchParams();
+        if (args.page) params.set("page", String(args.page));
+        if (args.per_page) params.set("per_page", String(args.per_page));
+        const qs = params.toString();
+        const data = await lago.get(`/plans${qs ? `?${qs}` : ""}`);
+        return formatJSON(data);
+      }
+
+      case "record_usage": {
+        const event: Record<string, any> = {
+          transaction_id: args.transaction_id,
+          external_subscription_id: args.external_subscription_id,
+          code: args.code,
+        };
+        if (args.timestamp) event.timestamp = args.timestamp;
+        if (args.properties) event.properties = args.properties;
+
+        const data = await lago.post("/events", { event });
+        return formatJSON(data);
+      }
+
+      default:
+        throw new Error(`Unknown tool: ${name}`);
     }
-
-    case "get_invoice": {
-      const data = await lagoFetch(`/invoices/${encodeURIComponent(args.lago_id)}`);
-      return JSON.stringify(data, null, 2);
-    }
-
-    case "list_plans": {
-      const params = new URLSearchParams();
-      if (args.page) params.set("page", String(args.page));
-      if (args.per_page) params.set("per_page", String(args.per_page));
-      const qs = params.toString();
-      const data = await lagoFetch(`/plans${qs ? `?${qs}` : ""}`);
-      return JSON.stringify(data, null, 2);
-    }
-
-    case "record_usage": {
-      const event: Record<string, any> = {
-        transaction_id: args.transaction_id,
-        external_subscription_id: args.external_subscription_id,
-        code: args.code,
-      };
-      if (args.timestamp) event.timestamp = args.timestamp;
-      if (args.properties) event.properties = args.properties;
-
-      const data = await lagoFetch("/events", {
-        method: "POST",
-        body: JSON.stringify({ event }),
-      });
-      return JSON.stringify(data, null, 2);
-    }
-
-    default:
-      throw new Error(`Unknown tool: ${name}`);
-  }
-}
-
-// ── MCP Server Setup ─────────────────────────────────
-
-const server = new Server(
-  { name: "lago-mcp", version: "0.1.0" },
-  { capabilities: { tools: {} } }
-);
-
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: TOOLS,
-}));
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  try {
-    const result = await handleTool(name, args || {});
-    return { content: [{ type: "text", text: result }] };
-  } catch (error: any) {
-    return {
-      content: [{ type: "text", text: `Error: ${error.message}` }],
-      isError: true,
-    };
-  }
+  },
 });
 
-// ── Start ────────────────────────────────────────────
-
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Lago MCP server running on stdio");
-}
-
-main().catch(console.error);
+mcp.start();

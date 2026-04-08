@@ -1,5 +1,5 @@
 import { query, queryOne } from './pool.js';
-import { encryptRecord, decryptRecord } from '../crypto/middleware.js';
+import { encryptRecord, decryptRecord, decryptRecords } from '../crypto/middleware.js';
 
 export async function logMessagePg(msg: {
   tenantId: string;
@@ -101,17 +101,19 @@ export async function getConversationList(
     }
   }
 
-  const conversations = await Promise.all((rows.rows ?? []).map(async (r: any) => {
-    const msgDec = await decryptRecord(tenantId, 'message_log', { body: r.last_message });
-    const custDec = await decryptRecord(tenantId, 'customers', { name: r.customer_name });
-    return {
-      jid: r.jid,
-      customerName: (custDec.name as string | null) ?? null,
-      lastMessage: (msgDec.body as string) ?? r.last_message,
-      lastMessageDirection: r.last_message_direction,
-      lastMessageAt: r.last_message_at,
-      unreadCount: unreadCounts.get(r.jid) || 0,
-    };
+  const rowList = rows.rows ?? [];
+  const [decMsgs, decCusts] = await Promise.all([
+    decryptRecords(tenantId, 'message_log', rowList.map((r: any) => ({ body: r.last_message }))),
+    decryptRecords(tenantId, 'customers', rowList.map((r: any) => ({ name: r.customer_name }))),
+  ]);
+
+  const conversations = rowList.map((r: any, i: number) => ({
+    jid: r.jid,
+    customerName: (decCusts[i].name as string | null) ?? null,
+    lastMessage: (decMsgs[i].body as string) ?? r.last_message,
+    lastMessageDirection: r.last_message_direction,
+    lastMessageAt: r.last_message_at,
+    unreadCount: unreadCounts.get(r.jid) || 0,
   }));
 
   return { conversations, total };

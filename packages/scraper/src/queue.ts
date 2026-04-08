@@ -8,6 +8,7 @@ import IORedis from 'ioredis';
 import type { ScrapeRequest, ScrapeResult } from './types.js';
 
 export const SCRAPER_QUEUE_NAME = 'yaya-scraper';
+const SCRAPER_CONCURRENCY = Number(process.env.SCRAPER_CONCURRENCY) || 5;
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
@@ -71,7 +72,7 @@ export function createScrapeWorker(
     processor,
     {
       connection: getRedis() as any,
-      concurrency: 3,
+      concurrency: SCRAPER_CONCURRENCY,
       ...options,
     },
   );
