@@ -59,6 +59,15 @@ class TokenManager @Inject constructor(
         return prefs.getString(KEY_REFRESH_TOKEN, null)
     }
 
+    /**
+     * Checks whether the stored access token has expired.
+     *
+     * NOTE: This is a client-side convenience check only, used to avoid making
+     * unnecessary API calls with a token that is obviously expired (better UX).
+     * The server performs the authoritative JWT signature and expiry validation
+     * on every request. This method intentionally does NOT verify the JWT
+     * signature because the signing key is a server secret.
+     */
     fun isTokenExpired(): Boolean {
         val token = getToken() ?: return true
         return try {
@@ -66,10 +75,12 @@ class TokenManager @Inject constructor(
             if (parts.size != 3) return true
             val payload = String(Base64.decode(parts[1], Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP))
             val json = JSONObject(payload)
-            val exp = json.getLong("exp")
-            System.currentTimeMillis() / 1000 > exp
-        } catch (_: Exception) {
-            true
+            val exp = json.optLong("exp", 0)
+            if (exp == 0L) return true
+            // Add 30-second buffer for clock skew
+            System.currentTimeMillis() / 1000 >= exp - 30
+        } catch (e: Exception) {
+            true // Treat any parsing failure as expired
         }
     }
 

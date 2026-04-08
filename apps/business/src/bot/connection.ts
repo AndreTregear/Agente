@@ -18,6 +18,8 @@ let connectionState: 'open' | 'connecting' | 'close' = 'close';
 let startedAt: Date | null = null;
 let messagesHandled = 0;
 let phoneNumber: string | null = null;
+/** Stored listener removal functions for cleanup */
+let listenerCleanups: Array<() => void> = [];
 
 export function getBotState(): {
   socket: WASocket | null;
@@ -62,7 +64,10 @@ export async function startBot(): Promise<void> {
     browser: ['Autobot', 'Chrome', '1.0.0'],
   });
 
-  sock.ev.on('connection.update', async (update) => {
+  // Store listener references for cleanup
+  listenerCleanups = [];
+
+  const onConnectionUpdate = async (update: any) => {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
@@ -89,6 +94,8 @@ export async function startBot(): Promise<void> {
         logger.warn('Logged out — will not reconnect. Restart to re-pair.');
       }
 
+      // Remove listeners before nullifying sock
+      removeListeners();
       sock = null;
       appBus.emit('connection-update', 'single-tenant', 'close');
 
@@ -99,21 +106,39 @@ export async function startBot(): Promise<void> {
         appBus.emit('bot-stopped');
       }
     }
-  });
+  };
 
-  sock.ev.on('creds.update', saveCreds);
+  const onCredsUpdate = saveCreds;
 
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+  const onMessagesUpsert = async ({ messages, type }: { messages: any[]; type: string }) => {
     if (type !== 'notify') return;
     for (const msg of messages) {
       await handleIncomingMessage(sock!, msg);
     }
-  });
+  };
+
+  sock.ev.on('connection.update', onConnectionUpdate);
+  sock.ev.on('creds.update', onCredsUpdate);
+  sock.ev.on('messages.upsert', onMessagesUpsert);
+
+  listenerCleanups.push(
+    () => sock?.ev.off('connection.update', onConnectionUpdate),
+    () => sock?.ev.off('creds.update', onCredsUpdate),
+    () => sock?.ev.off('messages.upsert', onMessagesUpsert),
+  );
+}
+
+function removeListeners(): void {
+  for (const cleanup of listenerCleanups) {
+    try { cleanup(); } catch { /* socket may already be gone */ }
+  }
+  listenerCleanups = [];
 }
 
 export async function stopBot(): Promise<void> {
   shouldReconnect = false;
   if (sock) {
+    removeListeners();
     sock.end(undefined);
     sock = null;
   }

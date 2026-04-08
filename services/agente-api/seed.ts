@@ -14,7 +14,9 @@ console.log('Seeding database...');
 
 // ── Demo user ─────────────────────────────────────────────────
 const userId = 'usr_demo_001';
-const passwordHash = bcrypt.hashSync('yaya2024', 10);
+const demoPassword = process.env.SEED_PASSWORD;
+if (!demoPassword) throw new Error('SEED_PASSWORD required for seeding');
+const passwordHash = bcrypt.hashSync(demoPassword, 10);
 db.prepare(`INSERT INTO users (id, email, password_hash, business_name, business_type, phone, city) VALUES (?, ?, ?, ?, ?, ?, ?)`)
   .run(userId, 'gladys@demo.com', passwordHash, 'Pollería Doña Gladys', 'restaurante', '964555123', 'Huancayo');
 
@@ -104,4 +106,4 @@ insertSetting.run('set_003', userId, 'business_hours', '11:00-22:00');
 insertSetting.run('set_004', userId, 'notifications_enabled', 'true');
 
 console.log('  4 settings');
-console.log('\nSeed complete! Demo login: gladys@demo.com / yaya2024');
+console.log('\nSeed complete! Demo login: gladys@demo.com (password from SEED_PASSWORD env)');

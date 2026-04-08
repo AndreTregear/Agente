@@ -37,7 +37,8 @@ export async function setup() {
   try {
     const BASE_URL = process.env.TEST_BASE_URL ?? 'https://yaya.sh';
     const email = process.env.ADMIN_EMAIL ?? 'andre@yaya.sh';
-    const password = process.env.ADMIN_PASSWORD ?? 'sigmasigmaboy';
+    const password = process.env.ADMIN_PASSWORD;
+    if (!password) throw new Error('ADMIN_PASSWORD required for tests');
 
     const https = await import('node:https');
     const http = await import('node:http');

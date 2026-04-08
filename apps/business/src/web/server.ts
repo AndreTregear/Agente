@@ -114,6 +114,10 @@ export function createWebServer(port: number = 3000): void {
   });
 
   // ── Rate limiting ──
+  // TODO: In production, use a Redis store (e.g. rate-limit-redis) instead of
+  // the default in-memory store. The in-memory store does not share state across
+  // multiple server instances and resets on restart, making it ineffective in
+  // clustered / multi-process deployments.
   const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 300,

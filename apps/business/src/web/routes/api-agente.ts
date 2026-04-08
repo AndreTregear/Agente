@@ -120,8 +120,23 @@ router.post('/chat', async (req: Request, res: Response) => {
       'Connection': 'keep-alive',
     });
 
+    // Guard the SSE stream with a 120s hard timeout
+    const streamTimeout = setTimeout(() => {
+      try {
+        const timeoutChunk = JSON.stringify({
+          id: `timeout-${Date.now()}`,
+          object: 'chat.completion.chunk',
+          choices: [{ index: 0, delta: { content: '\n[Stream timed out after 120s]' }, finish_reason: 'stop' }],
+        });
+        res.write(`data: ${timeoutChunk}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+      } catch { /* already closed */ }
+    }, 120_000);
+
     try {
       for await (const chunk of result.textStream) {
+        if (res.closed) break;
         const sseData = JSON.stringify({
           id: `chat-${Date.now()}`,
           object: 'chat.completion.chunk',
@@ -137,6 +152,8 @@ router.post('/chat', async (req: Request, res: Response) => {
         choices: [{ index: 0, delta: { content: `Error: ${err instanceof Error ? err.message : err}` }, finish_reason: null }],
       });
       res.write(`data: ${errorChunk}\n\n`);
+    } finally {
+      clearTimeout(streamTimeout);
     }
 
     res.write('data: [DONE]\n\n');
@@ -181,6 +198,7 @@ router.post('/voice', async (req: Request, res: Response) => {
           method: 'POST',
           headers: WHISPER_KEY ? { Authorization: `Bearer ${WHISPER_KEY}` } : {},
           body: sttForm,
+          signal: AbortSignal.timeout(30_000),
         });
 
         if (!sttRes.ok) {
@@ -289,6 +307,7 @@ router.post('/voice', async (req: Request, res: Response) => {
           lang_code: 'e',
           response_format: 'mp3',
         }),
+        signal: AbortSignal.timeout(15_000),
       });
       if (ttsRes.ok) {
         audioBase64 = Buffer.from(await ttsRes.arrayBuffer()).toString('base64');
@@ -461,11 +480,17 @@ router.get('/events', (req: Request, res: Response) => {
     }
   });
 
-  // Cleanup on connection close
-  req.on('close', () => {
+  // Cleanup on ALL exit paths — prevent listener + interval leaks
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
     clearInterval(keepalive);
     unsubscribe();
-  });
+  };
+  res.on('finish', cleanup);
+  res.on('close', cleanup);
+  res.on('error', cleanup);
 });
 
 // ── Helper: Summarize completed task + generate TTS audio ──
@@ -503,6 +528,7 @@ async function summarizeAndSpeak(
         stream: false,
         chat_template_kwargs: { enable_thinking: false },
       }),
+      signal: AbortSignal.timeout(30_000),
     });
 
     if (llmRes.ok) {
@@ -526,6 +552,7 @@ async function summarizeAndSpeak(
         lang_code: 'e',
         response_format: 'mp3',
       }),
+      signal: AbortSignal.timeout(15_000),
     });
     if (ttsRes.ok) {
       audioBase64 = Buffer.from(await ttsRes.arrayBuffer()).toString('base64');

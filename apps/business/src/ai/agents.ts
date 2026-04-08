@@ -52,25 +52,32 @@ export const businessMetrics = createTool({
     const tenantId = getTenantId();
     if (!tenantId) return { error: 'No tenant configured' };
 
-    const dateFilter = period === 'week'
-      ? "o.created_at >= NOW() - INTERVAL '7 days'"
-      : period === 'month'
-        ? "o.created_at >= NOW() - INTERVAL '30 days'"
-        : 'o.created_at::date = CURRENT_DATE';
+    const intervalMap: Record<string, string> = { week: '7 days', month: '30 days', today: '0 days' };
+    const interval = intervalMap[period] || '0 days';
+    const useInterval = period === 'week' || period === 'month';
+    const dateFilter = useInterval
+      ? 'o.created_at >= NOW() - $2::interval'
+      : 'o.created_at::date = CURRENT_DATE';
+    const dateParams = useInterval ? [tenantId, interval] : [tenantId];
     const periodLabel = period === 'week' ? 'ultimos 7 dias' : period === 'month' ? 'ultimos 30 dias' : 'hoy';
+
+    // For payment query, tenant_id is $1 and interval (if used) shifts to $2
+    const paymentDateFilter = useInterval
+      ? 'o.created_at >= NOW() - $2::interval'
+      : 'o.created_at::date = CURRENT_DATE';
 
     const [rev, statuses, payments, pending, customers] = await Promise.all([
       dbQueryOne<any>(
         `SELECT COALESCE(SUM(total),0) as total_revenue, COUNT(*) as order_count FROM orders o WHERE tenant_id=$1 AND ${dateFilter}`,
-        [tenantId],
+        dateParams,
       ),
       dbQuery<any>(
         `SELECT status, COUNT(*) as count FROM orders o WHERE tenant_id=$1 AND ${dateFilter} GROUP BY status ORDER BY count DESC`,
-        [tenantId],
+        dateParams,
       ),
       dbQuery<any>(
-        `SELECT p.method, COALESCE(SUM(p.amount),0) as total, COUNT(*) as count FROM payments p JOIN orders o ON p.order_id=o.id AND o.tenant_id=p.tenant_id WHERE p.tenant_id=$1 AND p.status='confirmed' AND ${dateFilter} GROUP BY p.method ORDER BY total DESC`,
-        [tenantId],
+        `SELECT p.method, COALESCE(SUM(p.amount),0) as total, COUNT(*) as count FROM payments p JOIN orders o ON p.order_id=o.id AND o.tenant_id=p.tenant_id WHERE p.tenant_id=$1 AND p.status='confirmed' AND ${paymentDateFilter} GROUP BY p.method ORDER BY total DESC`,
+        dateParams,
       ),
       dbQueryOne<any>(
         `SELECT COUNT(*) as count FROM orders WHERE tenant_id=$1 AND status IN ('pending','payment_requested')`,

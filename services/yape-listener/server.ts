@@ -17,7 +17,10 @@ import { matchByAmount, matchByAmountAndName } from "./matcher.js";
 const app = express();
 const PORT = parseInt(process.env.PORT || "3001", 10);
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['https://agente.ceo', 'https://biz.yaya.sh'],
+  credentials: true,
+}));
 app.use(express.json());
 
 // ── Auth middleware ──────────────────────────────────────────

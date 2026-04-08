@@ -23,7 +23,11 @@ COPY --from=build /app/dist/ ./dist/
 COPY schema*.sql seed-plans.sql ./
 COPY src/web/public/ ./dist/web/public/
 
+RUN chown -R node:node /app
+
 ENV NODE_ENV=production
 EXPOSE 3000
+
+USER node
 
 CMD ["node", "dist/index.js"]

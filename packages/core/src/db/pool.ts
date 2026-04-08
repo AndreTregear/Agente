@@ -27,7 +27,7 @@ export async function query<T extends pg.QueryResultRow = Record<string, unknown
   const client = await pool.connect();
   try {
     if (tenantId) {
-      await client.query(`SET LOCAL app.tenant_id = '${tenantId}'`);
+      await client.query(`SET LOCAL app.tenant_id = $1`, [tenantId]);
     }
     return await client.query<T>(sql, params);
   } finally {
@@ -46,7 +46,7 @@ export async function transaction<T>(
   try {
     await client.query('BEGIN');
     if (tenantId) {
-      await client.query(`SET LOCAL app.tenant_id = '${tenantId}'`);
+      await client.query(`SET LOCAL app.tenant_id = $1`, [tenantId]);
     }
     const result = await fn(client);
     await client.query('COMMIT');

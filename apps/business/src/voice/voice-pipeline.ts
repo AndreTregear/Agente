@@ -73,6 +73,7 @@ export async function synthesizeSpeech(text: string): Promise<Buffer> {
       lang_code: TTS_LANG_CODE,
       response_format: 'mp3',
     }),
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!res.ok) {
@@ -136,6 +137,7 @@ export async function transcribeSpeech(audioBuffer: Buffer, mimetype: string): P
     method: 'POST',
     headers,
     body: fd,
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!res.ok) {

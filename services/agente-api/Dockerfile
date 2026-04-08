@@ -11,11 +11,13 @@ COPY . .
 RUN npm run build
 
 RUN npm prune --production
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data && chown -R node:node /app
 
 EXPOSE 3000
 
 ENV PORT=3000
 ENV DB_PATH=/app/data/yaya.db
+
+USER node
 
 CMD ["node", "dist/server.js"]

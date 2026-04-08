@@ -1,7 +1,32 @@
+import crypto from 'node:crypto';
 import { proto } from '@whiskeysockets/baileys';
 import { query, queryOne } from '../../db/pool.js';
 import { BufferJSON, initAuthCreds } from '@whiskeysockets/baileys';
 import { logger } from '../../shared/logger.js';
+
+// Encryption key for auth state at rest, derived from env secret
+const AUTH_STATE_KEY = crypto.createHash('sha256')
+  .update(process.env.BETTER_AUTH_SECRET || process.env.AUTH_STATE_KEY || '')
+  .digest();
+
+function encryptForStorage(plaintext: string): string {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', AUTH_STATE_KEY, iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  // iv(12) + tag(16) + ciphertext
+  return Buffer.concat([iv, tag, encrypted]).toString('base64');
+}
+
+function decryptFromStorage(encoded: string): string {
+  const buf = Buffer.from(encoded, 'base64');
+  const iv = buf.subarray(0, 12);
+  const tag = buf.subarray(12, 28);
+  const ciphertext = buf.subarray(28);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', AUTH_STATE_KEY, iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+}
 
 /**
  * Creates a Baileys auth state that persists to PostgreSQL.
@@ -9,11 +34,20 @@ import { logger } from '../../shared/logger.js';
  */
 export async function usePostgresAuthState(tenantId: string) {
   const writeData = async (data: unknown): Promise<string> => {
-    return JSON.stringify(data, BufferJSON.replacer);
+    const json = JSON.stringify(data, BufferJSON.replacer);
+    return encryptForStorage(json);
   };
 
   const readData = async (data: string): Promise<unknown> => {
-    return JSON.parse(data, BufferJSON.reviver);
+    // Try decrypting first; fall back to plaintext for migration
+    let json: string;
+    try {
+      json = decryptFromStorage(data);
+    } catch {
+      // Legacy unencrypted data — parse directly, will be re-encrypted on next write
+      json = data;
+    }
+    return JSON.parse(json, BufferJSON.reviver);
   };
 
   // Load or initialize creds
@@ -26,9 +60,9 @@ export async function usePostgresAuthState(tenantId: string) {
   if (credsRow?.creds) {
     const raw = typeof credsRow.creds === 'string' ? credsRow.creds : JSON.stringify(credsRow.creds);
     try {
-      creds = JSON.parse(raw, BufferJSON.reviver);
+      creds = await readData(raw);
     } catch {
-      logger.warn({ tenantId }, 'Failed to parse auth creds, re-initializing');
+      logger.warn({ tenantId }, 'Failed to parse/decrypt auth creds, re-initializing');
       creds = initAuthCreds();
     }
   } else {
@@ -67,9 +101,9 @@ export async function usePostgresAuthState(tenantId: string) {
           const raw = typeof row.key_data === 'string' ? row.key_data : JSON.stringify(row.key_data);
           let value: unknown;
           try {
-            value = JSON.parse(raw, BufferJSON.reviver);
+            value = await readData(raw);
           } catch {
-            logger.warn({ tenantId, keyType: type, keyId: row.key_id }, 'Failed to parse auth key, skipping');
+            logger.warn({ tenantId, keyType: type, keyId: row.key_id }, 'Failed to decrypt/parse auth key, skipping');
             continue;
           }
           if (type === 'app-state-sync-key' && value) {

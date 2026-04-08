@@ -91,12 +91,19 @@ export async function getObject(bucket: string, key: string): Promise<Buffer> {
   const result = await getS3Client().send(new GetObjectCommand({ Bucket: bucket, Key: key }));
   const stream = result.Body;
   if (!stream) throw new Error(`Empty body for ${bucket}/${key}`);
-  // Collect stream into buffer
+  // Collect stream into buffer, ensuring cleanup on error
   const chunks: Uint8Array[] = [];
-  for await (const chunk of stream as AsyncIterable<Uint8Array>) {
-    chunks.push(chunk);
+  try {
+    for await (const chunk of stream as AsyncIterable<Uint8Array>) {
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks);
+  } finally {
+    // Destroy the underlying stream to free resources
+    if (typeof (stream as any).destroy === 'function') {
+      (stream as any).destroy();
+    }
   }
-  return Buffer.concat(chunks);
 }
 
 /** Get an object as a readable stream (for streaming responses). */

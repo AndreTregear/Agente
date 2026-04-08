@@ -54,8 +54,10 @@ router.post('/', async (req, res) => {
 // GET /api/website/leads — admin-only: list all website leads
 router.get('/', requireSession, requireAdmin, async (req, res) => {
   try {
-    const limit = Math.min(Number(req.query.limit) || 50, 200);
-    const offset = Number(req.query.offset) || 0;
+    const parsedLimit = parseInt(req.query.limit as string);
+    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 200) : 50;
+    const parsedOffset = parseInt(req.query.offset as string);
+    const offset = Number.isFinite(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0;
     const status = req.query.status as string | undefined;
 
     let sql = 'SELECT * FROM website_leads';

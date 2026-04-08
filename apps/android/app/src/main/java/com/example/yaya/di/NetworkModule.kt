@@ -10,6 +10,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import okhttp3.CertificatePinner
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -34,20 +35,35 @@ object NetworkModule {
         baseUrlInterceptor: BaseUrlInterceptor,
         tokenAuthenticator: TokenAuthenticator
     ): OkHttpClient {
-        val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
-                    else HttpLoggingInterceptor.Level.NONE
-        }
-
-        return OkHttpClient.Builder()
+        val builder = OkHttpClient.Builder()
             .addInterceptor(baseUrlInterceptor)
             .addInterceptor(authInterceptor)
-            .addInterceptor(loggingInterceptor)
             .authenticator(tokenAuthenticator)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
+
+        // Only add HTTP logging interceptor in debug builds.
+        // In release builds no interceptor is added at all, avoiding any risk
+        // of sensitive data leaking through logged request/response bodies.
+        if (BuildConfig.DEBUG) {
+            val loggingInterceptor = HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            }
+            builder.addInterceptor(loggingInterceptor)
+        }
+
+        // Certificate pinning for production domains.
+        // TODO: Replace placeholder pins with actual SHA-256 certificate hashes
+        // obtained via: openssl s_client -connect yaya.sh:443 | openssl x509 -pubkey -noout |
+        //               openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64
+        val certificatePinner = CertificatePinner.Builder()
+            .add("*.yaya.sh", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
+            .add("agente.ceo", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
             .build()
+        builder.certificatePinner(certificatePinner)
+
+        return builder.build()
     }
 
     @Provides

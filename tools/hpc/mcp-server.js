@@ -10,8 +10,11 @@
 //     }
 //   }
 
-const { execSync, exec } = require('child_process');
+const { execSync, execFileSync, exec } = require('child_process');
 const readline = require('readline');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 const BIN = process.env.HPC_BIN_DIR || `${process.env.HOME}/.local/bin`;
 
@@ -152,8 +155,35 @@ const TOOLS = [
     }
 ];
 
+// ─── Validation Helpers ────────────────────────────────────
+
+const ALLOWED_STATUS_COMPONENTS = ['vpn', 'tunnel', 'job', 'services', 'all'];
+const ALLOWED_TUNNEL_ACTIONS = ['start', 'stop', 'restart', 'status'];
+
+function validatePort(p) {
+    const n = parseInt(p, 10);
+    if (!Number.isInteger(n) || n < 1 || n > 65535) throw new Error(`Invalid port: ${p}`);
+    return n;
+}
+
+/**
+ * Write a file atomically: write to a temp file in the same directory, then rename.
+ * This prevents partial writes from corrupting configuration on crash/power loss.
+ */
+function atomicWriteFileSync(filePath, content) {
+    const dir = path.dirname(filePath);
+    const tmpPath = path.join(dir, `.${path.basename(filePath)}.${process.pid}.tmp`);
+    fs.writeFileSync(tmpPath, content, { mode: 0o600 });
+    fs.renameSync(tmpPath, filePath);
+}
+
 // ─── Tool Handlers ──────────────────────────────────────────
 
+/**
+ * Run a command via shell. WARNING: This function uses shell execution.
+ * NEVER call this with unsanitized user input. All arguments must be
+ * validated/allowlisted before being interpolated into the command string.
+ */
 function run(cmd, timeout = 30000) {
     try {
         return execSync(cmd, { encoding: 'utf-8', timeout, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
@@ -166,6 +196,7 @@ function handleTool(name, args) {
     switch (name) {
         case "hpc_status": {
             const comp = args.component || "all";
+            if (!ALLOWED_STATUS_COMPONENTS.includes(comp)) throw new Error(`Invalid component: ${comp}`);
             const flag = comp === "all" ? "" : `--${comp}`;
             const out = run(`${BIN}/hpc-status ${flag}`);
             try {
@@ -181,64 +212,71 @@ function handleTool(name, args) {
         }
 
         case "hpc_node_switch": {
+            if (args.node !== 'auto' && !/^[a-zA-Z0-9_-]+$/.test(args.node)) throw new Error('Invalid node name');
             const flag = args.node === "auto" ? "--auto" : args.node;
             const out = run(`${BIN}/hpc-node ${flag} 2>&1`);
             return { type: "text", text: out };
         }
 
         case "hpc_tunnel_control": {
+            if (!ALLOWED_TUNNEL_ACTIONS.includes(args.action)) throw new Error(`Invalid action: ${args.action}`);
             const out = run(`${BIN}/hpc-node --${args.action} 2>&1`);
             return { type: "text", text: out };
         }
 
         case "hpc_port_add": {
+            const localPort = validatePort(args.local_port);
+            const remotePort = validatePort(args.remote_port);
             const conf = `${process.env.HOME}/.config/hpc-tunnel.conf`;
-            const content = require('fs').readFileSync(conf, 'utf-8');
+            const content = fs.readFileSync(conf, 'utf-8');
             const match = content.match(/^FORWARD_PORTS=(.*)$/m);
             const current = match ? match[1] : "";
-            const newPorts = current ? `${current},${args.local_port}:${args.remote_port}` : `${args.local_port}:${args.remote_port}`;
+            const newPorts = current ? `${current},${localPort}:${remotePort}` : `${localPort}:${remotePort}`;
             const updated = content.replace(/^FORWARD_PORTS=.*$/m, `FORWARD_PORTS=${newPorts}`);
-            require('fs').writeFileSync(conf, updated);
-            return { type: "text", text: `Added ${args.local_port}:${args.remote_port}. Run hpc_tunnel_control restart to apply.` };
+            atomicWriteFileSync(conf, updated);
+            return { type: "text", text: `Added ${localPort}:${remotePort}. Run hpc_tunnel_control restart to apply.` };
         }
 
         case "hpc_port_remove": {
+            const localPort = validatePort(args.local_port);
             const conf = `${process.env.HOME}/.config/hpc-tunnel.conf`;
-            const content = require('fs').readFileSync(conf, 'utf-8');
+            const content = fs.readFileSync(conf, 'utf-8');
             const match = content.match(/^FORWARD_PORTS=(.*)$/m);
             if (!match) return { type: "text", text: "No ports configured" };
-            const pairs = match[1].split(',').filter(p => !p.startsWith(`${args.local_port}:`));
+            const pairs = match[1].split(',').filter(p => !p.startsWith(`${localPort}:`));
             const updated = content.replace(/^FORWARD_PORTS=.*$/m, `FORWARD_PORTS=${pairs.join(',')}`);
-            require('fs').writeFileSync(conf, updated);
-            return { type: "text", text: `Removed port ${args.local_port}. Run hpc_tunnel_control restart to apply.` };
+            atomicWriteFileSync(conf, updated);
+            return { type: "text", text: `Removed port ${localPort}. Run hpc_tunnel_control restart to apply.` };
         }
 
         case "hpc_job_submit": {
-            let cmd;
+            if (args.template && !/^[a-zA-Z0-9_-]+$/.test(args.template)) throw new Error('Invalid template name');
+            const conf = `${process.env.HOME}/.config/hpc-tunnel.conf`;
+            const content = fs.readFileSync(conf, 'utf-8');
+            const jump = content.match(/^HPC_JUMP=(.*)$/m)?.[1] || "hpg";
+            if (!/^[a-zA-Z0-9_.-]+$/.test(jump)) throw new Error('Invalid jump host in config');
+            let sbatchTarget;
             if (args.template) {
-                const tmpl = `${process.env.HOME}/.config/hpc-jobs/${args.template}.sh`;
-                const conf = `${process.env.HOME}/.config/hpc-tunnel.conf`;
-                const content = require('fs').readFileSync(conf, 'utf-8');
-                const jump = content.match(/^HPC_JUMP=(.*)$/m)?.[1] || "hpg";
-                cmd = `ssh -o ConnectTimeout=15 -o BatchMode=yes ${jump} "sbatch ${tmpl}" 2>&1`;
+                sbatchTarget = `${process.env.HOME}/.config/hpc-jobs/${args.template}.sh`;
             } else {
-                const conf = `${process.env.HOME}/.config/hpc-tunnel.conf`;
-                const content = require('fs').readFileSync(conf, 'utf-8');
-                const jump = content.match(/^HPC_JUMP=(.*)$/m)?.[1] || "hpg";
-                const script = content.match(/^SLURM_JOB_SCRIPT=(.*)$/m)?.[1];
-                if (!script) return { type: "text", text: "No default job script configured" };
-                cmd = `ssh -o ConnectTimeout=15 -o BatchMode=yes ${jump} "sbatch ${script}" 2>&1`;
+                sbatchTarget = content.match(/^SLURM_JOB_SCRIPT=(.*)$/m)?.[1];
+                if (!sbatchTarget) return { type: "text", text: "No default job script configured" };
             }
-            const out = run(cmd, 30000);
+            let out;
+            try {
+                out = execFileSync('ssh', ['-o', 'ConnectTimeout=15', '-o', 'BatchMode=yes', jump, `sbatch ${sbatchTarget}`], { encoding: 'utf-8', timeout: 30000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+            } catch (e) {
+                out = e.stdout ? e.stdout.trim() : e.message;
+            }
             return { type: "text", text: out };
         }
 
         case "hpc_job_list_templates": {
             const dir = `${process.env.HOME}/.config/hpc-jobs`;
             try {
-                const files = require('fs').readdirSync(dir).filter(f => f.endsWith('.sh'));
+                const files = fs.readdirSync(dir).filter(f => f.endsWith('.sh'));
                 const templates = files.map(f => {
-                    const content = require('fs').readFileSync(`${dir}/${f}`, 'utf-8');
+                    const content = fs.readFileSync(`${dir}/${f}`, 'utf-8');
                     const part = content.match(/#SBATCH.*--partition=(\S+)/)?.[1] || "?";
                     const gpus = content.match(/#SBATCH.*--gpus=(\S+)/)?.[1] || "0";
                     const time = content.match(/#SBATCH.*--time=(\S+)/)?.[1] || "?";
@@ -253,17 +291,26 @@ function handleTool(name, args) {
 
         case "hpc_ssh_exec": {
             const conf = `${process.env.HOME}/.config/hpc-tunnel.conf`;
-            const content = require('fs').readFileSync(conf, 'utf-8');
+            const content = fs.readFileSync(conf, 'utf-8');
             const target = args.on_jump
                 ? (content.match(/^HPC_JUMP=(.*)$/m)?.[1] || "hpg")
                 : "hpc";
-            const escaped = args.command.replace(/'/g, "'\\''");
-            const out = run(`ssh -o ConnectTimeout=15 -o BatchMode=yes ${target} '${escaped}' 2>&1`, 60000);
+            if (!/^[a-zA-Z0-9_.-]+$/.test(target)) throw new Error('Invalid SSH target in config');
+            // Use execFileSync to avoid shell interpolation — the command string is passed
+            // as a single SSH argument, so SSH itself runs it on the remote shell.
+            let out;
+            try {
+                out = execFileSync('ssh', ['-o', 'ConnectTimeout=15', '-o', 'BatchMode=yes', target, args.command], { encoding: 'utf-8', timeout: 60000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+            } catch (e) {
+                out = e.stdout ? e.stdout.trim() : e.message;
+            }
             return { type: "text", text: out };
         }
 
         case "hpc_connect_workstation": {
             const action = args.action || "connect";
+            if (!['connect', 'stop', 'status'].includes(action)) throw new Error(`Invalid action: ${action}`);
+            if (!/^[a-zA-Z0-9_.-]+$/.test(args.host)) throw new Error('Invalid host name');
             let cmd;
             if (action === "connect") cmd = `${BIN}/hpc-connect ${args.host} 2>&1`;
             else if (action === "stop") cmd = `${BIN}/hpc-connect --stop ${args.host} 2>&1`;

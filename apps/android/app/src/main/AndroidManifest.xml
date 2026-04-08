@@ -27,6 +27,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Yaya">
 
+        <!-- exported="true" is required: MAIN/LAUNCHER intent filter needs it so the
+             system launcher can start this activity. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -37,6 +39,9 @@
             </intent-filter>
         </activity>
 
+        <!-- exported="true" is required: the system must bind to NotificationListenerService.
+             Access is protected by BIND_NOTIFICATION_LISTENER_SERVICE permission, which only
+             the system can hold. -->
         <service
             android:name=".service.YapeNotificationListener"
             android:exported="true"

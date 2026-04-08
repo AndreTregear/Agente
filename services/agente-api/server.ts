@@ -9,11 +9,16 @@ import { waManager, sseBus, broadcast } from './whatsapp.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
-const API_KEY = process.env.API_KEY || 'yaya-dev-key';
-const JWT_SECRET = process.env.JWT_SECRET || 'yaya-jwt-secret-change-me';
+const API_KEY = process.env.API_KEY;
+if (!API_KEY) throw new Error('API_KEY environment variable is required');
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is required');
 const YAPE_LISTENER_URL = process.env.YAPE_LISTENER_URL || 'http://localhost:3001';
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['https://agente.ceo', 'https://biz.yaya.sh'],
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -70,9 +75,10 @@ app.post('/api/v1/auth/register', async (req, res) => {
     const hash = bcrypt.hashSync(password, 10);
     db.createUser(id, email, hash, business_name || '', business_type || '', phone || '', city || '');
 
-    const token = jwt.sign({ userId: id }, JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ userId: id }, JWT_SECRET, { expiresIn: '24h' });
+    const refreshToken = jwt.sign({ userId: id, type: 'refresh' }, JWT_SECRET, { expiresIn: '30d' });
     const user = db.getUserById(id);
-    res.status(201).json({ token, user });
+    res.status(201).json({ token, refreshToken, user });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -88,17 +94,31 @@ app.post('/api/v1/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciales incorrectas' });
     }
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
+    const refreshToken = jwt.sign({ userId: user.id, type: 'refresh' }, JWT_SECRET, { expiresIn: '30d' });
     const profile = db.getUserById(user.id);
-    res.json({ token, user: profile });
+    res.json({ token, refreshToken, user: profile });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.post('/api/v1/auth/refresh-token', authMiddleware, (req: AuthRequest, res) => {
-  const token = jwt.sign({ userId: req.userId }, JWT_SECRET, { expiresIn: '30d' });
-  res.json({ token });
+app.post('/api/v1/auth/refresh-token', (req: AuthRequest, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) {
+    return res.status(400).json({ error: 'refreshToken is required' });
+  }
+  try {
+    const payload = jwt.verify(refreshToken, JWT_SECRET) as { userId: string; type?: string };
+    if (payload.type !== 'refresh') {
+      return res.status(401).json({ error: 'Invalid refresh token' });
+    }
+    const token = jwt.sign({ userId: payload.userId }, JWT_SECRET, { expiresIn: '24h' });
+    const newRefreshToken = jwt.sign({ userId: payload.userId, type: 'refresh' }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ token, refreshToken: newRefreshToken });
+  } catch {
+    return res.status(401).json({ error: 'Refresh token inválido o expirado' });
+  }
 });
 
 app.get('/api/v1/auth/me', authMiddleware, (req: AuthRequest, res) => {

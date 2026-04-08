@@ -20,8 +20,8 @@ interface MobileJwtPayload {
 function verifyMobileJwt(token: string): MobileJwtPayload | null {
   try {
     const payload = jwt.verify(token, BETTER_AUTH_SECRET, { algorithms: ['HS256'] }) as MobileJwtPayload & { type?: string };
-    // Reject refresh tokens used as access tokens
-    if (payload.type === 'refresh') return null;
+    // Only accept access tokens — reject anything else (refresh, reset, etc.)
+    if (!payload.type || payload.type !== 'access') return null;
     return payload;
   } catch {
     return null;

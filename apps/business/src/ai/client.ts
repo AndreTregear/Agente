@@ -63,6 +63,7 @@ export async function transcribeAudio(buffer: Buffer, mimetype: string): Promise
       method: 'POST',
       headers: { 'Authorization': `Bearer ${WHISPER_API_KEY}` },
       body: formData,
+      signal: AbortSignal.timeout(30_000),
     });
 
     if (!response.ok) {

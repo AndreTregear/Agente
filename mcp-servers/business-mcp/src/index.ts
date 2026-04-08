@@ -94,35 +94,27 @@ const TOOLS = [
 // ── Business Logic (mirrors agente-ceo/src/lib/business-tools.ts) ──
 
 async function businessMetrics(period: string): Promise<string> {
-  let dateFilter: string;
-  let periodLabel: string;
-
-  switch (period) {
-    case 'week':
-      dateFilter = "o.created_at >= NOW() - INTERVAL '7 days'";
-      periodLabel = 'últimos 7 días';
-      break;
-    case 'month':
-      dateFilter = "o.created_at >= NOW() - INTERVAL '30 days'";
-      periodLabel = 'últimos 30 días';
-      break;
-    default:
-      dateFilter = 'o.created_at::date = CURRENT_DATE';
-      periodLabel = 'hoy';
-  }
+  const intervalMap: Record<string, string> = { week: '7 days', month: '30 days', today: '0 days' };
+  const interval = intervalMap[period] || '0 days';
+  const useInterval = period === 'week' || period === 'month';
+  const dateFilter = useInterval
+    ? 'o.created_at >= NOW() - $2::interval'
+    : 'o.created_at::date = CURRENT_DATE';
+  const dateParams: unknown[] = useInterval ? [TENANT_ID, interval] : [TENANT_ID];
+  const periodLabel = period === 'week' ? 'últimos 7 días' : period === 'month' ? 'últimos 30 días' : 'hoy';
 
   const [revenue, ordersByStatus, paymentsByMethod, pendingCount, customerCount] =
     await Promise.all([
       queryOne<{ total_revenue: string; order_count: string }>(
         `SELECT COALESCE(SUM(total), 0) as total_revenue, COUNT(*) as order_count
          FROM orders o WHERE tenant_id = $1 AND ${dateFilter}`,
-        [TENANT_ID],
+        dateParams,
       ),
       query<{ status: string; count: string }>(
         `SELECT status, COUNT(*) as count
          FROM orders o WHERE tenant_id = $1 AND ${dateFilter}
          GROUP BY status ORDER BY count DESC`,
-        [TENANT_ID],
+        dateParams,
       ),
       query<{ method: string; total: string; count: string }>(
         `SELECT p.method, COALESCE(SUM(p.amount), 0) as total, COUNT(*) as count
@@ -131,7 +123,7 @@ async function businessMetrics(period: string): Promise<string> {
          WHERE p.tenant_id = $1 AND p.status = 'confirmed'
            AND ${dateFilter}
          GROUP BY p.method ORDER BY total DESC`,
-        [TENANT_ID],
+        dateParams,
       ),
       queryOne<{ count: string }>(
         `SELECT COUNT(*) as count FROM orders

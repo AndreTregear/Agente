@@ -68,7 +68,7 @@ class YapeNotificationListener : Hilt_YapeNotificationListener() {
                 )
 
                 val id = paymentDao.insert(payment)
-                if (BuildConfig.DEBUG) Log.d(TAG, "Payment saved: id=$id")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Payment saved successfully")
 
                 syncScheduler.scheduleImmediateSync()
             } catch (e: Exception) {

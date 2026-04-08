@@ -293,6 +293,7 @@ export class WorkerBridge {
     logger.debug({ tenantId: this.tenantId, pendingRequests: this.pendingRequests.size }, 'Terminating worker');
     this.rejectAllPending('Worker terminated');
     if (this.worker) {
+      this.worker.removeAllListeners();
       await this.worker.terminate();
       this.worker = null;
       this.startedAt = null;

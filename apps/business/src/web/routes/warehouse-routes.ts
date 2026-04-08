@@ -66,8 +66,10 @@ warehouseRouter.get('/interactions', async (req: Request, res: Response) => {
   try {
     const tenantId = getTenantId(req);
 
-    const limit = Math.min(parseInt(req.query.limit as string) || 100, 1000);
-    const offset = parseInt(req.query.offset as string) || 0;
+    const parsedLimit = parseInt(req.query.limit as string);
+    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 1000) : 100;
+    const parsedOffset = parseInt(req.query.offset as string);
+    const offset = Number.isFinite(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0;
     const type = req.query.type as string | undefined;
 
     let where = 'WHERE tenant_id = $1';
@@ -99,7 +101,8 @@ warehouseRouter.get('/daily-volume', async (req: Request, res: Response) => {
   try {
     const tenantId = getTenantId(req);
 
-    const days = Math.min(parseInt(req.query.days as string) || 30, 365);
+    const parsedDays = parseInt(req.query.days as string);
+    const days = Number.isFinite(parsedDays) && parsedDays > 0 ? Math.min(parsedDays, 365) : 30;
 
     const result = await query(
       `SELECT day, interaction_type, count

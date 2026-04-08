@@ -35,6 +35,40 @@ const tasks = new Map<string, AgentTask>();
 const abortControllers = new Map<string, AbortController>();
 let taskCounter = 0;
 
+const MAX_TASKS = 1000;
+
+/** Evict oldest completed/failed/cancelled tasks when Map exceeds MAX_TASKS. */
+function evictOldTasks(): void {
+  if (tasks.size <= MAX_TASKS) return;
+  // Collect finished tasks sorted by completedAt ascending (oldest first)
+  const finished: AgentTask[] = [];
+  for (const t of tasks.values()) {
+    if (t.status === 'completed' || t.status === 'failed' || t.status === 'cancelled') {
+      finished.push(t);
+    }
+  }
+  finished.sort((a, b) => (a.completedAt ?? a.startedAt) - (b.completedAt ?? b.startedAt));
+  const toRemove = tasks.size - MAX_TASKS;
+  for (let i = 0; i < Math.min(toRemove, finished.length); i++) {
+    tasks.delete(finished[i].id);
+    abortControllers.delete(finished[i].id);
+  }
+}
+
+/** Periodic cleanup: remove stale abortControllers and evict old tasks. */
+const _taskCleanupInterval = setInterval(() => {
+  // Clean up abortControllers for tasks that are no longer running
+  for (const [id, _ac] of abortControllers) {
+    const task = tasks.get(id);
+    if (!task || task.status !== 'running') {
+      abortControllers.delete(id);
+    }
+  }
+  evictOldTasks();
+}, 5 * 60 * 1000); // every 5 minutes
+// Allow process to exit even if this interval is alive
+if (_taskCleanupInterval.unref) _taskCleanupInterval.unref();
+
 // ── Listeners (SSE) ──
 
 export type TaskEvent =
@@ -213,6 +247,7 @@ function assignTask(
   };
 
   tasks.set(id, task);
+  evictOldTasks();
   emit({ type: 'task-created', task });
 
   if (afterTaskId) {
@@ -298,7 +333,10 @@ function executeTask(taskId: string, prompt: string): void {
       emit({ type: 'task-failed', task });
       logger.error({ taskId, err: task.error }, 'Task failed');
     }
-  })();
+  })().catch((err) => {
+    // Safety net: catch any unhandled rejection from the async IIFE
+    logger.error({ taskId, err }, 'Unhandled error in task execution');
+  });
 }
 
 // ── Public: Create task from dashboard/API ──

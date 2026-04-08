@@ -16,6 +16,40 @@ const logger = pino({ name: 'scraper' });
 const DEFAULT_MAX_AGE = 3600; // 1 hour
 
 /**
+ * Validate a URL before scraping to prevent SSRF attacks.
+ * Blocks private/internal IP ranges and non-HTTP protocols.
+ */
+function validateScrapeUrl(url: string): void {
+  const parsed = new URL(url);
+
+  // Only allow HTTP/HTTPS
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error(`Blocked protocol: ${parsed.protocol} — only HTTP/HTTPS allowed`);
+  }
+
+  // Block private/internal IP ranges
+  const hostname = parsed.hostname;
+  const blocked = [
+    /^127\./,
+    /^10\./,
+    /^192\.168\./,
+    /^172\.(1[6-9]|2[0-9]|3[01])\./,
+    /^0\./,
+    /^169\.254\./,         // link-local
+    /^::1$/,               // IPv6 loopback
+    /^fc00:/i,             // IPv6 private
+    /^fe80:/i,             // IPv6 link-local
+    /^localhost$/i,
+    /^.*\.local$/i,
+    /^.*\.internal$/i,
+  ];
+
+  if (blocked.some(re => re.test(hostname))) {
+    throw new Error(`Blocked hostname: ${hostname} — private/internal addresses not allowed`);
+  }
+}
+
+/**
  * Scrape a URL with full pipeline:
  * 1. Check cache
  * 2. Check robots.txt
@@ -27,6 +61,9 @@ const DEFAULT_MAX_AGE = 3600; // 1 hour
  */
 export async function scrapeUrl(request: ScrapeRequest): Promise<ScrapeResult> {
   const { url, selectors, maxAge = DEFAULT_MAX_AGE } = request;
+
+  // SSRF protection — validate URL before any processing
+  validateScrapeUrl(url);
 
   logger.info({ url, requestedBy: request.requestedBy }, 'Scrape requested');
 

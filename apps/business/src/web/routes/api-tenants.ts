@@ -1,7 +1,6 @@
 /**
  * Tenant management + session lifecycle API.
- * These endpoints are unprotected (admin-level) for now.
- * Real admin auth comes in Phase 4.
+ * Protected by requireSession + requireTenantOwner at the mount level (server.ts).
  */
 import { Router } from 'express';
 import * as tenantsRepo from '../../db/tenants-repo.js';
@@ -9,8 +8,12 @@ import * as sessionsRepo from '../../db/sessions-repo.js';
 import { tenantManager } from '../../bot/tenant-manager.js';
 import { validateBody, handleAction } from '../../shared/validate.js';
 import { createTenantSchema, updateTenantSchema } from '../../shared/validation.js';
+import { requireSession } from '../middleware/session-auth.js';
 
 const router = Router();
+
+// Defense-in-depth: ensure auth even if mount-level middleware is accidentally removed
+router.use(requireSession);
 
 // --- Tenant CRUD ---
 

@@ -32,16 +32,17 @@ services:
     - 127.0.0.1:6379:6379
     volumes:
     - redisdata:/data
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD:?REDIS_PASSWORD required}" --maxmemory 512mb --maxmemory-policy allkeys-lru
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD required}
     deploy:
       resources:
         limits:
           memory: 768m
     healthcheck:
       test:
-      - CMD
-      - redis-cli
-      - ping
+      - CMD-SHELL
+      - redis-cli -a "$REDIS_PASSWORD" ping
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,7 +50,7 @@ services:
     networks:
     - yaya-net
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-01-20T14-49-07Z
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -79,7 +80,7 @@ services:
     networks:
     - yaya-net
   vllm:
-    image: vllm/vllm-openai:latest
+    image: vllm/vllm-openai:v0.7.3
     restart: unless-stopped
     deploy:
       resources:
@@ -148,7 +149,7 @@ services:
     networks:
     - yaya-net
   kokoro-tts:
-    image: ghcr.io/remsky/kokoro-fastapi-gpu:latest
+    image: ghcr.io/remsky/kokoro-fastapi-gpu:v0.4.2
     restart: unless-stopped
     ports:
     - 127.0.0.1:9400:8880
@@ -176,17 +177,17 @@ services:
     networks:
     - yaya-net
   calcom:
-    image: calcom.docker.scarf.sh/calcom/cal.com:latest
+    image: calcom.docker.scarf.sh/calcom/cal.com:v4.7.2
     restart: unless-stopped
     ports:
     - 127.0.0.1:3002:3000
     environment:
       DATABASE_URL: postgresql://${CALCOM_DB_USER:-calcom}:${CALCOM_DB_PASS:-${CALCOM_DB_PASS}}@postgres:5432/calcom_db
       DATABASE_DIRECT_URL: postgresql://${CALCOM_DB_USER:-calcom}:${CALCOM_DB_PASS:-${CALCOM_DB_PASS}}@postgres:5432/calcom_db
-      NEXTAUTH_SECRET: ${CALCOM_SECRET:-yaya-calcom-secret-2026-change-me}
+      NEXTAUTH_SECRET: ${CALCOM_SECRET:?CALCOM_SECRET required}
       NEXT_PUBLIC_WEBAPP_URL: ${CALCOM_URL:-http://localhost:3002}
       NEXT_PUBLIC_API_V2_URL: ${CALCOM_URL:-http://localhost:3002}/api/v2
-      CALENDSO_ENCRYPTION_KEY: ${CALCOM_ENCRYPTION_KEY:-yaya-calcom-enc-key-32chars!!!!!}
+      CALENDSO_ENCRYPTION_KEY: ${CALCOM_ENCRYPTION_KEY:?CALCOM_ENCRYPTION_KEY required}
       NODE_ENV: production
       OIDC_ISSUER_URL: https://auth.yaya.sh/application/o/calcom/
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:?required}
@@ -213,14 +214,14 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-yaya_prod}:${POSTGRES_PASSWORD:-${POSTGRES_PASSWORD}}@postgres:5432/lago_db
       REDIS_URL: redis://redis:6379/1
       LAGO_API_URL: ${LAGO_API_URL:-http://localhost:3010}
-      SECRET_KEY_BASE: ${LAGO_SECRET:-yaya-lago-secret-base-2026-production-key-change-me-please}
+      SECRET_KEY_BASE: ${LAGO_SECRET:?LAGO_SECRET required}
       LAGO_RSA_PRIVATE_KEY: ${LAGO_RSA_PRIVATE_KEY}
       RAILS_ENV: production
       RAILS_LOG_TO_STDOUT: 'true'
       LAGO_DISABLE_SIGNUP: 'false'
-      ENCRYPTION_PRIMARY_KEY: ${LAGO_ENC_PRIMARY:-yaya-lago-primary-key-32chars!!!!}
-      ENCRYPTION_DETERMINISTIC_KEY: ${LAGO_ENC_DETERMINISTIC:-yaya-lago-det-key-32-chars!!!!!!}
-      ENCRYPTION_KEY_DERIVATION_SALT: ${LAGO_ENC_SALT:-yaya-lago-salt-32-characters!!!!!}
+      ENCRYPTION_PRIMARY_KEY: ${LAGO_ENC_PRIMARY:?LAGO_ENC_PRIMARY required}
+      ENCRYPTION_DETERMINISTIC_KEY: ${LAGO_ENC_DETERMINISTIC:?LAGO_ENC_DETERMINISTIC required}
+      ENCRYPTION_KEY_DERIVATION_SALT: ${LAGO_ENC_SALT:?LAGO_ENC_SALT required}
     deploy:
       resources:
         limits:
@@ -242,12 +243,12 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-yaya_prod}:${POSTGRES_PASSWORD:-${POSTGRES_PASSWORD}}@postgres:5432/lago_db
       REDIS_URL: redis://redis:6379/1
-      SECRET_KEY_BASE: ${LAGO_SECRET:-yaya-lago-secret-base-2026-production-key-change-me-please}
+      SECRET_KEY_BASE: ${LAGO_SECRET:?LAGO_SECRET required}
       LAGO_RSA_PRIVATE_KEY: ${LAGO_RSA_PRIVATE_KEY}
       RAILS_ENV: production
-      ENCRYPTION_PRIMARY_KEY: ${LAGO_ENC_PRIMARY:-yaya-lago-primary-key-32chars!!!!}
-      ENCRYPTION_DETERMINISTIC_KEY: ${LAGO_ENC_DETERMINISTIC:-yaya-lago-det-key-32-chars!!!!!!}
-      ENCRYPTION_KEY_DERIVATION_SALT: ${LAGO_ENC_SALT:-yaya-lago-salt-32-characters!!!!!}
+      ENCRYPTION_PRIMARY_KEY: ${LAGO_ENC_PRIMARY:?LAGO_ENC_PRIMARY required}
+      ENCRYPTION_DETERMINISTIC_KEY: ${LAGO_ENC_DETERMINISTIC:?LAGO_ENC_DETERMINISTIC required}
+      ENCRYPTION_KEY_DERIVATION_SALT: ${LAGO_ENC_SALT:?LAGO_ENC_SALT required}
     deploy:
       resources:
         limits:
@@ -275,7 +276,7 @@ services:
     networks:
     - yaya-net
   metabase:
-    image: metabase/metabase:latest
+    image: metabase/metabase:v0.52.5
     restart: unless-stopped
     ports:
     - 127.0.0.1:3003:3000

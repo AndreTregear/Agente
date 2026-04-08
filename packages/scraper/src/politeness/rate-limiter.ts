@@ -4,6 +4,8 @@
  */
 
 const DEFAULT_REQUESTS_PER_SECOND = 1;
+const MAX_BUCKET_ENTRIES = 5000;
+const BUCKET_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 
 interface TokenBucket {
   tokens: number;
@@ -15,6 +17,27 @@ interface TokenBucket {
 const buckets = new Map<string, TokenBucket>();
 const domainConfigs = new Map<string, number>(); // domain -> requests per second
 
+/** Evict oldest bucket entries when at capacity, or entries older than 1 hour. */
+function evictStaleBuckets(): void {
+  const now = Date.now();
+  // First pass: remove entries older than 1 hour
+  for (const [domain, bucket] of buckets) {
+    if (now - bucket.lastRefill > BUCKET_MAX_AGE_MS) {
+      buckets.delete(domain);
+      domainConfigs.delete(domain);
+    }
+  }
+  // Second pass: if still over capacity, delete oldest entries
+  if (buckets.size > MAX_BUCKET_ENTRIES) {
+    const sorted = [...buckets.entries()].sort((a, b) => a[1].lastRefill - b[1].lastRefill);
+    const toRemove = buckets.size - MAX_BUCKET_ENTRIES;
+    for (let i = 0; i < toRemove; i++) {
+      buckets.delete(sorted[i][0]);
+      domainConfigs.delete(sorted[i][0]);
+    }
+  }
+}
+
 function getDomain(url: string): string {
   const parsed = new URL(url);
   return parsed.hostname;
@@ -23,6 +46,7 @@ function getDomain(url: string): string {
 function getBucket(domain: string): TokenBucket {
   let bucket = buckets.get(domain);
   if (!bucket) {
+    evictStaleBuckets();
     const rate = domainConfigs.get(domain) ?? DEFAULT_REQUESTS_PER_SECOND;
     bucket = {
       tokens: rate,
