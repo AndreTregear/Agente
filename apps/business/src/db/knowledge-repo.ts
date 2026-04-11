@@ -141,7 +141,7 @@ function rowToPageIndex(r: Record<string, unknown>): PageIndexEntry {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 /** Escape ILIKE special characters to prevent pattern injection. */
-function escapeLike(str: string): string {
+export function escapeLike(str: string): string {
   return str.replace(/[%_\\]/g, '\\$&');
 }
 
@@ -453,10 +453,17 @@ export async function insertAnnotation(
 export async function getAnnotations(
   nodeId: number,
   limit: number = 20,
+  tenantId?: string | null,
 ): Promise<KnowledgeAnnotation[]> {
+  const tenantFilter = tenantId
+    ? 'AND (tenant_id IS NULL OR tenant_id = $3)'
+    : '';
+  const params: unknown[] = [nodeId, limit];
+  if (tenantId) params.push(tenantId);
+
   const result = await query<Record<string, unknown>>(
-    `SELECT * FROM knowledge_annotations WHERE node_id = $1 ORDER BY created_at DESC LIMIT $2`,
-    [nodeId, limit],
+    `SELECT * FROM knowledge_annotations WHERE node_id = $1 ${tenantFilter} ORDER BY created_at DESC LIMIT $2`,
+    params,
   );
   return result.rows.map(rowToAnnotation);
 }
@@ -521,6 +528,8 @@ export async function lookupPageIndex(
     conditions.push(`(tenant_id IS NULL OR tenant_id = $${paramIdx})`);
     params.push(tenantId);
     paramIdx++;
+  } else {
+    conditions.push('tenant_id IS NULL');
   }
 
   const where = conditions.join(' AND ');
@@ -558,13 +567,17 @@ export async function matchPageIndexByText(
     params.push(tenantId);
   }
 
+  const tenantFilter = tenantId
+    ? 'AND (tenant_id IS NULL OR tenant_id = $3)'
+    : 'AND tenant_id IS NULL';
+
   const result = await query<Record<string, unknown>>(
     `SELECT * FROM page_index
      WHERE EXISTS (
        SELECT 1 FROM unnest(query_patterns) AS p
        WHERE $1 ILIKE '%' || p || '%' OR p ILIKE '%' || $1 || '%'
      )
-     ${tenantId ? 'AND (tenant_id IS NULL OR tenant_id = $3)' : ''}
+     ${tenantFilter}
      LIMIT $2`,
     params,
   );

@@ -216,7 +216,7 @@ export const knowledgeAnnotate = createTool({
     node_id: z.number().describe('The knowledge node to annotate.'),
     annotation_type: z.enum(['insight', 'correction', 'deprecation', 'relevance_shift', 'connection'])
       .describe('Type of annotation.'),
-    content: z.string().describe('The annotation content.'),
+    content: z.string().max(2000).describe('The annotation content (max 2000 chars).'),
   }),
   execute: async ({ node_id, annotation_type, content }) => {
     try {

@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { getDevicesByTenant } from '../db/devices-repo.js';
 import { getEffectiveSetting } from '../db/settings-repo.js';
 import { query as dbQuery, queryOne as dbQueryOne, transaction as dbTransaction } from '../db/pool.js';
+import { escapeLike } from '../db/knowledge-repo.js';
 import { logger } from '../shared/logger.js';
 import { checkYapePayment, confirmYapePayment, setCurrentTenantId as setYapeTenantId } from './tools/yape-tools.js';
 import { knowledgeSearch, pageIndexLookup, knowledgeGraphQuery, knowledgeAnnotate } from './tools/knowledge-tools.js';
@@ -129,7 +130,7 @@ export const customerLookup = createTool({
        GROUP BY c.id
        ORDER BY c.updated_at DESC
        LIMIT 5`,
-      [tenantId, `%${q}%`, `%${q}%`],
+      [tenantId, `%${escapeLike(q)}%`, `%${escapeLike(q)}%`],
     );
 
     if (result.rows.length === 0) return { customers: [], message: `No customer found matching "${q}".` };
@@ -164,7 +165,7 @@ export const paymentStatus = createTool({
 
     const params: unknown[] = [tenantId];
     let filter = '';
-    if (customer_name) { filter = ' AND c.name ILIKE $2'; params.push(`%${customer_name}%`); }
+    if (customer_name) { filter = ' AND c.name ILIKE $2'; params.push(`%${escapeLike(customer_name)}%`); }
 
     const pendingResult = await dbQuery<any>(
       `SELECT o.id as order_id, c.name as customer_name, o.total, o.status, o.created_at FROM orders o LEFT JOIN customers c ON c.id=o.customer_id AND c.tenant_id=o.tenant_id WHERE o.tenant_id=$1 AND o.status IN ('pending','payment_requested')${filter} ORDER BY o.created_at DESC LIMIT 10`,
@@ -215,7 +216,7 @@ export const sendMessage = createTool({
     if (!/\d{5,}/.test(phone)) {
       const customer = await dbQueryOne<any>(
         `SELECT jid, name FROM customers WHERE tenant_id=$1 AND name ILIKE $2 LIMIT 1`,
-        [tenantId, `%${phone}%`],
+        [tenantId, `%${escapeLike(phone)}%`],
       );
       if (!customer) return { to: phone, message, error: `No customer found matching "${phone}".` };
       jid = customer.jid;
@@ -256,8 +257,8 @@ export const productCatalog = createTool({
 
     const params: unknown[] = [tenantId];
     let where = 'WHERE tenant_id=$1 AND active=true';
-    if (q) { where += ' AND (name ILIKE $2 OR category ILIKE $2)'; params.push(`%${q}%`); }
-    else if (category) { where += ' AND category ILIKE $2'; params.push(`%${category}%`); }
+    if (q) { where += ' AND (name ILIKE $2 OR category ILIKE $2)'; params.push(`%${escapeLike(q)}%`); }
+    else if (category) { where += ' AND category ILIKE $2'; params.push(`%${escapeLike(category)}%`); }
 
     const result = await dbQuery<any>(
       `SELECT name, price, category, stock, description FROM products ${where} ORDER BY category, name LIMIT 20`,
@@ -326,7 +327,7 @@ export const createOrder = createTool({
         for (const item of items) {
           const productResult = await client.query(
             `SELECT id, name, price, stock FROM products WHERE tenant_id=$1 AND active=true AND name ILIKE $2 LIMIT 1 FOR UPDATE`,
-            [tenantId, `%${item.product_name}%`],
+            [tenantId, `%${escapeLike(item.product_name)}%`],
           );
           const product = productResult.rows[0] as any;
           if (!product) return { error: `Producto "${item.product_name}" no encontrado en el catálogo.` };
@@ -440,7 +441,7 @@ export const createOrder = createTool({
       };
     } catch (err: any) {
       logger.error({ err: err.message, tenantId }, 'createOrder transaction failed');
-      return { error: `Error creando pedido: ${err.message}` };
+      return { error: 'Error creando pedido. Por favor intenta de nuevo.' };
     }
   },
 });
@@ -526,8 +527,28 @@ export const createRule = createTool({
     if (action_type === 'send_message' && !action_payload.message) {
       return { error: 'send_message action requires a "message" field in payload' };
     }
-    if (action_type === 'webhook' && !action_payload.url) {
-      return { error: 'webhook action requires a "url" field in payload' };
+    if (action_type === 'webhook') {
+      if (!action_payload.url) {
+        return { error: 'webhook action requires a "url" field in payload' };
+      }
+      // SSRF prevention: reject private/internal URLs
+      try {
+        const parsed = new URL(action_payload.url);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          return { error: 'Webhook URL must use http or https' };
+        }
+        const host = parsed.hostname.toLowerCase();
+        const blockedPatterns = [
+          /^localhost$/i, /^127\./, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./,
+          /^169\.254\./, /^0\./, /^\[::1\]$/, /^\[fe80:/i, /^\[fc00:/i, /^\[fd00:/i,
+          /\.internal$/i, /\.local$/i, /\.yaya\.sh$/i,
+        ];
+        if (blockedPatterns.some((p) => p.test(host))) {
+          return { error: 'Webhook URL must not target internal/private networks' };
+        }
+      } catch {
+        return { error: 'Invalid webhook URL' };
+      }
     }
 
     await dbQuery(

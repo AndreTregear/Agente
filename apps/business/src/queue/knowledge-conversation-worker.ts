@@ -27,6 +27,10 @@ import { getModel } from '../ai/model-router.js';
 import { appBus } from '../shared/events.js';
 import { logger } from '../shared/logger.js';
 
+function hashJid(jid: string): string {
+  return crypto.createHash('sha256').update(jid).digest('hex').slice(0, 16);
+}
+
 // ── Types ──
 
 interface ConversationMessage {
@@ -198,14 +202,14 @@ async function extractFromConversation(
     await completeIngestion('conversation', sourceRef, nodesCreated, 0);
 
     if (nodesCreated > 0) {
-      logger.info({ tenantId, jid, nodesCreated }, 'Conversation knowledge extracted');
+      logger.info({ tenantId, jidHash: hashJid(jid), nodesCreated }, 'Conversation knowledge extracted');
       appBus.emit('knowledge-indexed', 'conversation', sourceRef, nodesCreated);
     }
 
     return { nodesCreated, edgesCreated: 0 };
   } catch (err: any) {
     await failIngestion('conversation', sourceRef, err.message);
-    logger.error({ tenantId, jid, err: err.message }, 'Conversation knowledge extraction failed');
+    logger.error({ tenantId, jidHash: hashJid(jid), err: err.message }, 'Conversation knowledge extraction failed');
     return { nodesCreated: 0, edgesCreated: 0 };
   }
 }
@@ -229,7 +233,7 @@ export function startConversationKnowledgeWorker(): void {
         priority: 5, // Low priority — background work
       },
     ).catch((err) => {
-      logger.warn({ tenantId, jid, err }, 'Failed to enqueue conversation knowledge job');
+      logger.warn({ tenantId, jidHash: hashJid(jid), err }, 'Failed to enqueue conversation knowledge job');
     });
   });
 

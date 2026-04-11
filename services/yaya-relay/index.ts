@@ -50,6 +50,11 @@ function extractBearerToken(header?: string): string | null {
   return match ? match[1] : null;
 }
 
+function safeTokenCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
 server.on('upgrade', (request, socket, head) => {
   const match = request.url?.match(/^\/tunnel\/([^/?]+)/);
   if (!match) {
@@ -61,7 +66,7 @@ server.on('upgrade', (request, socket, head) => {
 
   // Verify auth token
   const token = extractBearerToken(request.headers.authorization);
-  if (!token || token !== RELAY_AUTH_TOKEN) {
+  if (!token || !safeTokenCompare(token, RELAY_AUTH_TOKEN)) {
     socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
     socket.destroy();
     return;
@@ -75,7 +80,7 @@ server.on('upgrade', (request, socket, head) => {
 // Relay HTTP endpoint for the backend to call (authenticated)
 app.all('/relay/:deviceId/*', async (req, res) => {
   const token = extractBearerToken(req.headers.authorization);
-  if (!token || token !== RELAY_AUTH_TOKEN) {
+  if (!token || !safeTokenCompare(token, RELAY_AUTH_TOKEN)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

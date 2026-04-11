@@ -98,7 +98,15 @@ export function createWebServer(port: number = 3000): void {
     credentials: true,
   }));
 
-  app.use(express.json({ limit: '1mb' }));
+  app.use(express.json({
+    limit: '1mb',
+    verify: (req, _res, buf) => {
+      // Capture raw body for webhook HMAC verification
+      if (req.url?.includes('/webhook')) {
+        (req as any).rawBody = buf;
+      }
+    },
+  }));
 
   // ── Request logging middleware ──
   app.use((req, res, next) => {

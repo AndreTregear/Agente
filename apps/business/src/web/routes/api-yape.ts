@@ -99,13 +99,17 @@ router.post('/webhook', async (req, res) => {
       return res.status(401).json({ error: 'Missing signature' });
     }
 
+    // Use raw body if available (set by express.json verify option), else re-serialize
+    const bodyForHmac = (req as any).rawBody ?? JSON.stringify(req.body);
     const expectedSig = crypto
       .createHmac('sha256', webhookSecret)
-      .update(JSON.stringify(req.body))
+      .update(bodyForHmac)
       .digest('hex');
 
-    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
-      logger.warn({ signature }, 'Invalid webhook signature');
+    const sigBuf = Buffer.from(signature);
+    const expectedBuf = Buffer.from(expectedSig);
+    if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+      logger.warn('Invalid webhook signature');
       return res.status(401).json({ error: 'Invalid signature' });
     }
 
