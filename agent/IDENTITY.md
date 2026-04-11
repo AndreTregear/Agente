@@ -14,11 +14,12 @@ built in the Dominican Republic.
 
 ### Technical Stack
 
-- **Runtime:** Node.js (TypeScript)
-- **AI:** Self-hosted vLLM (Qwen3.5-27B-AWQ), Whisper STT, Kokoro TTS
-- **Database:** PostgreSQL 16, Redis 7
+- **Runtime:** Node.js (TypeScript 5.5+, ESM)
+- **AI:** vLLM — Qwen 3.5 35B (local :8000), Qwen 3.5 122B (HPC :18080)
+- **AI Infra:** Whisper STT (:9300), Kokoro TTS (:9400), @yaya/swarm (agent orchestration)
+- **Database:** PostgreSQL 16 (pgvector, RLS), Redis 7
 - **Storage:** MinIO (S3-compatible)
-- **Auth:** Authentik SSO
+- **Auth:** Authentik SSO, Better Auth
 - **Scheduling:** Cal.com
 - **Billing:** Lago
 - **Analytics:** Metabase
@@ -29,29 +30,16 @@ built in the Dominican Republic.
 ### Infrastructure
 
 - Dual GPU server with NVIDIA GPUs
-- HPC cluster access via SSH tunnel (4x B200 for Qwen3-Omni)
+- HPC cluster access via SSH tunnel (4x B200 for Qwen 3.5 122B)
 - Nginx reverse proxy with subdomain routing (*.yaya.sh)
 
-### Repository Structure
+### Key Architecture
 
-```
-yaya/                          # Monorepo root
-  apps/
-    web/                       # Agente CEO (Next.js)
-    business/                  # Stub — source at ~/yaya_business/autobot
-    health/                    # Stub — source at ~/yaya_health
-    campusgenie/               # Planned
-  packages/
-    core/                      # Shared utilities, types, config
-  workers/
-    scraper-worker/            # Background scraping worker
-  infra/
-    docker/docker-compose.yml  # All Docker services
-    pm2.config.cjs             # Unified PM2 process config
-    scripts/                   # Operational scripts
-    nginx/                     # Nginx configurations
-  agent/                       # Agent workspace (this directory)
-```
+- **@yaya/swarm** — Agent orchestration: 6 specialist agents (router, sales, analytics, support, researcher, knowledge), BullMQ fan-out/fan-in
+- **Knowledge Graph** — pgvector embeddings, PageIndex meta-RAG, auto-ingestion from git + conversations
+- **14 MCP Servers** — Modular tool layer (payments, CRM, invoicing, voice, etc.)
+- **38 AI Skills** — Markdown-defined agent behaviors per business domain
+- See `CLAUDE.md` for full repo structure, `agent/KNOWLEDGE.md` for the knowledge system
 
 ---
 

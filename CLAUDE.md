@@ -53,7 +53,7 @@ Turborepo monorepo for the Yaya/Agente platform — privacy-first AI agents for 
 - `infra/pm2.ecosystem.cjs` — PM2 process management
 
 ### Other
-- `agent/` — Agent workspace (SOUL.md, AGENTS.md, memory/)
+- `agent/` — Agent workspace (SOUL.md, AGENTS.md, KNOWLEDGE.md, memory/)
 - `docs/` — Architecture, research (112 docs), knowledge base
 - `tools/hpc/` — HPC job management (SSH tunnels, SLURM, mesh)
 - `tools/hpc-dashboard/` — HPC monitoring dashboard
@@ -74,6 +74,34 @@ pnpm typecheck        # Type-check all packages
 - Local AI: vLLM :8000 (35B), HPC :18080 (122B), Whisper :9300, TTS :9400
 - PM2: yaya-business (:3000), yaya-health (:3100)
 - Domains: biz.yaya.sh, health.yaya.sh, agente.ceo, auth.yaya.sh
+
+## Knowledge System
+
+The platform has an **agentic knowledge graph** that any agent working on this codebase should use. Before reading random files to understand the codebase, use the knowledge tools.
+
+### How to Use
+
+1. **Don't guess where code lives** — use `pageIndexLookup` to find which files, tables, MCP servers, and skills are relevant to your question
+2. **Don't re-derive decisions** — use `knowledgeSearch` to find past architectural decisions and their rationale
+3. **Don't work in isolation** — use `knowledgeGraphQuery` to understand dependencies before making changes
+
+### Key Files
+- `agent/KNOWLEDGE.md` — Full guide to the knowledge system (read this first)
+- `apps/business/src/ai/tools/knowledge-tools.ts` — The 4 search/annotate tools
+- `apps/business/src/db/knowledge-repo.ts` — Data access layer
+- `apps/business/schema-knowledge.sql` — Schema (5 tables with pgvector)
+
+### Knowledge Agent
+The knowledge specialist (`swarm:knowledge` queue, 122B model) handles queries automatically when the swarm router detects patterns like "how does X work", "architecture", "what changed", etc.
+
+### Background Workers
+Knowledge is extracted automatically:
+- **Git commits** → every 6 hours, LLM extracts decisions/patterns/events
+- **Conversations** → after each AI chat, extracts business knowledge
+- **PageIndex** → daily refresh of topic-to-source mappings
+
+### Wiki Output
+`docs/knowledge-base/wiki/` contains auto-generated markdown rendered from the knowledge graph. These are generated artifacts — the graph is the source of truth.
 
 ## Conventions
 - All configuration via environment variables (never hardcode secrets)

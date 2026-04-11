@@ -12,10 +12,21 @@ Before doing anything else:
 
 1. Read `SOUL.md` — this is who you are
 2. Read `USER.md` — this is who you're helping
-3. Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context
-4. **If in MAIN SESSION** (direct chat with your human): Also read `MEMORY.md`
+3. Read `KNOWLEDGE.md` — this is how you access the platform's knowledge graph
+4. Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context
+5. **If in MAIN SESSION** (direct chat with your human): Also read `MEMORY.md`
 
 Don't ask permission. Just do it.
+
+## Knowledge System
+
+The platform has a **knowledge graph** in PostgreSQL with vector search. Before reading random files to understand the codebase, use the knowledge tools:
+
+- `pageIndexLookup` → finds WHICH files/tables/services have the info you need
+- `knowledgeSearch` → searches the knowledge graph by meaning (semantic + full-text)
+- `knowledgeGraphQuery` → traverses relationships between concepts
+
+See `KNOWLEDGE.md` for the full guide. The knowledge system learns automatically from git commits and conversations — you don't need to manually update it.
 
 ## Memory
 
