@@ -32,6 +32,29 @@ const MULTI_PART_PATTERNS = [
   /\?\s*\S+.*\?/,                  // Multiple question marks
 ];
 
+/** Patterns that suggest knowledge/wiki/documentation queries. */
+const KNOWLEDGE_PATTERNS = [
+  /\bwiki\b/i,
+  /\bknowledge\b/i,
+  /\bconocimiento\b/i,
+  /\b(?:cómo|como)\s+funciona\b/i,       // "how does X work"
+  /\barquitectura\b/i,
+  /\barchitecture\b/i,
+  /\bdecisi[oó]n\b/i,
+  /\bpatr[oó]n\b/i,
+  /\bpattern\b/i,
+  /\bdocumentaci[oó]n\b/i,
+  /\b(?:por\s+qu[eé]|why)\b.*\b(?:se\s+hizo|we\s+did|decidimos)\b/i,
+  /\b(?:qué|que)\s+cambió\b/i,           // "what changed"
+  /\bhistor(?:y|ia)\b/i,
+  /\bevoluci[oó]n\b/i,
+];
+
+/** Check if the input is a knowledge/wiki query. */
+function isKnowledgeQuery(input: string): boolean {
+  return KNOWLEDGE_PATTERNS.some((p) => p.test(input));
+}
+
 /** Patterns that suggest owner/CEO report requests. */
 const REPORT_PATTERNS = [
   /\breporte?\b/i,
@@ -63,9 +86,9 @@ function isReportRequest(input: string): boolean {
  * Classify an incoming request and decide routing.
  *
  * Rules (evaluated in order):
- *   1. Voice messages (channel = whatsapp with voice flag) → pipeline (latency-critical)
- *   2. Priority 1 (interactive) → pipeline always
- *   3. Short messages (<50 chars) → pipeline (simple query)
+ *   1. Priority 1 (interactive) → pipeline always
+ *   2. Short messages (<50 chars) → pipeline (simple query)
+ *   3. Knowledge/wiki queries → pipeline to knowledge agent
  *   4. CEO/owner report requests → swarm (fan-out to analytics agents)
  *   5. Multi-part messages (multiple questions) → swarm candidate
  *   6. Everything else → pipeline with general agent
@@ -86,7 +109,12 @@ export function classifyRequest(
     return { mode: 'pipeline', agentId: 'general' };
   }
 
-  // 3. CEO/owner report requests → swarm with analytics fan-out
+  // 3. Knowledge/wiki queries → pipeline to knowledge agent
+  if (isKnowledgeQuery(trimmed)) {
+    return { mode: 'pipeline', agentId: 'knowledge' };
+  }
+
+  // 4. CEO/owner report requests → swarm with analytics fan-out
   if (ctx.isOwner && isReportRequest(trimmed)) {
     return {
       mode: 'swarm',
@@ -94,7 +122,7 @@ export function classifyRequest(
     };
   }
 
-  // 4. Multi-part messages → swarm candidate
+  // 5. Multi-part messages → swarm candidate
   if (isMultiPart(trimmed)) {
     return {
       mode: 'swarm',
@@ -108,7 +136,7 @@ export function classifyRequest(
     };
   }
 
-  // 5. Default → pipeline with general agent
+  // 6. Default → pipeline with general agent
   return { mode: 'pipeline', agentId: 'general' };
 }
 

@@ -11,6 +11,7 @@ import { salesAgent } from './sales.js';
 import { analyticsAgent } from './analytics.js';
 import { supportAgent } from './support.js';
 import { researcherAgent } from './researcher.js';
+import { knowledgeAgent } from './knowledge.js';
 
 // Re-export individual specs for direct access
 export { routerAgent } from './router.js';
@@ -18,6 +19,7 @@ export { salesAgent } from './sales.js';
 export { analyticsAgent } from './analytics.js';
 export { supportAgent } from './support.js';
 export { researcherAgent } from './researcher.js';
+export { knowledgeAgent } from './knowledge.js';
 
 /** All specialist agent specs, keyed by ID. */
 export const specialists = {
@@ -26,6 +28,7 @@ export const specialists = {
   analytics: analyticsAgent,
   support: supportAgent,
   researcher: researcherAgent,
+  knowledge: knowledgeAgent,
 } as const;
 
 /** All specialist queue names for worker startup. */
@@ -35,6 +38,7 @@ export const SWARM_QUEUES = [
   analyticsAgent.queue,
   supportAgent.queue,
   researcherAgent.queue,
+  knowledgeAgent.queue,
 ] as const;
 
 /**
@@ -47,4 +51,5 @@ export function registerAllAgents(): void {
   registerAgent(analyticsAgent);
   registerAgent(supportAgent);
   registerAgent(researcherAgent);
+  registerAgent(knowledgeAgent);
 }

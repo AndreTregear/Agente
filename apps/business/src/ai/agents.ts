@@ -12,9 +12,12 @@
 import { Agent } from '@mastra/core/agent';
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
+import { getDevicesByTenant } from '../db/devices-repo.js';
+import { getEffectiveSetting } from '../db/settings-repo.js';
 import { query as dbQuery, queryOne as dbQueryOne, transaction as dbTransaction } from '../db/pool.js';
 import { logger } from '../shared/logger.js';
 import { checkYapePayment, confirmYapePayment, setCurrentTenantId as setYapeTenantId } from './tools/yape-tools.js';
+import { knowledgeSearch, pageIndexLookup, knowledgeGraphQuery, knowledgeAnnotate } from './tools/knowledge-tools.js';
 import { getModel, backends } from './model-router.js';
 
 // ── LLM Models ──
@@ -389,13 +392,52 @@ export const createOrder = createTool({
         return {
           order_id: orderId,
           total: `S/${total.toFixed(2)}`,
+          totalNumeric: total,
           items: resolvedItems.map(i => `${i.quantity}x ${i.name} (S/${i.unitPrice.toFixed(2)})`),
           customer: customer.name,
           status: 'pending',
           message: `Pedido #${orderId} creado por S/${total.toFixed(2)}. Pendiente de pago.`,
         };
       });
-      return result;
+
+      if (!result || 'error' in result) {
+        return result;
+      }
+
+      const devices = await getDevicesByTenant(tenantId);
+      let payment_link = null;
+      let qr_data = null;
+
+      if (devices.length > 0) {
+        const deviceId = devices[0].deviceId;
+        const yapeNumber = await getEffectiveSetting(tenantId, 'yape_number') ?? '';
+        try {
+          const res = await fetch(`http://localhost:8092/relay/${deviceId}/payment_intents`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer demo-secret' },
+            body: JSON.stringify({
+              amount: Math.round(result.totalNumeric * 100),
+              walletType: 'YAPE',
+              description: `Order ${result.order_id}`,
+              clientReferenceId: `order_${result.order_id}`,
+              recipientId: yapeNumber
+            })
+          });
+          if (res.ok) {
+            const data = await res.json() as any;
+            payment_link = data.paymentLink;
+            qr_data = data.qrData;
+          }
+        } catch (err) {
+          // ignore relay failures
+        }
+      }
+
+      return {
+        ...result,
+        payment_link,
+        qr_data,
+      };
     } catch (err: any) {
       logger.error({ err: err.message, tenantId }, 'createOrder transaction failed');
       return { error: `Error creando pedido: ${err.message}` };
@@ -465,6 +507,26 @@ export const getOrderStatus = createTool({
   },
 });
 
+export const createRule = createTool({
+  id: 'create-rule',
+  description: 'Create a tenant rule for events like order.paid.',
+  inputSchema: z.object({
+    trigger_event: z.enum(['order.paid']).describe('Event that triggers this rule.'),
+    action_type: z.enum(['send_message', 'webhook']).describe('Action to take when triggered.'),
+    action_payload: z.record(z.string(), z.any()).describe('Payload for the action. For send_message, include "message".')
+  }),
+  execute: async ({ trigger_event, action_type, action_payload }) => {
+    const tenantId = getTenantId();
+    if (!tenantId) return { error: 'No tenant configured' };
+
+    await dbQuery(
+      `INSERT INTO tenant_rules (tenant_id, trigger_event, action_type, action_payload) VALUES ($1, $2, $3, $4)`,
+      [tenantId, trigger_event, action_type, JSON.stringify(action_payload)]
+    );
+    return { success: true, message: 'Rule created successfully' };
+  }
+});
+
 // ── All tools as a record ──
 
 export const allBusinessTools = {
@@ -476,6 +538,11 @@ export const allBusinessTools = {
   productCatalog,
   createOrder,
   getOrderStatus,
+  createRule,
+  knowledgeSearch,
+  pageIndexLookup,
+  knowledgeGraphQuery,
+  knowledgeAnnotate,
 };
 
 /** All tools including Yape payment verification (for WhatsApp agent). */

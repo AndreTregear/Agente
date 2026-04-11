@@ -34,6 +34,9 @@ type EventMap = {
   'confirmation-requested': [tenantId: string, jid: string, confirmationId: string, action: ConfirmationAction];
   'confirmation-accepted': [tenantId: string, jid: string, confirmationId: string, action: ConfirmationAction, fields: ConfirmationFields];
   'confirmation-cancelled': [tenantId: string, jid: string, confirmationId: string];
+  // Knowledge graph events
+  'knowledge-node-created': [tenantId: string | null, nodeId: number, nodeType: string];
+  'knowledge-indexed': [sourceType: string, sourceRef: string, nodesCreated: number];
 };
 
 class TypedEmitter extends EventEmitter {

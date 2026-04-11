@@ -18,6 +18,7 @@ import { startETLScheduler, stopETLScheduler } from './warehouse/etl-runner.js';
 import { registerEventListeners } from './services/notification-service.js';
 import { initializeRLPipeline, stopRLPipeline } from './rl/index.js';
 import { handleCallEvents } from './voice/call-handler.js';
+import { startKnowledgeWorkers, stopKnowledgeWorkers } from './queue/knowledge-workers.js';
 import { OPENCLAW_API_URL } from './config.js';
 import { logger, logStartupBanner } from './shared/logger.js';
 
@@ -79,6 +80,9 @@ export async function startPlatform(port: number): Promise<() => Promise<void>> 
   // Start RL pipeline (rollout collector + training scheduler + A/B tests)
   await initializeRLPipeline();
 
+  // Start knowledge workers (git ingestion, conversation extraction, PageIndex refresh)
+  await startKnowledgeWorkers();
+
   logger.info({ totalStartupMs: Date.now() - platformStart }, 'Autobot multi-tenant platform is running');
 
   return async () => {
@@ -95,6 +99,7 @@ export async function startPlatform(port: number): Promise<() => Promise<void>> 
     await closeVoiceQueue();
     await closeAIQueue();
     await stopRLPipeline();
+    await stopKnowledgeWorkers();
     await tenantManager.shutdownAll();
     await closeRedis();
   };
