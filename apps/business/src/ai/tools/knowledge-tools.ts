@@ -72,7 +72,7 @@ export const knowledgeSearch = createTool({
       };
     } catch (err: any) {
       logger.error({ err: err.message }, 'knowledgeSearch failed');
-      return { error: `Search failed: ${err.message}` };
+      return { error: 'Knowledge search failed. Try a different query.' };
     }
   },
 });
@@ -121,7 +121,7 @@ export const pageIndexLookup = createTool({
       return { count: combined.length, topics: combined };
     } catch (err: any) {
       logger.error({ err: err.message }, 'pageIndexLookup failed');
-      return { error: `Page index lookup failed: ${err.message}` };
+      return { error: 'Page index lookup failed. Try a different question.' };
     }
   },
 });
@@ -160,17 +160,19 @@ export const knowledgeGraphQuery = createTool({
         return { error: 'Provide either node_id or topic to start the graph query.' };
       }
 
-      // Get the starting node
-      const startNode = await getNodeById(startNodeId);
+      // Get the starting node (tenant-scoped)
+      const currentTenant = getTenantId();
+      const startNode = await getNodeById(startNodeId, currentTenant || undefined);
       if (!startNode) {
         return { error: `Node ${startNodeId} not found.` };
       }
 
-      // Traverse
+      // Traverse (tenant-scoped)
       const related = await getRelatedNodes(
         startNodeId,
         relation as EdgeRelation | undefined,
         depth,
+        currentTenant || undefined,
       );
 
       return {
@@ -198,7 +200,7 @@ export const knowledgeGraphQuery = createTool({
       };
     } catch (err: any) {
       logger.error({ err: err.message }, 'knowledgeGraphQuery failed');
-      return { error: `Graph query failed: ${err.message}` };
+      return { error: 'Graph query failed. Try a different starting point.' };
     }
   },
 });
@@ -220,15 +222,10 @@ export const knowledgeAnnotate = createTool({
     try {
       const tenantId = getTenantId();
 
-      // Verify node exists
-      const node = await getNodeById(node_id);
+      // Verify node exists and is accessible (tenant-scoped)
+      const node = await getNodeById(node_id, tenantId || undefined);
       if (!node) {
         return { error: `Node ${node_id} not found.` };
-      }
-
-      // Check access: platform nodes are accessible to all, tenant nodes only to matching tenant
-      if (node.tenantId && node.tenantId !== tenantId) {
-        return { error: 'Cannot annotate a node belonging to another tenant.' };
       }
 
       const annotationId = await insertAnnotation(
@@ -253,7 +250,7 @@ export const knowledgeAnnotate = createTool({
       };
     } catch (err: any) {
       logger.error({ err: err.message }, 'knowledgeAnnotate failed');
-      return { error: `Annotation failed: ${err.message}` };
+      return { error: 'Annotation failed. Verify the node exists and try again.' };
     }
   },
 });

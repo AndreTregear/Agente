@@ -8,6 +8,7 @@
  * All knowledge is tenant-scoped.
  */
 
+import crypto from 'node:crypto';
 import { Agent } from '@mastra/core/agent';
 import { QueueFactory } from './queue-factory.js';
 import {
@@ -187,7 +188,7 @@ async function extractFromConversation(
         sourceType: 'conversation',
         sourceRef,
         tags: fact.tags || [],
-        metadata: { customer_jid: jid },
+        metadata: { customer_jid_hash: crypto.createHash('sha256').update(jid).digest('hex').slice(0, 16) },
       });
 
       nodesCreated++;

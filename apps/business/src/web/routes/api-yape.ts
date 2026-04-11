@@ -87,12 +87,33 @@ router.post('/payments/sync/batch', requireDeviceAuth, validateBody(batchPayment
 
 router.post('/webhook', async (req, res) => {
   try {
+    // Verify webhook signature (HMAC-SHA256)
+    const webhookSecret = process.env.YAPE_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      logger.error('YAPE_WEBHOOK_SECRET not configured — rejecting webhook');
+      return res.status(500).json({ error: 'Webhook not configured' });
+    }
+
+    const signature = req.headers['x-webhook-signature'] as string;
+    if (!signature) {
+      return res.status(401).json({ error: 'Missing signature' });
+    }
+
+    const expectedSig = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(JSON.stringify(req.body))
+      .digest('hex');
+
+    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
+      logger.warn({ signature }, 'Invalid webhook signature');
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
     const { type, data } = req.body;
     if (type === 'payment_intent.succeeded' && data?.clientReferenceId) {
       const orderIdMatch = data.clientReferenceId.match(/order_(\d+)/);
       if (orderIdMatch) {
         const orderId = parseInt(orderIdMatch[1], 10);
-        // Find tenantId for this order
         const row = await queryOne<{ tenant_id: string }>('SELECT tenant_id FROM orders WHERE id = $1', [orderId]);
         if (row) {
           await orderService.markPaid(row.tenant_id, orderId, 0, `yaya_pay:${data.id}`);

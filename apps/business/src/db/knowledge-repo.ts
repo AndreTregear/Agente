@@ -138,6 +138,13 @@ function rowToPageIndex(r: Record<string, unknown>): PageIndexEntry {
   };
 }
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+/** Escape ILIKE special characters to prevent pattern injection. */
+function escapeLike(str: string): string {
+  return str.replace(/[%_\\]/g, '\\$&');
+}
+
 // ── Knowledge Nodes ────────────────────────────────────────────────────────
 
 export async function insertNode(node: {
@@ -178,10 +185,16 @@ export async function insertNode(node: {
   return result!.id;
 }
 
-export async function getNodeById(id: number): Promise<KnowledgeNode | null> {
+/**
+ * Get a node by ID with tenant isolation.
+ * Returns the node only if it's platform-level (tenant_id IS NULL) or belongs to the given tenant.
+ */
+export async function getNodeById(id: number, tenantId?: string | null): Promise<KnowledgeNode | null> {
   const row = await queryOne<Record<string, unknown>>(
-    `SELECT * FROM knowledge_nodes WHERE id = $1`,
-    [id],
+    tenantId
+      ? `SELECT * FROM knowledge_nodes WHERE id = $1 AND (tenant_id IS NULL OR tenant_id = $2)`
+      : `SELECT * FROM knowledge_nodes WHERE id = $1 AND tenant_id IS NULL`,
+    tenantId ? [id, tenantId] : [id],
   );
   return row ? rowToNode(row) : null;
 }
@@ -208,13 +221,22 @@ export async function searchNodes(params: {
   const values: unknown[] = [embeddingStr, limit];
   let paramIdx = 3;
 
-  // Scope filtering
+  // Scope filtering — always enforce tenant isolation
   if (scope === 'platform') {
     conditions.push('tenant_id IS NULL');
   } else if (scope === 'tenant' && tenantId) {
     conditions.push(`tenant_id = $${paramIdx}`);
     values.push(tenantId);
     paramIdx++;
+  } else if (scope === 'all') {
+    // 'all' = platform knowledge + current tenant only — never other tenants
+    if (tenantId) {
+      conditions.push(`(tenant_id IS NULL OR tenant_id = $${paramIdx})`);
+      values.push(tenantId);
+      paramIdx++;
+    } else {
+      conditions.push('tenant_id IS NULL');
+    }
   }
 
   if (nodeType) {
@@ -235,7 +257,7 @@ export async function searchNodes(params: {
       plainto_tsquery('spanish', $${paramIdx})
       OR title ILIKE '%' || $${paramIdx} || '%'
     )`);
-    values.push(textQuery);
+    values.push(escapeLike(textQuery));
     const ftsScore = `ts_rank(
       to_tsvector('spanish', coalesce(title, '') || ' ' || coalesce(summary, '')),
       plainto_tsquery('spanish', $${paramIdx})
@@ -266,10 +288,14 @@ export async function searchNodes(params: {
  * Get related nodes via graph traversal (recursive CTE).
  * Traverses knowledge_edges up to `depth` levels from a starting node.
  */
+/**
+ * Get related nodes via graph traversal with cycle detection and tenant isolation.
+ */
 export async function getRelatedNodes(
   nodeId: number,
   relation?: EdgeRelation,
   depth: number = 2,
+  tenantId?: string | null,
 ): Promise<Array<{ node: KnowledgeNode; edge: KnowledgeEdge; depth: number }>> {
   const maxDepth = Math.min(depth, 4); // Cap at 4 to prevent runaway queries
 
@@ -279,29 +305,43 @@ export async function getRelatedNodes(
   params.push(maxDepth);
   const depthParam = relation ? '$3' : '$2';
 
+  // Tenant isolation: only traverse into platform nodes or current tenant's nodes
+  let tenantFilter = 'AND (n.tenant_id IS NULL)';
+  if (tenantId) {
+    params.push(tenantId);
+    const tenantParam = `$${params.length}`;
+    tenantFilter = `AND (n.tenant_id IS NULL OR n.tenant_id = ${tenantParam})`;
+  }
+
   const result = await query<Record<string, unknown>>(
     `WITH RECURSIVE graph AS (
        -- Base: direct edges from the starting node
        SELECT e.id AS edge_id, e.source_id, e.target_id, e.relation, e.weight,
               e.metadata AS edge_metadata, e.tenant_id AS edge_tenant_id, e.created_at AS edge_created_at,
-              1 AS depth
+              1 AS depth,
+              ARRAY[e.source_id] AS visited
        FROM knowledge_edges e
        WHERE e.source_id = $1 ${relationFilter}
 
        UNION ALL
 
-       -- Recursive: follow edges from discovered nodes
+       -- Recursive: follow edges from discovered nodes (with cycle detection)
        SELECT e.id, e.source_id, e.target_id, e.relation, e.weight,
               e.metadata, e.tenant_id, e.created_at,
-              g.depth + 1
+              g.depth + 1,
+              g.visited || e.source_id
        FROM knowledge_edges e
        INNER JOIN graph g ON e.source_id = g.target_id
-       WHERE g.depth < ${depthParam} ${relationFilter}
+       WHERE g.depth < ${depthParam}
+         AND e.target_id <> ALL(g.visited)
+         ${relationFilter}
      )
-     SELECT g.*, n.*
+     SELECT g.edge_id, g.source_id, g.target_id, g.relation, g.weight,
+            g.edge_metadata, g.edge_tenant_id, g.edge_created_at, g.depth,
+            n.*
      FROM graph g
      INNER JOIN knowledge_nodes n ON n.id = g.target_id
-     WHERE n.superseded_by IS NULL
+     WHERE n.superseded_by IS NULL ${tenantFilter}
      ORDER BY g.depth, g.weight DESC
      LIMIT 50`,
     params,
@@ -331,7 +371,7 @@ export async function findNodeByTitle(
   tenantId?: string | null,
 ): Promise<KnowledgeNode | null> {
   const conditions = ['title ILIKE $1', 'superseded_by IS NULL'];
-  const params: unknown[] = [`%${title}%`];
+  const params: unknown[] = [`%${escapeLike(title)}%`];
 
   if (tenantId !== undefined) {
     if (tenantId === null) {
@@ -378,6 +418,18 @@ export async function insertAnnotation(
   author: string = 'system',
   tenantId?: string | null,
 ): Promise<number> {
+  // Rate-limit deprecation annotations: max 3 per node per hour
+  if (annotationType === 'deprecation') {
+    const recentCount = await queryOne<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM knowledge_annotations
+       WHERE node_id = $1 AND annotation_type = 'deprecation' AND created_at > now() - interval '1 hour'`,
+      [nodeId],
+    );
+    if (parseInt(recentCount?.count ?? '0', 10) >= 3) {
+      throw new Error('Rate limit: max 3 deprecation annotations per node per hour');
+    }
+  }
+
   const result = await queryOne<{ id: number }>(
     `INSERT INTO knowledge_annotations (node_id, tenant_id, annotation_type, content, author)
      VALUES ($1, $2, $3, $4, $5)
@@ -426,7 +478,15 @@ export async function upsertPageIndex(entry: {
     `INSERT INTO page_index
        (tenant_id, topic, description, embedding, sources, query_patterns, staleness_hours, last_refreshed_at)
      VALUES ($1, $2, $3, $4::vector, $5, $6, $7, now())
-     ON CONFLICT ON CONSTRAINT page_index_pkey DO NOTHING
+     ON CONFLICT ON CONSTRAINT uq_pi_tenant_topic
+     DO UPDATE SET
+       description = EXCLUDED.description,
+       embedding = EXCLUDED.embedding,
+       sources = EXCLUDED.sources,
+       query_patterns = EXCLUDED.query_patterns,
+       staleness_hours = EXCLUDED.staleness_hours,
+       last_refreshed_at = now(),
+       updated_at = now()
      RETURNING id`,
     [
       entry.tenantId ?? null,
@@ -439,28 +499,7 @@ export async function upsertPageIndex(entry: {
     ],
   );
 
-  // If insert failed (conflict), try update
-  if (!result) {
-    const updated = await queryOne<{ id: number }>(
-      `UPDATE page_index
-       SET description = $2, embedding = $3::vector, sources = $4,
-           query_patterns = $5, staleness_hours = $6, last_refreshed_at = now(), updated_at = now()
-       WHERE topic = $1 AND (tenant_id IS NOT DISTINCT FROM $7)
-       RETURNING id`,
-      [
-        entry.topic,
-        entry.description,
-        embeddingValue,
-        JSON.stringify(entry.sources),
-        entry.queryPatterns,
-        entry.stalenessHours ?? 720,
-        entry.tenantId ?? null,
-      ],
-    );
-    return updated?.id ?? 0;
-  }
-
-  return result.id;
+  return result?.id ?? 0;
 }
 
 /**

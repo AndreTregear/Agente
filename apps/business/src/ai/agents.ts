@@ -414,7 +414,7 @@ export const createOrder = createTool({
         try {
           const res = await fetch(`http://localhost:8092/relay/${deviceId}/payment_intents`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer demo-secret' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.RELAY_AUTH_TOKEN || ''}` },
             body: JSON.stringify({
               amount: Math.round(result.totalNumeric * 100),
               walletType: 'YAPE',
@@ -513,11 +513,22 @@ export const createRule = createTool({
   inputSchema: z.object({
     trigger_event: z.enum(['order.paid']).describe('Event that triggers this rule.'),
     action_type: z.enum(['send_message', 'webhook']).describe('Action to take when triggered.'),
-    action_payload: z.record(z.string(), z.any()).describe('Payload for the action. For send_message, include "message".')
+    action_payload: z.object({
+      message: z.string().max(500).optional().describe('Message to send (for send_message action). Max 500 chars.'),
+      url: z.string().url().optional().describe('Webhook URL (for webhook action).'),
+    }).describe('Payload for the action.'),
   }),
   execute: async ({ trigger_event, action_type, action_payload }) => {
     const tenantId = getTenantId();
     if (!tenantId) return { error: 'No tenant configured' };
+
+    // Validate payload matches action type
+    if (action_type === 'send_message' && !action_payload.message) {
+      return { error: 'send_message action requires a "message" field in payload' };
+    }
+    if (action_type === 'webhook' && !action_payload.url) {
+      return { error: 'webhook action requires a "url" field in payload' };
+    }
 
     await dbQuery(
       `INSERT INTO tenant_rules (tenant_id, trigger_event, action_type, action_payload) VALUES ($1, $2, $3, $4)`,

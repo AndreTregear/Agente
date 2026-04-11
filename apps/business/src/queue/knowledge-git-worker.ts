@@ -10,7 +10,7 @@
  * Uses the local 35B model (background priority, no need for 122B).
  */
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { Agent } from '@mastra/core/agent';
 import { QueueFactory } from './queue-factory.js';
 import {
@@ -120,7 +120,7 @@ const gitIngestionFactory = new QueueFactory({
 
 function getRepoRoot(): string {
   try {
-    return execSync('git rev-parse --show-toplevel', { encoding: 'utf-8' }).trim();
+    return execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf-8' }).trim();
   } catch {
     return process.cwd();
   }
@@ -128,17 +128,25 @@ function getRepoRoot(): string {
 
 function getRecentCommits(since?: string): CommitInfo[] {
   const cwd = getRepoRoot();
-  const sinceArg = since ? `--since="${since}"` : '';
+  const args = ['log', '--format=%H|%s|%an|%aI', '--no-merges'];
+  if (since) args.push(`--since=${since}`);
+
   try {
-    const output = execSync(
-      `git log ${sinceArg} --format="%H|%s|%an|%aI" --no-merges`,
-      { cwd, encoding: 'utf-8', maxBuffer: 1024 * 1024 },
-    ).trim();
+    const output = execFileSync('git', args, {
+      cwd,
+      encoding: 'utf-8',
+      maxBuffer: 1024 * 1024,
+    }).trim();
 
     if (!output) return [];
 
     return output.split('\n').map((line) => {
-      const [sha, subject, author, date] = line.split('|');
+      // Split on first 3 pipes only — subject may contain pipes
+      const parts = line.split('|');
+      const sha = parts[0];
+      const date = parts[parts.length - 1];
+      const author = parts[parts.length - 2];
+      const subject = parts.slice(1, parts.length - 2).join('|');
       return { sha, subject, author, date };
     });
   } catch (err) {
@@ -148,14 +156,20 @@ function getRecentCommits(since?: string): CommitInfo[] {
 }
 
 function getCommitDiff(sha: string): string {
+  // Validate SHA is hex-only to prevent argument injection
+  if (!/^[0-9a-f]{7,40}$/i.test(sha)) {
+    logger.warn({ sha }, 'Invalid commit SHA format');
+    return '';
+  }
+
   const cwd = getRepoRoot();
   try {
-    const stat = execSync(`git show --stat ${sha}`, {
+    const stat = execFileSync('git', ['show', '--stat', sha], {
       cwd,
       encoding: 'utf-8',
       maxBuffer: 512 * 1024,
     });
-    const diff = execSync(`git show ${sha} --no-stat`, {
+    const diff = execFileSync('git', ['show', '--no-stat', sha], {
       cwd,
       encoding: 'utf-8',
       maxBuffer: 512 * 1024,

@@ -7,7 +7,7 @@
  *   3. Refreshes the last_refreshed_at timestamp
  */
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { QueueFactory } from './queue-factory.js';
@@ -36,7 +36,7 @@ interface SourceDescriptor {
 
 function getRepoRoot(): string {
   try {
-    return execSync('git rev-parse --show-toplevel', { encoding: 'utf-8' }).trim();
+    return execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf-8' }).trim();
   } catch {
     return process.cwd();
   }

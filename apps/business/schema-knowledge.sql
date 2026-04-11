@@ -151,6 +151,13 @@ CREATE TABLE IF NOT EXISTS page_index (
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Logical unique key: one topic per tenant (NULL tenant = platform-level)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_pi_tenant_topic') THEN
+    ALTER TABLE page_index ADD CONSTRAINT uq_pi_tenant_topic UNIQUE (tenant_id, topic);
+  END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_pi_tenant    ON page_index(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_pi_topic     ON page_index(topic);
 CREATE INDEX IF NOT EXISTS idx_pi_embedding ON page_index

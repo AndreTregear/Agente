@@ -21,12 +21,21 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   return result;
 }
 
+const MAX_BATCH_SIZE = 100;
+const MAX_TEXT_LENGTH = 8192;
+
 /**
  * Generate embedding vectors for multiple texts in a single batch call.
  * Returns arrays in the same order as the input.
  */
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return [];
+  if (texts.length > MAX_BATCH_SIZE) {
+    throw new Error(`Embedding batch size ${texts.length} exceeds limit ${MAX_BATCH_SIZE}`);
+  }
+
+  // Truncate overly long texts
+  texts = texts.map((t) => t.slice(0, MAX_TEXT_LENGTH));
 
   const url = `${AI_EMBEDDING_BASE_URL}/embeddings`;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
