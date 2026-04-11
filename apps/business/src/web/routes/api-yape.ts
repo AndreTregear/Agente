@@ -9,6 +9,8 @@ import { logger } from '../../shared/logger.js';
 import { validateBody, getTenantId, getDeviceId } from '../../shared/validate.js';
 import { deviceRegisterSchema, paymentSyncSchema, batchPaymentSyncSchema } from '../../shared/validation.js';
 import { encryptRecord } from '../../crypto/middleware.js';
+import { queryOne } from '../../db/pool.js';
+import * as orderService from '../../services/order-service.js';
 
 const router = Router();
 
@@ -81,6 +83,27 @@ router.post('/payments/sync/batch', requireDeviceAuth, validateBody(batchPayment
   }
 
   res.json({ results });
+});
+
+router.post('/webhook', async (req, res) => {
+  try {
+    const { type, data } = req.body;
+    if (type === 'payment_intent.succeeded' && data?.clientReferenceId) {
+      const orderIdMatch = data.clientReferenceId.match(/order_(\d+)/);
+      if (orderIdMatch) {
+        const orderId = parseInt(orderIdMatch[1], 10);
+        // Find tenantId for this order
+        const row = await queryOne<{ tenant_id: string }>('SELECT tenant_id FROM orders WHERE id = $1', [orderId]);
+        if (row) {
+          await orderService.markPaid(row.tenant_id, orderId, 0, `yaya_pay:${data.id}`);
+        }
+      }
+    }
+    res.json({ received: true });
+  } catch (err) {
+    logger.error({ err }, 'Webhook processing failed');
+    res.status(500).json({ error: 'Webhook processing failed' });
+  }
 });
 
 export { router as yapeRouter };

@@ -654,3 +654,27 @@ CREATE INDEX IF NOT EXISTS idx_tenants_referred_by ON tenants(referred_by);
 CREATE INDEX IF NOT EXISTS idx_orders_tenant_created ON orders(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_customers_tenant_created ON customers(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_customers_tenant_updated ON customers(tenant_id, updated_at DESC);
+
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS memory_nodes (
+    id SERIAL PRIMARY KEY,
+    tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    customer_jid TEXT NOT NULL,
+    fact TEXT NOT NULL,
+    embedding vector(1536), -- Assuming OpenAI/vLLM embeddings dimensions
+    confidence_score FLOAT DEFAULT 1.0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX ON memory_nodes USING hnsw (embedding vector_l2_ops);
+
+CREATE TABLE IF NOT EXISTS tenant_rules (
+    id SERIAL PRIMARY KEY,
+    tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    trigger_event VARCHAR(255) NOT NULL,
+    condition JSONB DEFAULT '{}',
+    action_type VARCHAR(50) NOT NULL,
+    action_payload JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+

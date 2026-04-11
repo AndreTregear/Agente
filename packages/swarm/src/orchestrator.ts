@@ -218,22 +218,33 @@ export function aggregateResults(
 ): SwarmResult {
   const totalTokens = results.reduce(
     (acc, r) => ({
-      input: acc.input + r.tokens.input,
-      output: acc.output + r.tokens.output,
+      input: acc.input + (r.tokens?.input ?? 0),
+      output: acc.output + (r.tokens?.output ?? 0),
     }),
     { input: 0, output: 0 },
   );
 
-  const totalLatency = Math.max(...results.map((r) => r.latencyMs));
-  const allToolCalls = results.flatMap((r) => r.toolCalls);
+  const totalLatency = Math.max(...results.map((r) => r.latencyMs ?? 0), 0);
+  const allToolCalls = results.flatMap((r) => r.toolCalls ?? []);
   const errors = results.filter((r) => r.error).map((r) => r.error!);
+  const allFailed = errors.length === results.length && results.length > 0;
 
   switch (aggregation) {
     case 'concat': {
-      const output = results
+      const successfulResults = results.filter((r) => !r.error);
+      let output = successfulResults
         .map((r) => r.output)
         .filter(Boolean)
         .join('\n\n---\n\n');
+
+      if (errors.length > 0 && !allFailed) {
+        const failureNotes = results
+          .filter((r) => r.error)
+          .map((r) => `Note: Agent ${r.agentId} failed with error: ${r.error}`)
+          .join('\n');
+        output += `\n\n---\n\nFailures during execution:\n${failureNotes}`;
+      }
+
       return {
         taskId: 'aggregate',
         agentId: 'aggregator',
@@ -241,7 +252,7 @@ export function aggregateResults(
         toolCalls: allToolCalls,
         tokens: totalTokens,
         latencyMs: totalLatency,
-        error: errors.length > 0 ? errors.join('; ') : undefined,
+        error: allFailed ? (errors.join('; ') || 'All sub-tasks failed') : undefined,
       };
     }
 
@@ -261,10 +272,10 @@ export function aggregateResults(
     }
 
     case 'vote': {
-      // Simple majority vote — pick the most common output
+      // Simple majority vote — pick the most common output from successful ones
       const counts = new Map<string, number>();
       for (const r of results) {
-        if (r.output) {
+        if (!r.error && r.output) {
           counts.set(r.output, (counts.get(r.output) ?? 0) + 1);
         }
       }
@@ -283,25 +294,33 @@ export function aggregateResults(
         toolCalls: allToolCalls,
         tokens: totalTokens,
         latencyMs: totalLatency,
-        error: errors.length > 0 ? errors.join('; ') : undefined,
+        error: allFailed ? (errors.join('; ') || 'All sub-tasks failed') : undefined,
       };
     }
 
     case 'synthesize': {
-      // Synthesize requires an LLM call — for now, fall back to concat
-      // with a header indicating synthesis is needed.
-      const output = [
+      const successfulResults = results.filter((r) => !r.error);
+      const outputParts = [
         '[Synthesized from multiple agent results]',
-        ...results.map((r, i) => `## Result ${i + 1} (${r.agentId})\n${r.output}`),
-      ].join('\n\n');
+        ...successfulResults.map((r, i) => `## Result ${i + 1} (${r.agentId})\n${r.output}`),
+      ];
+
+      if (errors.length > 0 && !allFailed) {
+        const failureNotes = results
+          .filter((r) => r.error)
+          .map((r) => `Note: Agent ${r.agentId} failed with error: ${r.error}`)
+          .join('\n');
+        outputParts.push(`### Failures during execution\n${failureNotes}`);
+      }
+
       return {
         taskId: 'aggregate',
         agentId: 'aggregator',
-        output,
+        output: outputParts.join('\n\n'),
         toolCalls: allToolCalls,
         tokens: totalTokens,
         latencyMs: totalLatency,
-        error: errors.length > 0 ? errors.join('; ') : undefined,
+        error: allFailed ? (errors.join('; ') || 'All sub-tasks failed') : undefined,
       };
     }
 

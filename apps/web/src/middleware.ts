@@ -15,11 +15,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Allow API routes (they handle their own auth or are proxied)
-  if (pathname.startsWith('/api/')) {
-    return NextResponse.next()
-  }
-
   // Allow static assets and Next.js internals
   if (
     pathname.startsWith('/_next') ||
@@ -35,6 +30,9 @@ export function middleware(request: NextRequest) {
     request.cookies.get('__Secure-better-auth.session_token')
 
   if (!sessionCookie?.value) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
     const loginUrl = new URL('/login', request.url)
     return NextResponse.redirect(loginUrl)
   }

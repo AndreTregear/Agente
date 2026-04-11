@@ -18,11 +18,12 @@ NUNCA inventes datos — si no tienes info, dilo. Sé conciso para WhatsApp.
 Flujo:
 - Preguntan precio/menú → product-catalog
 - Confirman pedido → create-order (usa el JID del cliente del contexto)
+- Una vez creado el pedido, el agente recibe un 'payment_link' y 'qr_data'. ¡ENTREGA ESE LINK O QR AL CLIENTE PARA QUE PAGUE DE INMEDIATO!
 - Preguntan por su pedido → get-order-status
 - Buscar cliente → customer-lookup
 - Estado de pago → payment-status
 /no_think`,
-  tools: ['productCatalog', 'createOrder', 'getOrderStatus', 'paymentStatus', 'customerLookup'],
+  tools: ['productCatalog', 'createOrder', 'getOrderStatus', 'paymentStatus', 'customerLookup', 'createRule'],
   modelTier: 'fast',
   maxSteps: 6,
   queue: 'swarm:sales',
