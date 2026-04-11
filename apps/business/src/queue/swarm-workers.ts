@@ -25,7 +25,7 @@ import {
 import { Agent } from '@mastra/core/agent';
 import { SWARM_QUEUES } from '../ai/specialists/index.js';
 import { getModel, ensureHealthy, recordLatency, type RouteTarget } from '../ai/model-router.js';
-import { allBusinessTools, setTenantId } from '../ai/agents.js';
+import { allBusinessTools, runWithTenant } from '../ai/agents.js';
 import { executeToolsParallel, type ToolExecutor } from '../ai/parallel-tools.js';
 import { logger } from '../shared/logger.js';
 
@@ -126,9 +126,7 @@ async function processTask(task: SwarmTask): Promise<SwarmResult> {
   }
 
   try {
-    // Set tenant context for DB-scoped tools
-    setTenantId(task.context.tenantId);
-
+    return await runWithTenant(task.context.tenantId, async () => {
     // Resolve backend (fast -> local, powerful -> hpc)
     const backend = await resolveBackend(spec);
     const model = getModel(backend);
@@ -189,6 +187,7 @@ async function processTask(task: SwarmTask): Promise<SwarmResult> {
       },
       latencyMs,
     };
+    }); // end runWithTenant
   } catch (err) {
     const latencyMs = Date.now() - startTime;
     const error = err instanceof Error ? err.message : String(err);

@@ -185,9 +185,9 @@ export const confirmYapePayment = createTool({
   },
 });
 
-// Tenant context — set per-request
-let _currentTenantId = '';
-export function setCurrentTenantId(id: string) { _currentTenantId = id; }
-function getCurrentTenantId() { return _currentTenantId; }
+// Tenant context — delegates to the shared AsyncLocalStorage in agents.ts
+import { getTenantId } from '../agents.js';
+export function setCurrentTenantId(_id: string) { /* no-op: now handled by AsyncLocalStorage in agents.ts */ }
+function getCurrentTenantId() { return getTenantId(); }
 
 export const yapeTools = { checkYapePayment, confirmYapePayment };

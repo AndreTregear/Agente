@@ -9,7 +9,7 @@
  */
 
 import { Router, type Request, type Response } from 'express';
-import { directAgent, setTenantId } from '../../ai/agents.js';
+import { directAgent, setTenantId, runWithTenant } from '../../ai/agents.js';
 import {
   getAllTasks,
   getTask,

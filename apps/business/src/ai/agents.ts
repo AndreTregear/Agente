@@ -17,7 +17,7 @@ import { getEffectiveSetting } from '../db/settings-repo.js';
 import { query as dbQuery, queryOne as dbQueryOne, transaction as dbTransaction } from '../db/pool.js';
 import { escapeLike } from '../db/knowledge-repo.js';
 import { logger } from '../shared/logger.js';
-import { checkYapePayment, confirmYapePayment, setCurrentTenantId as setYapeTenantId } from './tools/yape-tools.js';
+import { checkYapePayment, confirmYapePayment } from './tools/yape-tools.js';
 import { knowledgeSearch, pageIndexLookup, knowledgeGraphQuery, knowledgeAnnotate } from './tools/knowledge-tools.js';
 import { getModel, backends } from './model-router.js';
 
@@ -29,19 +29,34 @@ export const localModel = getModel('local');
 /** HPC model (122B) — accurate, good for complex/agentic tasks. */
 export const hpcModel = getModel('hpc');
 
-// ── Tenant Context ──
-// Mutable tenant ID — set per-request before calling the agent.
-// For CEO/dashboard use, defaults to DEFAULT_TENANT_ID env var.
+// ── Tenant Context (AsyncLocalStorage — request-scoped, no race conditions) ──
 
-let _currentTenantId = '';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
+const tenantStorage = new AsyncLocalStorage<string>();
+
+/**
+ * Run a callback with a tenant ID scoped to the async context.
+ * All getTenantId() calls within the callback (and its awaited children)
+ * will return this tenant ID, regardless of concurrent requests.
+ */
+export function runWithTenant<T>(tenantId: string, fn: () => T | Promise<T>): T | Promise<T> {
+  return tenantStorage.run(tenantId, fn);
+}
+
+/**
+ * @deprecated Use runWithTenant() instead. This is kept for backward compatibility
+ * but now delegates to AsyncLocalStorage. Call sites should migrate to runWithTenant().
+ */
 export function setTenantId(id: string): void {
-  _currentTenantId = id;
-  setYapeTenantId(id); // sync Yape tools context
+  // Legacy: enter a new async context. Only works if the caller awaits all
+  // work inside the same synchronous call frame. New code should use runWithTenant.
+  tenantStorage.enterWith(id);
+  // Yape tools now read from the same AsyncLocalStorage via getTenantId()
 }
 
 export function getTenantId(): string {
-  return _currentTenantId || process.env.DEFAULT_TENANT_ID || '';
+  return tenantStorage.getStore() || process.env.DEFAULT_TENANT_ID || '';
 }
 
 // ── Business Tools ──

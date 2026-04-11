@@ -9,7 +9,7 @@
  * Uses shared agents from ./agents.ts (same agents used by the Express API).
  */
 
-import { whatsappAgent, whatsappAgentHpc, directAgent, directAgentHpc, setTenantId } from './agents.js';
+import { whatsappAgent, whatsappAgentHpc, directAgent, directAgentHpc, runWithTenant } from './agents.js';
 import { classifyRoute, ensureHealthy, recordLatency, type RouteTarget } from './model-router.js';
 import { logger } from '../shared/logger.js';
 
@@ -39,10 +39,8 @@ export async function processWithOpenClaw(
 ): Promise<OpenClawBridgeResult> {
   const startTime = Date.now();
 
-  try {
-    // Set tenant context for tools
-    setTenantId(tenantId);
-
+  return runWithTenant(tenantId, async () => {
+    try {
     // Build context
     const bizCtx = await businessContextRepo.getBusinessContext(tenantId).catch(() => null);
     const tenant = await tenantsRepo.getTenantById(tenantId).catch(() => null);
@@ -140,6 +138,7 @@ export async function processWithOpenClaw(
     try { await onChunk(fallback); } catch { /* best effort */ }
     return { reply: fallback, imagesToSend: [] };
   }
+  }) as Promise<OpenClawBridgeResult>;
 }
 
 /**
@@ -153,9 +152,8 @@ export async function processOwnerWithOpenClaw(
 ): Promise<{ reply: string; routedTo?: RouteTarget }> {
   const startTime = Date.now();
 
+  return runWithTenant(tenantId, async () => {
   try {
-    setTenantId(tenantId);
-
     const tenant = await tenantsRepo.getTenantById(tenantId).catch(() => null);
 
     // Load recent owner conversation for context continuity (last 4 messages)
@@ -214,6 +212,7 @@ export async function processOwnerWithOpenClaw(
     logger.error({ err, tenantId, jid, durationMs: Date.now() - startTime }, 'Mastra owner agent failed');
     return { reply: 'Lo siento, tuve un problema. ¿Podrías repetirme?' };
   }
+  }) as Promise<{ reply: string; routedTo?: RouteTarget }>;
 }
 
 /**
