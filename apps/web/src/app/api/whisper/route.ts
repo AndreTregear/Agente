@@ -1,3 +1,4 @@
+import { withActiveSubscription } from "@/lib/billing/entitlement";
 import { NextRequest } from 'next/server'
 
 const WHISPER_URL = process.env.WHISPER_BASE_URL
@@ -5,7 +6,7 @@ const WHISPER_URL = process.env.WHISPER_BASE_URL
   : 'http://localhost:9300/v1/audio/transcriptions'
 const WHISPER_KEY = process.env.WHISPER_API_KEY || ''
 
-export async function POST(req: NextRequest) {
+async function postImpl(req: NextRequest) {
   try {
     const formData = await req.formData()
 
@@ -34,3 +35,5 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
+export const POST = withActiveSubscription(postImpl);

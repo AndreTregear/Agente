@@ -1,3 +1,4 @@
+import { withActiveSubscription } from "@/lib/billing/entitlement";
 /**
  * Voice Mode API
  *
@@ -54,7 +55,7 @@ interface ConversationMessage {
   tool_call_id?: string;
 }
 
-export async function POST(req: NextRequest) {
+async function postImpl(req: NextRequest) {
   const totalStart = Date.now();
 
   try {
@@ -204,3 +205,5 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: `Voice error: ${error}` }, { status: 500 });
   }
 }
+
+export const POST = withActiveSubscription(postImpl);

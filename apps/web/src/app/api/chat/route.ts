@@ -1,10 +1,11 @@
+import { withActiveSubscription } from "@/lib/billing/entitlement";
 import { NextRequest } from 'next/server'
 import { spawn } from 'child_process'
 
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || 'openclaw'
 const DEFAULT_AGENT = process.env.OPENCLAW_AGENT || 'yaya-platform'
 
-export async function POST(req: NextRequest) {
+async function postImpl(req: NextRequest) {
   try {
     const body = await req.json()
     const { messages } = body
@@ -141,3 +142,5 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
+export const POST = withActiveSubscription(postImpl);

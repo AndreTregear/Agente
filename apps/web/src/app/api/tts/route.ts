@@ -1,10 +1,11 @@
+import { withActiveSubscription } from "@/lib/billing/entitlement";
 import { NextRequest } from 'next/server'
 
 const TTS_URL = process.env.TTS_BASE_URL
   ? `${process.env.TTS_BASE_URL}/v1/audio/speech`
   : 'http://localhost:9400/v1/audio/speech'
 
-export async function POST(req: NextRequest) {
+async function postImpl(req: NextRequest) {
   try {
     const body = await req.json()
 
@@ -43,3 +44,5 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
+export const POST = withActiveSubscription(postImpl);

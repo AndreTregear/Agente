@@ -1,3 +1,4 @@
+import { withActiveSubscription } from "@/lib/billing/entitlement";
 /**
  * Streaming Voice API — overlaps LLM and TTS for minimum latency.
  *
@@ -43,7 +44,7 @@ function buildSystemPrompt(): string {
   return `Asistente de voz del CEO. Respuestas cortas en español, 1-2 oraciones. Usa herramientas para datos de negocio. No inventes números. Sin markdown. /no_think${ctx}`;
 }
 
-export async function POST(req: NextRequest) {
+async function postImpl(req: NextRequest) {
   const totalStart = Date.now();
   const encoder = new TextEncoder();
 
@@ -244,3 +245,5 @@ async function synthesize(text: string): Promise<string> {
   } catch { /* TTS failed */ }
   return '';
 }
+
+export const POST = withActiveSubscription(postImpl);

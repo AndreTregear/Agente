@@ -1,3 +1,4 @@
+import { withActiveSubscription } from "@/lib/billing/entitlement";
 /**
  * Voice Events SSE — pushes task completions to the client in real-time.
  *
@@ -19,7 +20,7 @@ const TTS_URL = process.env.TTS_BASE_URL
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+async function getImpl() {
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -156,3 +157,5 @@ async function summarizeAndSpeak(
 
   return { summary, audio: audioBase64 };
 }
+
+export const GET = withActiveSubscription(getImpl);
