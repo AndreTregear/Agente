@@ -31,3 +31,17 @@ export async function signOut() {
     credentials: 'include',
   })
 }
+
+export async function signUp(name: string, email: string, password: string) {
+  const res = await fetch('/api/auth/sign-up/email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ name, email, password }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data?.message || 'Registration failed')
+  }
+  return res.json()
+}
