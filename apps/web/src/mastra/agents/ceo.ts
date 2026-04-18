@@ -1,15 +1,29 @@
 /**
- * CEO Supervisor Agent
+ * CEO Supervisor Agent — v2 (full business platform)
  *
- * Coordinates all worker agents. This is the main agent that users interact with.
- * For voice mode: use directAgent (no sub-agents, minimum latency).
- * For chat/tasks: use supervisorAgent (delegates to workers).
+ * Now coordinates 7 workers across the full stack:
+ * - metricsAgent: ventas, ingresos, pedidos, pagos
+ * - schedulingAgent: citas, agenda, calendario
+ * - messagingAgent: WhatsApp a clientes
+ * - researchAgent: analisis de negocio
+ * - emailAgent: bandeja de entrada, busqueda, lectura
+ * - calendarAgent: eventos, reuniones, disponibilidad
+ * - meetingAgent: transcripciones, puntos de accion
  */
 
 import { Agent } from '@mastra/core/agent';
 import { localModel } from '../llm';
 import { allBusinessTools } from '../tools/business';
-import { metricsAgent, schedulingAgent, messagingAgent, researchAgent } from './workers';
+import { allPlatformTools } from '../tools/platform';
+import {
+  metricsAgent,
+  schedulingAgent,
+  messagingAgent,
+  researchAgent,
+  emailAgent,
+  calendarAgent,
+  meetingAgent,
+} from './workers';
 
 /**
  * Direct agent — all tools on one agent, no delegation overhead.
@@ -18,9 +32,9 @@ import { metricsAgent, schedulingAgent, messagingAgent, researchAgent } from './
 export const directAgent = new Agent({
   id: 'ceo-direct',
   name: 'CEO Direct',
-  instructions: 'Asistente de voz del CEO. Respuestas cortas en español. Usa herramientas para datos de negocio. No inventes números. /no_think',
+  instructions: 'Asistente de voz del CEO. Respuestas cortas en espanol. Usa herramientas para datos de negocio, correo, calendario y reuniones. No inventes datos. /no_think',
   model: localModel,
-  tools: allBusinessTools,
+  tools: { ...allBusinessTools, ...allPlatformTools },
 });
 
 /**
@@ -30,14 +44,29 @@ export const directAgent = new Agent({
 export const supervisorAgent = new Agent({
   id: 'ceo-supervisor',
   name: 'CEO Supervisor',
-  instructions: `Eres el asistente ejecutivo del CEO para la plataforma Yaya. Coordinas agentes especializados:
-- metricsAgent: datos de ventas, ingresos, pedidos, pagos
-- schedulingAgent: citas y agenda del día
-- messagingAgent: enviar mensajes de WhatsApp a clientes
-- researchAgent: análisis de negocio, tendencias, investigación
+  instructions: `Eres el asistente ejecutivo del CEO para la plataforma agente.ceo. Coordinas agentes especializados:
 
-Delega al agente correcto según la solicitud. Combina resultados en respuestas claras.
-Siempre en español latinoamericano. Sé directo y útil. /no_think`,
+**Negocio:**
+- metricsAgent: datos de ventas, ingresos, pedidos, pagos
+- schedulingAgent: citas y agenda del dia
+- messagingAgent: enviar mensajes de WhatsApp a clientes
+- researchAgent: analisis de negocio, tendencias, investigacion
+
+**Plataforma:**
+- emailAgent: leer correo, buscar emails, resumir conversaciones
+- calendarAgent: eventos del calendario, agendar reuniones, videollamadas Jitsi
+- meetingAgent: transcripciones de reuniones, puntos de accion, decisiones
+
+Delega al agente correcto segun la solicitud. Combina resultados en respuestas claras.
+Siempre en espanol latinoamericano. Se directo y util. /no_think`,
   model: localModel,
-  agents: { metricsAgent, schedulingAgent, messagingAgent, researchAgent },
+  agents: {
+    metricsAgent,
+    schedulingAgent,
+    messagingAgent,
+    researchAgent,
+    emailAgent,
+    calendarAgent,
+    meetingAgent,
+  },
 });

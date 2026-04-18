@@ -1,0 +1,231 @@
+# agente.ceo — Self-hosted business platform services
+#
+# This compose file adds the services that replace SaaS:
+#   - Mailu (email: replaces Gmail/Outlook)
+#   - Cal.com (scheduling: replaces Calendly/Google Calendar)
+#   - Jitsi Meet (video: replaces Zoom)
+#   - Plausible (analytics: replaces Mixpanel/GA)
+#
+# Run alongside the main app: docker compose -f docker-compose.services.yml up -d
+#
+# The main app (agente-ceo) runs via pm2, not Docker.
+# These services are accessed by the app via localhost ports.
+
+services:
+  # ── Email (Mailu) ────────────────────────────────────────────────────
+  # Full mail server with IMAP, SMTP, webmail, admin API
+  # Replaces: Gmail, Outlook, ProtonMail
+  mailu-front:
+    image: ghcr.io/mailu/nginx:2024.06.49
+    restart: unless-stopped
+    env_file: .env.mailu
+    ports:
+      - "127.0.0.1:8080:80"      # Webmail + Admin UI
+      - "25:25"                    # SMTP
+      - "465:465"                  # SMTPS
+      - "587:587"                  # Submission
+      - "993:993"                  # IMAPS
+    volumes:
+      - mailu-certs:/certs
+      - mailu-overrides:/overrides:ro
+    depends_on:
+      - mailu-redis
+    networks:
+      - mailu
+
+  mailu-admin:
+    image: ghcr.io/mailu/admin:2024.06.49
+    restart: unless-stopped
+    env_file: .env.mailu
+    depends_on:
+      - mailu-redis
+    volumes:
+      - mailu-data:/data
+      - mailu-dkim:/dkim
+    networks:
+      - mailu
+
+  mailu-imap:
+    image: ghcr.io/mailu/dovecot:2024.06.49
+    restart: unless-stopped
+    env_file: .env.mailu
+    volumes:
+      - mailu-mail:/mail
+    depends_on:
+      - mailu-front
+    networks:
+      - mailu
+
+  mailu-smtp:
+    image: ghcr.io/mailu/postfix:2024.06.49
+    restart: unless-stopped
+    env_file: .env.mailu
+    depends_on:
+      - mailu-front
+    networks:
+      - mailu
+
+  mailu-antispam:
+    image: ghcr.io/mailu/rspamd:2024.06.49
+    restart: unless-stopped
+    env_file: .env.mailu
+    volumes:
+      - mailu-filter:/var/lib/rspamd
+    depends_on:
+      - mailu-front
+    networks:
+      - mailu
+
+  mailu-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - mailu-redis-data:/data
+    networks:
+      - mailu
+
+  mailu-webmail:
+    image: ghcr.io/mailu/webmail:2024.06.49
+    restart: unless-stopped
+    env_file: .env.mailu
+    networks:
+      - mailu
+
+  # ── Calendar (Cal.com) ───────────────────────────────────────────────
+  # Open source scheduling platform
+  # Replaces: Calendly, Google Calendar, Acuity
+  calcom:
+    image: calcom/cal.com:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3006:3000"
+    environment:
+      - DATABASE_URL=postgresql://yaya_prod:yaya_s3cur3_db_2024!@host.docker.internal:5432/calcom
+      - NEXTAUTH_SECRET=${CALCOM_NEXTAUTH_SECRET}
+      - CALENDSO_ENCRYPTION_KEY=${CALCOM_ENCRYPTION_KEY}
+      - NEXT_PUBLIC_WEBAPP_URL=https://cal.agente.ceo
+      - NEXT_PUBLIC_API_V2_URL=https://cal.agente.ceo/api/v2
+    depends_on:
+      - calcom-db
+
+  calcom-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: calcom
+      POSTGRES_PASSWORD: calcom
+      POSTGRES_DB: calcom
+    volumes:
+      - calcom-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+
+  # ── Video Meetings (Jitsi Meet) ──────────────────────────────────────
+  # Open source video conferencing
+  # Replaces: Zoom, Google Meet, Teams
+  jitsi-web:
+    image: jitsi/web:stable
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8443:443"
+    environment:
+      - ENABLE_AUTH=1
+      - AUTH_TYPE=jwt
+      - JWT_APP_ID=${JITSI_APP_ID:-agente-ceo}
+      - JWT_APP_SECRET=${JITSI_APP_SECRET}
+      - ENABLE_RECORDING=1
+      - ENABLE_TRANSCRIPTIONS=0
+      - PUBLIC_URL=https://meet.agente.ceo
+    volumes:
+      - jitsi-web-config:/config
+      - jitsi-transcripts:/usr/share/jitsi-meet/transcripts
+    networks:
+      - jitsi
+
+  jitsi-prosody:
+    image: jitsi/prosody:stable
+    restart: unless-stopped
+    environment:
+      - AUTH_TYPE=jwt
+      - JWT_APP_ID=${JITSI_APP_ID:-agente-ceo}
+      - JWT_APP_SECRET=${JITSI_APP_SECRET}
+    volumes:
+      - jitsi-prosody-config:/config
+    networks:
+      - jitsi
+
+  jitsi-jicofo:
+    image: jitsi/jicofo:stable
+    restart: unless-stopped
+    depends_on:
+      - jitsi-prosody
+    volumes:
+      - jitsi-jicofo-config:/config
+    networks:
+      - jitsi
+
+  jitsi-jvb:
+    image: jitsi/jvb:stable
+    restart: unless-stopped
+    ports:
+      - "10000:10000/udp"
+      - "127.0.0.1:8180:8080"
+    depends_on:
+      - jitsi-prosody
+    volumes:
+      - jitsi-jvb-config:/config
+    networks:
+      - jitsi
+
+  # ── Analytics (Plausible) ────────────────────────────────────────────
+  # Privacy-friendly analytics
+  # Replaces: Google Analytics, Mixpanel, Amplitude
+  plausible:
+    image: ghcr.io/plausible/community-edition:v2
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - DATABASE_URL=postgres://plausible:plausible@plausible-db:5432/plausible
+      - BASE_URL=https://analytics.agente.ceo
+      - SECRET_KEY_BASE=${PLAUSIBLE_SECRET}
+    depends_on:
+      - plausible-db
+      - plausible-events
+
+  plausible-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: plausible
+      POSTGRES_PASSWORD: plausible
+      POSTGRES_DB: plausible
+    volumes:
+      - plausible-data:/var/lib/postgresql/data
+
+  plausible-events:
+    image: clickhouse/clickhouse-server:24-alpine
+    restart: unless-stopped
+    volumes:
+      - plausible-events-data:/var/lib/clickhouse
+
+networks:
+  mailu:
+  jitsi:
+
+volumes:
+  mailu-certs:
+  mailu-overrides:
+  mailu-data:
+  mailu-dkim:
+  mailu-mail:
+  mailu-filter:
+  mailu-redis-data:
+  calcom-data:
+  jitsi-web-config:
+  jitsi-transcripts:
+  jitsi-prosody-config:
+  jitsi-jicofo-config:
+  jitsi-jvb-config:
+  plausible-data:
+  plausible-events-data:
